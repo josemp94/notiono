@@ -69,6 +69,10 @@ export function Database({
 
   const rename = trpc.pages.rename.useMutation({ onSuccess: () => utils.pages.tree.invalidate() });
   const setCoverM = trpc.pages.setCover.useMutation();
+  // Reordenar las pestañas de vista arrastrándolas: la primera es la vista por defecto.
+  const moveView = trpc.db.moveView.useMutation({ onSuccess: () => utils.db.get.invalidate({ pageId }) });
+  const [dragTab, setDragTab] = useState<string | null>(null);
+  const [dropTab, setDropTab] = useState<{ id: string; pos: "before" | "after" } | null>(null);
 
   function persist(nextTitle: string, nextIcon: string | null) {
     rename.mutate({ id: pageId, title: nextTitle, icon: nextIcon });
@@ -189,11 +193,43 @@ export function Database({
                 onViewChange?.(v.id);
                 abrirMenuVista(e);
               }}
-              title={canEdit ? `${v.name} · púlsala otra vez para sus opciones` : v.name}
+              draggable={canEdit}
+              onDragStart={(e) => {
+                setDragTab(v.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragEnd={() => {
+                setDragTab(null);
+                setDropTab(null);
+              }}
+              onDragOver={(e) => {
+                if (!dragTab || dragTab === v.id) return;
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDropTab({ id: v.id, pos: e.clientX - rect.left < rect.width / 2 ? "before" : "after" });
+              }}
+              onDragLeave={() => setDropTab((d) => (d?.id === v.id ? null : d))}
+              onDrop={(e) => {
+                e.preventDefault();
+                const target = dropTab;
+                setDropTab(null);
+                if (!dragTab || !target || dragTab === target.id) return;
+                moveView.mutate(
+                  target.pos === "before" ? { id: dragTab, beforeId: target.id } : { id: dragTab, afterId: target.id },
+                );
+                setDragTab(null);
+              }}
+              title={canEdit ? `${v.name} · púlsala otra vez para sus opciones · arrastra para reordenar` : v.name}
               className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-sm ${
                 active?.id === v.id
                   ? "border-b-2 border-brand font-medium text-[var(--foreground)]"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              } ${
+                dropTab?.id === v.id
+                  ? dropTab.pos === "before"
+                    ? "border-l-2 border-l-brand"
+                    : "border-r-2 border-r-brand"
+                  : ""
               }`}
             >
               <ViewIcon type={v.type} />

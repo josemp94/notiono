@@ -201,7 +201,7 @@ export const dbRouter = router({
             });
             fieldIds.push(f.id);
           }
-          await tx.view.create({ data: { collectionId: collection.id, name: "Tabla", type: "table", config: {} } });
+          await tx.view.create({ data: { collectionId: collection.id, name: "Tabla", type: "table", config: {}, order: rankAtEnd(null) } });
           let rOrd: string | null = null;
           const records = input.rows.map((row, i) => {
             rOrd = rankAtEnd(rOrd);
@@ -284,7 +284,7 @@ export const dbRouter = router({
         where: { pageId: input.pageId },
         include: {
           fields: { orderBy: { order: "asc" } },
-          views: { orderBy: { id: "asc" } },
+          views: { orderBy: { order: "asc" } },
           records: { where: { archivedAt: null }, orderBy: { order: "asc" } },
         },
       });
@@ -746,15 +746,30 @@ export const dbRouter = router({
       });
       if (!v) throw new TRPCError({ code: "NOT_FOUND" });
       await exigeVista(ctx, input.id);
+      // La copia cae justo a la derecha de la original.
+      const next = await ctx.db.view.findFirst({
+        where: { collectionId: v.collectionId, order: { gt: v.order } },
+        orderBy: { order: "asc" },
+        select: { order: true },
+      });
       return ctx.db.view.create({
         data: {
           collectionId: v.collectionId,
           name: `${v.name} (copia)`,
           type: v.type,
           config: (v.config ?? {}) as Prisma.InputJsonValue,
+          order: rankBetween(v.order, next?.order ?? null),
         },
         select: { id: true },
       });
+    }),
+
+  /** Reordena una pestaña de vista (la primera es la vista por defecto). */
+  moveView: workspaceProcedure
+    .input(z.object({ id: z.string(), beforeId: z.string().optional(), afterId: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await exigeVista(ctx, input.id);
+      return conTRPC(dbService.moveView(scopeOf(ctx), input));
     }),
 
   deleteView: workspaceProcedure

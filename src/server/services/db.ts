@@ -195,7 +195,9 @@ export async function createDatabase(
 
   const vistas: NuevaVista[] = input.views?.length ? input.views : [{ type: "table" }];
   const views = [];
+  let ordenVista: string | null = null;
   for (const v of vistas) {
+    ordenVista = rankAtEnd(ordenVista);
     views.push(
       await scope.db.view.create({
         data: {
@@ -203,6 +205,7 @@ export async function createDatabase(
           name: v.name?.trim() || NOMBRES_VISTA[v.type],
           type: v.type,
           config: defaultViewConfig(v.type, fields),
+          order: ordenVista,
         },
       }),
     );
@@ -443,14 +446,45 @@ export async function addView(
     where: { collectionId: input.collectionId },
     orderBy: { order: "asc" },
   });
+  const last = await scope.db.view.findFirst({
+    where: { collectionId: input.collectionId },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
   return scope.db.view.create({
     data: {
       collectionId: input.collectionId,
       name: input.name?.trim() || NOMBRES_VISTA[input.type],
       type: input.type,
       config: defaultViewConfig(input.type, fields),
+      order: rankAtEnd(last?.order ?? null),
     },
   });
+}
+
+/** Reordena una pestaña de vista (la primera pestaña es la vista por defecto). */
+export async function moveView(scope: Scope, input: { id: string; beforeId?: string; afterId?: string }) {
+  const view = await assertView(scope, input.id);
+  const siblings = await scope.db.view.findMany({
+    where: { collectionId: view.collectionId, id: { not: view.id } },
+    select: { id: true, order: true },
+    orderBy: { order: "asc" },
+  });
+  const anchorId = input.beforeId ?? input.afterId;
+  const at = anchorId ? siblings.findIndex((s) => s.id === anchorId) : -1;
+  let a: string | null = siblings.at(-1)?.order ?? null; // por defecto, al final
+  let b: string | null = null;
+  if (at !== -1) {
+    if (input.beforeId) {
+      a = siblings[at - 1]?.order ?? null;
+      b = siblings[at].order;
+    } else {
+      a = siblings[at].order;
+      b = siblings[at + 1]?.order ?? null;
+    }
+  }
+  await scope.db.view.update({ where: { id: view.id }, data: { order: rankBetween(a, b) } });
+  return { ok: true as const };
 }
 
 export async function renameView(scope: Scope, input: { id: string; name: string }) {

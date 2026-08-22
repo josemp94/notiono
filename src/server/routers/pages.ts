@@ -227,6 +227,7 @@ export const pagesRouter = router({
           });
           idByName.set(f.name, created.id);
         }
+        let vOrd: string | null = null;
         for (const v of tpl.views) {
           const config: Record<string, unknown> = {};
           if (v.groupByField) config.groupByFieldId = idByName.get(v.groupByField) ?? null;
@@ -238,8 +239,9 @@ export const pagesRouter = router({
               }),
             );
           }
+          vOrd = rankAtEnd(vOrd);
           await tx.view.create({
-            data: { collectionId: col.id, name: v.name, type: v.type, config: config as Prisma.InputJsonValue },
+            data: { collectionId: col.id, name: v.name, type: v.type, config: config as Prisma.InputJsonValue, order: vOrd },
           });
         }
         let rOrd: string | null = null;
@@ -710,7 +712,7 @@ async function copyPage(
       collection: {
         include: {
           fields: { orderBy: { order: "asc" } },
-          views: { orderBy: { id: "asc" } },
+          views: { orderBy: { order: "asc" } },
           records: { orderBy: { order: "asc" } },
         },
       },
@@ -759,7 +761,8 @@ async function copyPage(
     // Vistas: se crean al final, con el mapa completo (campos y registros ya remapeables).
     for (const v of src.collection.views) {
       await tx.view.create({
-        data: { collectionId: col.id, name: v.name, type: v.type, config: remapIds(v.config, map) as Prisma.InputJsonValue },
+        // El orden se copia tal cual: son claves únicas dentro de la colección nueva.
+        data: { collectionId: col.id, name: v.name, type: v.type, config: remapIds(v.config, map) as Prisma.InputJsonValue, order: v.order },
       });
     }
     // Segunda pasada: configs de campo (relación/rollup a la propia colección) y celdas con relaciones internas.

@@ -193,6 +193,7 @@ model View {
   name         String
   type         String // table | kanban | calendar | gallery | list
   config       Json       @default("{}") // filtros, orden, agrupación, columnas
+  order        String // índice fraccional: el orden de las pestañas (la primera es la vista por defecto)
 }
 
 model Chart {
