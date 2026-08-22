@@ -275,6 +275,7 @@ export function Database({
           cardPreview={asAny(active.config)?.cardPreview}
           openIn={openIn}
           openFull={openFull}
+          canReorder={!asAny(active.config)?.sorts?.length}
         />
       ) : active?.type === "chart" ? (
         <ChartView pageId={pageId} view={active} fields={fields} />

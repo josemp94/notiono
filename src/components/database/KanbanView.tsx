@@ -24,6 +24,7 @@ export function KanbanView({
   cardPreview,
   openIn = "side",
   openFull,
+  canReorder = false,
 }: {
   pageId: string;
   collectionId: string;
@@ -35,13 +36,18 @@ export function KanbanView({
   /** Cómo abrir la ficha (lateral/centrado/página completa). */
   openIn?: "side" | "center" | "full";
   openFull?: (recId: string) => void;
+  /** Reordenar tarjetas dentro de la columna (solo sin orden activo en la vista). */
+  canReorder?: boolean;
 }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.db.get.invalidate({ pageId });
   const updateCell = trpc.db.updateCell.useMutation({ onSuccess: invalidate });
   const addRecord = trpc.db.addRecord.useMutation({ onSuccess: invalidate });
   const updateField = trpc.db.updateField.useMutation({ onSuccess: invalidate });
+  const moveRecord = trpc.db.moveRecord.useMutation({ onSuccess: invalidate });
   const [dragId, setDragId] = useState<string | null>(null);
+  // Soltar sobre una tarjeta coloca la arrastrada encima/debajo (orden manual).
+  const [dropCard, setDropCard] = useState<{ id: string; pos: "before" | "after" } | null>(null);
   // El clic abre la ficha; el drag es HTML5 nativo y no dispara click tras arrastrar.
   const [openRec, setOpenRec] = useState<Rec | null>(null);
   const abrir = (r: Rec) => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r));
@@ -156,8 +162,42 @@ export function KanbanView({
                     key={r.id}
                     draggable
                     onDragStart={() => setDragId(r.id)}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setDropCard(null);
+                    }}
+                    onDragOver={(e) => {
+                      if (!canReorder || !dragId || dragId === r.id) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setDropCard({ id: r.id, pos: e.clientY - rect.top < rect.height / 2 ? "before" : "after" });
+                    }}
+                    onDragLeave={() => setDropCard((d) => (d?.id === r.id ? null : d))}
+                    onDrop={(e) => {
+                      if (!canReorder || !dragId) return;
+                      e.preventDefault();
+                      e.stopPropagation(); // que no caiga también en el drop de la columna
+                      const target = dropCard;
+                      setDropCard(null);
+                      if (!target || dragId === target.id) return;
+                      const dragged = records.find((x) => x.id === dragId);
+                      if (dragged && columnOf(dragged) !== col.id) {
+                        updateCell.mutate({ recordId: dragId, fieldId: groupField!.id, value: valueForColumn(col.id) });
+                      }
+                      moveRecord.mutate(
+                        target.pos === "before" ? { id: dragId, beforeId: target.id } : { id: dragId, afterId: target.id },
+                      );
+                      setDragId(null);
+                    }}
                     onClick={() => abrir(r)}
-                    className={`cursor-grab rounded-md border border-[var(--border)] bg-[var(--background)] ${size.card} shadow-sm hover:bg-[var(--hover)] active:cursor-grabbing`}
+                    className={`cursor-grab rounded-md border border-[var(--border)] bg-[var(--background)] ${size.card} shadow-sm hover:bg-[var(--hover)] active:cursor-grabbing ${
+                      dropCard?.id === r.id
+                        ? dropCard.pos === "before"
+                          ? "border-t-2 border-t-brand"
+                          : "border-b-2 border-b-brand"
+                        : ""
+                    }`}
                   >
                     {cardTitle(r)}
                     {preview && (
