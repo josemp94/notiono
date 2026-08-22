@@ -51,6 +51,11 @@
 > (nombre editable, ordenar asc/desc, filtrar —abre el popover de la barra vía `FILTER_MENU_EVENT`—, ocultar,
 > ajustar texto, duplicar propiedad con valores, insertar izquierda/derecha) y **reordenar columnas arrastrando**
 > (`moveField`; `Field.order` ya era fraccional: sin migración). La REST gana `afterFieldId` en POST fields.
+> **Undécima tanda 22-ago-2026:** **comentarios de fila** (`Comment.recordId` con migración; hilo `CommentThread`
+> compartido con el panel de página, avisos y push a `?r=`), **reordenar tarjetas dentro de una columna del Kanban**
+> (`moveRecord`, solo sin orden activo), **reordenar las pestañas de vista arrastrando** (`View.order` fraccional con
+> backfill; la primera pestaña es la vista por defecto; duplicar vista cae a la derecha) y **descripción de
+> propiedad** (`Field.config.description`, ℹ + tooltip en cabecera y ficha).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -148,7 +153,7 @@ columnas interactivas, synced block y ecuaciones.
 | Lugar (mapa) | Dirección + mapa + vista Mapa | ❌ | No existe | P2 | L |
 | Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ❌ | Celdas = string plano (`Cell.tsx:144-176`) | P2 | L |
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
-| Descripción de propiedad (ℹ) | Texto de ayuda por campo | ❌ | Sin campo `description` en `Field` (`schema.prisma`) | P2 | S |
+| Descripción de propiedad (ℹ) | Texto de ayuda por campo | ✅ | `Field.config.description` (sin migración): textarea en el menú de la columna + ℹ/tooltip (tanda 11) | — | — |
 | Conversión de tipo | Convierte valores al cambiar tipo | ✅ | `services/db.ts:270-344`; multiselect divide por comas | — | — |
 | ID único clicable | El ID enlaza a la fila | ⚠️ | Se muestra con prefijo pero como texto plano (`Cell.tsx:45-51`) | P2 | S |
 
@@ -164,7 +169,7 @@ columnas interactivas, synced block y ecuaciones.
 | Tabla — abrir fila: modos peek lateral/central/completo | Selector side/center/full | ✅ | `view.config.openIn` + «Abrir filas en»; peek redimensionable y expandible; en las 6 vistas, Kanban incluido (tanda 10) | — | — |
 | Tabla — navegación ↑↓ entre filas abiertas | Anterior/siguiente en el panel | ✅ | Prop `nav` en `RecordPanel.tsx`, cableada en Tabla sobre el orden visible (`d36aabb`) | — | — |
 | **Kanban** — agrupar por select/status/person/checkbox | + fecha | ✅ | `KanbanView.tsx:51-83` | — | — |
-| Kanban — reordenar tarjetas DENTRO de una columna | Drag con orden manual | ❌ | `KanbanView.tsx:106-146` solo cambia de columna | P1 | M |
+| Kanban — reordenar tarjetas DENTRO de una columna | Drag con orden manual | ✅ | Soltar sobre una tarjeta coloca encima/debajo (`moveRecord`); solo sin orden activo, como Notion (tanda 11) | — | — |
 | Kanban — añadir grupo/opción desde el tablero | «+ Añadir grupo» | ✅ | Crea la opción del select/estado in situ (`KanbanView.tsx`, `a00f570`) | — | — |
 | Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ❌ | Sin filtro de grupos ni sum/avg en cabecera | P2 | M |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
@@ -181,7 +186,7 @@ columnas interactivas, synced block y ecuaciones.
 | **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ❌ | `FormView.tsx` solo interno | P1 | L |
 | Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ❌ | Sin `required`; «gracias» = toast 2,5 s (`FormView.tsx:20-34`) | P1 | M |
 | **Comunes** — crear/renombrar/duplicar/borrar vista | — | ✅ | `DbToolbar.tsx:69-91` | — | — |
-| Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ❌ | `Database.tsx:83,138-167` coge `views[0]`, pestañas no arrastrables | P1 | S-M |
+| Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
 | Comunes — «Abrir como página completa» una BD embebida | Expandir | ✅ | Icono junto a las pestañas (`0c49c01`) | — | — |
 | Comunes — copiar enlace a la vista; descripción de BD; bloquear BD | — | ❌ | Sin URL por vista, sin description, `canEdit` solo por rol | P2 | S-M |
@@ -246,7 +251,7 @@ columnas interactivas, synced block y ecuaciones.
 | Respuestas anidadas + reacciones emoji | En cualquier comentario | ❌ | `Comment` sin `parentCommentId` ni reactions (schema) | P2 | M |
 | Editar comentario propio | Editar además de borrar | ✅ | `comments.edit` + lápiz inline (`7eb2fee`) | — | — |
 | @mención dentro de un comentario | Notifica | ❌ | El body del comentario es texto plano | P2 | M |
-| Comentarios en filas/celdas de BD | Discusión por registro | ❌ | `Comment` ancla solo a `Page` | P1 | M |
+| Comentarios en filas/celdas de BD | Discusión por registro | ✅ | `Comment.recordId` + sección Comentarios en la ficha (`CommentThread`, tanda 11); por celda/propiedad no (nicho) | — | — |
 | **Permisos por página** | Total/editar/comentar/ver + herencia + restaurar | ✅ | `Page.restricted` + `PagePermission`, `services/perms.ts`, impuesto en pages/db/comments/colaboración (`16350aa`); API v1 exenta (token de espacio) | — | — |
 | Invitados externos por página | Email con acceso a UNA página | ❌ | Solo invitación al workspace | P1 | L |
 | Grupos de miembros | Permisos por grupo | ❌ | Sin modelo | P2 | M |
