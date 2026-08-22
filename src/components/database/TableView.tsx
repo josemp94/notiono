@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Maximize2, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Info, Maximize2, Plus, Trash2, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
 import { Cell, usePeople } from "./Cell";
@@ -446,9 +446,15 @@ export function TableView({
                   }}
                   onClick={() => setMenuField(menuField === f.id ? null : f.id)}
                   className="flex w-full min-w-0 cursor-pointer items-center gap-1 text-left"
-                  title="Opciones de la columna · arrastra para reordenar"
+                  title={
+                    (f.config as { description?: string })?.description ||
+                    "Opciones de la columna · arrastra para reordenar"
+                  }
                 >
                   <span className="truncate">{f.name}</span>
+                  {(f.config as { description?: string })?.description && (
+                    <Info size={12} className="shrink-0 text-[var(--muted)]" />
+                  )}
                   <span className="shrink-0 text-[10px] uppercase opacity-50">{FIELD_LABELS[f.type] ?? f.type}</span>
                 </button>
                 {/* Tirador para ajustar el ancho (doble clic vuelve al automático). */}
@@ -871,7 +877,7 @@ function FieldMenu({
   onType: (type: ConvertibleType) => void;
   onDelete: () => void;
 }) {
-  const cfg = (field.config as { prefix?: string; format?: string; max?: number; time?: boolean; range?: boolean } | null) ?? {};
+  const cfg = (field.config as { prefix?: string; format?: string; max?: number; time?: boolean; range?: boolean; description?: string } | null) ?? {};
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   return (
     <Popover onClose={onClose} className="left-0 w-64 p-2 font-normal normal-case">
@@ -885,6 +891,14 @@ function FieldMenu({
         }}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         className="mb-1 w-full rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm outline-none focus:border-brand"
+      />
+      {/* Descripción de la propiedad (el ℹ de Notion): se enseña en el tooltip de la cabecera. */}
+      <textarea
+        defaultValue={cfg.description ?? ""}
+        rows={2}
+        placeholder="Descripción (para qué es esta columna)…"
+        onBlur={(e) => onConfig({ description: e.target.value.trim() })}
+        className="mb-1 w-full resize-none rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs outline-none placeholder:text-[var(--muted)] focus:border-brand"
       />
       <button onClick={() => onSort("asc")} className={item}>
         <ArrowUp size={14} /> Ordenar ascendente

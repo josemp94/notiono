@@ -101,7 +101,12 @@ export function RecordCard({
       <div className="space-y-2">
         {propFields.map((f) => (
           <div key={f.id} className="grid grid-cols-[110px_1fr] items-center gap-3 md:grid-cols-[130px_1fr]">
-            <span className="truncate text-sm text-[var(--muted)]">{f.name}</span>
+            <span
+              className="truncate text-sm text-[var(--muted)]"
+              title={(f.config as { description?: string } | null)?.description || undefined}
+            >
+              {f.name}
+            </span>
             <div className="min-w-0 rounded px-1 hover:bg-[var(--border)]/20">
               {f.type === "relation" ? (
                 <RelationCell
