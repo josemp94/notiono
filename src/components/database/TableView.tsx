@@ -5,7 +5,7 @@ import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, Che
 import { confirmar } from "@/components/Confirmar";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
-import { Cell, usePeople } from "./Cell";
+import { Cell, usePeople, type AccionBoton } from "./Cell";
 import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
 import { CALC_OPTS, computeCalc } from "@/lib/calc";
 import { colorByRules, opsFor, wrapOf, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
@@ -381,6 +381,7 @@ export function TableView({
               updatedById={r.updatedById}
               seq={r.seq}
               rowUrl={`/p/${pageId}?r=${r.id}`}
+              recordId={r.id}
               onCommit={(value) => updateCell.mutate({ recordId: r.id, fieldId: f.id, value })}
             />
           );
@@ -598,6 +599,7 @@ export function TableView({
                       });
                       setMenuField(null);
                     }}
+                    allFields={fields}
                     onConfig={(config) => updateField.mutate({ id: f.id, config: { ...(f.config as object), ...config } })}
                     onType={async (type) => {
                       if (await confirmar(`Cambiar «${f.name}» a ${FIELD_LABELS[type] ?? type}. Los valores se convertirán y lo que no se pueda convertir se perderá. ¿Seguir?`, "Cambiar")) {
@@ -930,6 +932,7 @@ function FieldMenu({
   onHide,
   onDuplicate,
   onInsert,
+  allFields,
   onConfig,
   onType,
   onDelete,
@@ -946,6 +949,7 @@ function FieldMenu({
   onHide: () => void;
   onDuplicate: () => void;
   onInsert: (lado: "izquierda" | "derecha") => void;
+  allFields: FieldLite[];
   onConfig: (config: Record<string, unknown>) => void;
   onType: (type: ConvertibleType) => void;
   onDelete: () => void;
@@ -1017,8 +1021,12 @@ function FieldMenu({
         </label>
       )}
 
-      {/* Los campos calculados no se pueden convertir: su valor no vive en la celda. */}
-      {!["relation", "rollup", "formula"].includes(field.type) && (
+      {/* Botón: etiqueta + acciones (qué valores pone en la fila al pulsarlo). */}
+      {field.type === "button" && <BotonConfig field={field} allFields={allFields} onConfig={onConfig} />}
+
+      {/* Los campos calculados no se pueden convertir: su valor no vive en la celda.
+          El Botón tampoco: no guarda nada que convertir. */}
+      {!["relation", "rollup", "formula", "button"].includes(field.type) && (
         <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
           <span>Tipo</span>
           <select
@@ -1186,6 +1194,104 @@ function RecordTrash({
           ))}
         </ul>
       </div>
+    </div>
+  );
+}
+
+/** Configuración del campo Botón: su etiqueta y qué valores pone en la fila al pulsarlo. */
+function BotonConfig({
+  field,
+  allFields,
+  onConfig,
+}: {
+  field: FieldLite;
+  allFields: FieldLite[];
+  onConfig: (config: Record<string, unknown>) => void;
+}) {
+  const cfg = (field.config as { label?: string; acciones?: AccionBoton[] } | null) ?? {};
+  const acciones = cfg.acciones ?? [];
+  const elegibles = allFields.filter((f) =>
+    ["text", "number", "checkbox", "select", "status", "date"].includes(f.type),
+  );
+  const setAcciones = (a: AccionBoton[]) => onConfig({ acciones: a });
+  const setValor = (i: number, value: unknown) =>
+    setAcciones(acciones.map((x, j) => (j === i ? { ...x, value } : x)));
+  const valorInicial = (f: FieldLite): unknown =>
+    f.type === "checkbox" ? true
+    : f.type === "date" ? "@hoy"
+    : f.type === "select" || f.type === "status" ? (optionsOf(f)[0]?.id ?? "")
+    : f.type === "number" ? 0
+    : "";
+  const input = "min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs outline-none";
+
+  return (
+    <div className="mx-1 my-1 space-y-1 rounded border border-[var(--border)] p-2">
+      <label className="flex items-center justify-between gap-2 text-sm">
+        <span>Etiqueta</span>
+        <input
+          defaultValue={cfg.label ?? ""}
+          placeholder="Hacer"
+          onBlur={(e) => onConfig({ label: e.target.value.trim() })}
+          className="w-28 rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs outline-none"
+        />
+      </label>
+      <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">Al pulsarlo</div>
+      {acciones.map((a, i) => {
+        const f = allFields.find((x) => x.id === a.fieldId);
+        if (!f) return null;
+        return (
+          <div key={i} className="flex items-center gap-1 text-xs">
+            <span className="max-w-[40%] shrink-0 truncate" title={f.name}>{f.name} =</span>
+            {f.type === "checkbox" ? (
+              <select value={String(a.value)} onChange={(e) => setValor(i, e.target.value === "true")} className={input}>
+                <option value="true">Sí</option>
+                <option value="false">No</option>
+              </select>
+            ) : f.type === "select" || f.type === "status" ? (
+              <select value={String(a.value ?? "")} onChange={(e) => setValor(i, e.target.value)} className={input}>
+                {optionsOf(f).map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+            ) : f.type === "date" ? (
+              <span className="flex-1 text-[var(--muted)]">la fecha del día</span>
+            ) : f.type === "number" ? (
+              <input
+                type="number"
+                defaultValue={typeof a.value === "number" ? a.value : 0}
+                onBlur={(e) => setValor(i, Number(e.target.value) || 0)}
+                className={input}
+              />
+            ) : (
+              <input
+                defaultValue={typeof a.value === "string" ? a.value : ""}
+                onBlur={(e) => setValor(i, e.target.value)}
+                className={input}
+              />
+            )}
+            <button
+              onClick={() => setAcciones(acciones.filter((_, j) => j !== i))}
+              className="toque-estrecho shrink-0 text-[var(--muted)] hover:text-red-500"
+              title="Quitar esta acción"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        );
+      })}
+      <select
+        value=""
+        onChange={(e) => {
+          const f = allFields.find((x) => x.id === e.target.value);
+          if (f) setAcciones([...acciones, { fieldId: f.id, value: valorInicial(f) }]);
+        }}
+        className="w-full rounded border border-dashed border-[var(--border)] bg-transparent px-1 py-0.5 text-xs text-[var(--muted)] outline-none"
+      >
+        <option value="">+ Añadir acción…</option>
+        {elegibles.map((f) => (
+          <option key={f.id} value={f.id}>{f.name}</option>
+        ))}
+      </select>
     </div>
   );
 }

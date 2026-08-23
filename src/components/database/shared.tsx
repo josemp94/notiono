@@ -25,12 +25,13 @@ export const FIELD_LABELS: Record<string, string> = {
   created_by: "Creado por",
   last_edited_by: "Editado por",
   id: "ID",
+  button: "Botón",
   relation: "Relación",
   rollup: "Rollup",
   formula: "Fórmula",
 };
 
-const TYPES = ["text", "number", "select", "multiselect", "status", "person", "files", "checkbox", "date", "url", "email", "phone", "created_time", "last_edited_time", "created_by", "last_edited_by", "id"] as const;
+const TYPES = ["text", "number", "select", "multiselect", "status", "person", "files", "checkbox", "date", "url", "email", "phone", "created_time", "last_edited_time", "created_by", "last_edited_by", "id", "button"] as const;
 
 const AGGS: [string, string][] = [...ROLLUP_AGG_LABELS];
 

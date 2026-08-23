@@ -25,7 +25,7 @@ export type Scope = { db: DB; workspaceId: string; userId?: string | null };
 export const FIELD_TYPES = [
   "text", "number", "select", "multiselect", "status", "person", "files", "checkbox",
   "date", "url", "email", "phone", "created_time", "last_edited_time", "created_by",
-  "last_edited_by", "id",
+  "last_edited_by", "id", "button",
 ] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
@@ -90,6 +90,8 @@ export function defaultFieldConfig(type: FieldType): Prisma.InputJsonValue {
     };
   }
   if (type === "select" || type === "multiselect") return { options: [] };
+  // Botón: etiqueta + lista de { fieldId, value } que aplica a la fila al pulsarlo.
+  if (type === "button") return { label: "Hacer", acciones: [] };
   return {};
 }
 

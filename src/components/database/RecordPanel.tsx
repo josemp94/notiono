@@ -125,6 +125,7 @@ export function RecordCard({
                   createdById={record.createdById}
                   updatedById={record.updatedById}
                   seq={record.seq}
+                  recordId={record.id}
                   onCommit={(value) => updateCell.mutate({ recordId: record.id, fieldId: f.id, value })}
                 />
               )}

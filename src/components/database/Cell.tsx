@@ -30,6 +30,7 @@ export function Cell({
   seq,
   wrap = false,
   rowUrl,
+  recordId,
 }: {
   field: FieldLite;
   value: unknown;
@@ -44,6 +45,8 @@ export function Cell({
   wrap?: boolean;
   /** Ruta de la fila (/p/…?r=…); con ella el ID ofrece copiar su enlace. */
   rowUrl?: string;
+  /** Id de la fila; lo necesita el tipo Botón para aplicar sus acciones. */
+  recordId?: string;
 }) {
   // ID incremental (solo lectura), con prefijo opcional y copia del enlace de la fila
   if (field.type === "id") {
@@ -54,6 +57,11 @@ export function Cell({
         {rowUrl && seq != null && <CopiarBtn value={rowUrl} title="Copiar el enlace de la fila" />}
       </span>
     );
+  }
+
+  // Botón: aplica sus acciones (fieldId → valor) a la fila al pulsarlo
+  if (field.type === "button") {
+    return <ButtonCell field={field} recordId={recordId} />;
   }
 
   // Auto (solo lectura): quién creó o editó la fila
@@ -589,6 +597,40 @@ function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown;
         </Popover>
       )}
     </div>
+  );
+}
+
+/** Acción de un campo Botón: al pulsarlo, pone `value` en el campo `fieldId` de la fila. */
+export type AccionBoton = { fieldId: string; value: unknown };
+
+function ButtonCell({ field, recordId }: { field: FieldLite; recordId?: string }) {
+  const utils = trpc.useUtils();
+  const updateCell = trpc.db.updateCell.useMutation({ onSuccess: () => utils.db.get.invalidate() });
+  const [hecho, setHecho] = useState(false);
+  const cfg = (field.config as { label?: string; acciones?: AccionBoton[] } | null) ?? {};
+  const acciones = cfg.acciones ?? [];
+
+  const ejecutar = () => {
+    if (!recordId || !acciones.length) return;
+    const hoy = new Date();
+    const hoyYmd = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    for (const a of acciones) {
+      // "@hoy" se resuelve al pulsar, no al configurar: el botón siempre pone la fecha del día.
+      updateCell.mutate({ recordId, fieldId: a.fieldId, value: a.value === "@hoy" ? hoyYmd : a.value });
+    }
+    setHecho(true);
+    setTimeout(() => setHecho(false), 1000);
+  };
+
+  return (
+    <button
+      onClick={ejecutar}
+      disabled={!recordId || !acciones.length}
+      title={acciones.length ? "" : "Configura sus acciones en el menú de la columna"}
+      className="rounded border border-brand/60 px-2 py-0.5 text-xs font-medium text-brand hover:bg-brand/10 disabled:opacity-40"
+    >
+      {hecho ? <Check size={12} className="inline" /> : cfg.label || "Hacer"}
+    </button>
   );
 }
 
