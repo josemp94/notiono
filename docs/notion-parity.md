@@ -146,7 +146,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Portada** de página (degradados, URL o imagen subida) e icono emoji.
 - ✅ **Tema claro/oscuro manual** (`data-theme`, sin parpadeo al cargar).
 - ✅ **Plantillas**: galería con 6 (tareas, notas de reunión, CRM, presupuesto, diario, wiki).
-- ✅ **Import/Export**: Markdown ↔ página, CSV ↔ base de datos. ❌ PDF y HTML.
+- ✅ **Import/Export**: Markdown ↔ página, CSV ↔ base de datos, **página con subpáginas a ZIP** y **copia de seguridad del espacio entero** (Ajustes; MD + CSV + adjuntos). ❌ PDF y HTML.
 - ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide.
 - ✅ **API REST v1** con tokens por espacio (`docs/api.md`).
 - 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel) y Ctrl+Alt+N (nueva página). Faltan favorito, cambiar de vista y mover bloque.

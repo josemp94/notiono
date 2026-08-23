@@ -56,6 +56,15 @@
 > (`moveRecord`, solo sin orden activo), **reordenar las pestañas de vista arrastrando** (`View.order` fraccional con
 > backfill; la primera pestaña es la vista por defecto; duplicar vista cae a la derecha) y **descripción de
 > propiedad** (`Field.config.description`, ℹ + tooltip en cabecera y ficha).
+> **Duodécima tanda 22-ago-2026 (lote «barato y visible»):** **filtrar/ordenar/graficar por fórmulas y
+> rollups** (cálculo extraído a `services/computados.ts` + `conComputados` funde los valores en las celdas:
+> tabla, gráfica y `POST /query` dan lo mismo; la gráfica puede usar una fórmula como eje), **export con
+> subpáginas a ZIP y copia de seguridad del espacio** (`pages.exportTree` + `lib/exportZip.ts`: MD + CSV +
+> adjuntos con enlaces reescritos; menú ⋯ y Ajustes), **«Editado por X hace Y»** en la barra superior,
+> **diff visual del historial** (`lib/diff.ts`, LCS por líneas), **plantilla de fila por defecto** (estrella),
+> **imagen en la Galería** con ajuste recortar/entera (`imageFit`), **límite de un solo vínculo** en
+> relaciones (`config.single`), **suma por columna en el Kanban** (`kanbanSum`) y separadores en el menú
+> de columna.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -181,7 +190,7 @@ columnas interactivas, synced block y ecuaciones.
 | Calendario — multi-día, saltar a hoy | — | ✅ | `CalendarView.tsx:59-64,95` | — | — |
 | Calendario — hora del evento visible | «9:00 Reunión» | ✅ | Hora delante del título si la hay (`2ef0a92`) | — | — |
 | **Lista / Galería** — agrupar, tamaño tarjeta, preview | — | ✅ | `ListView.tsx:38-42`, `GalleryView.tsx:45-86` | — | — |
-| Galería — ajuste de imagen (fit/cover) | Configurable | ⚠️ | Sin config de object-fit (`GalleryView.tsx:76`) | P2 | S |
+| Galería — ajuste de imagen (fit/cover) | Configurable | ✅ | La vista previa de Archivos pinta la imagen; `imageFit` recortar/entera (tanda 12) | — | — |
 | **Gráfica** — 5 tipos, apilado, filtra antes de agregar, buckets de fecha | — | ✅ | `ChartView.tsx:49-162`, `db.ts:916` (commits recientes) | — | — |
 | **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ❌ | `FormView.tsx` solo interno | P1 | L |
 | Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ❌ | Sin `required`; «gracias» = toast 2,5 s (`FormView.tsx:20-34`) | P1 | M |
@@ -200,7 +209,7 @@ columnas interactivas, synced block y ecuaciones.
 | Matriz de operadores por tipo | Texto/número/select/status(grupo)/multiselect/person(`me`)/files/checkbox/fecha completa | ✅ | `viewData.ts:186-259` (`opsFor`) — implementada en los commits recientes | — | — |
 | Anclas relativas en fecha (`{rel:"today"}`) | «es anterior a → Hoy» | ✅ | `viewData.ts:113-157`, UI `DbToolbar.tsx:662-681` | — | — |
 | Grupos anidados 3 niveles + chips con popover | Editor avanzado | ✅ | `DbToolbar.tsx:490-579` (depth<3), chips `DbToolbar.tsx:784-853` | — | — |
-| Filtrar por fórmula/rollup/relación | Fórmula según tipo de resultado; rollup any/every/none | ❌ | `opsFor` devuelve default para esos tipos; sin operadores polimórficos | P1 | M |
+| Filtrar por fórmula/rollup/relación | Fórmula según tipo de resultado; rollup any/every/none | ✅ | `conComputados` + operadores propios de formula/rollup; relación ya tenía selector (tanda 12) | — | — |
 | Filtro personal («solo para mí») | Toggle «Save for everyone» | ❌ | Todo filtro va a `view.config` compartida | P2 | L |
 | Orden multi-campo | + reordenar criterios | ✅ | `DbToolbar.tsx:156-219` | — | — |
 | **Fórmulas: funciones de fecha** | ~15 (`now`, `dateAdd`, `dateBetween`, `formatDate`…) | ✅ | 14: now/today/parseDate/dateAdd/dateSubtract/dateBetween/formatDate/year/month/date/day/hour/minute/timestamp (`4d2939b`) | — | — |
@@ -293,13 +302,13 @@ columnas interactivas, synced block y ecuaciones.
 | Área | Qué hace Notion | Estado | Evidencia | Sev. | Esf. |
 |---|---|---|---|---|---|
 | Galería de plantillas | Miles + categorías + crear la tuya | ⚠️ | 6 fijas sin categorías (`lib/templates.ts:21-185`); no se puede guardar una página propia como plantilla | P2 | M |
-| Plantillas de fila + default | Marcar una como predeterminada | ⚠️ | Existen (`routers/db.ts:421-448`); sin default | P2 | S |
+| Plantillas de fila + default | Marcar una como predeterminada | ✅ | Estrella en «Nueva fila ▾» (`setDefaultTemplate`, tanda 12) | — | — |
 | **Importar ZIP de export de Notion** | Migración completa | ✅ | `lib/importNotion.ts` en cliente (fflate): jerarquía, BDs, adjuntos y enlaces (`ff8b7d5`); omite los .md de filas de BD | — | — |
 | Importar MD / CSV | + frontmatter, tipos autodetectados, a BD existente | ⚠️ | MD y CSV con **tipos autodetectados** (`lib/csvTipos.ts`, `3af6270`); falta importar a BD existente (append/merge) | P2 | M |
 | Importar HTML / Word / Evernote / Trello | Soportados | ❌ | No existen | P2 | L |
-| Exportar página con subpáginas (ZIP) | Árbol completo + imágenes | ❌ | Solo la página actual a MD (`Editor.tsx:197`) | P1 | M |
+| Exportar página con subpáginas (ZIP) | Árbol completo + imágenes | ✅ | `pages.exportTree` + `lib/exportZip.ts` (MD+CSV+adjuntos, tanda 12) | — | — |
 | Exportar PDF / HTML | Por página o árbol | ❌ | No existe | P2 | M |
-| Backup del workspace completo | Export total | ❌ | No hay endpoint | P1 | M |
+| Backup del workspace completo | Export total | ✅ | Ajustes → Copia de seguridad (mismo export con pageId null, tanda 12) | — | — |
 | API: CRUD de páginas/BD/campos/vistas/registros | — | ✅ | `src/app/api/v1/**`, `docs/api.md` al día | — | — |
 | **API: paginación** | Cursor + `page_size` | ✅ | `GET /databases/:id/records?limit&cursor` con `next_cursor`/`has_more` (`5d01eb3`, probado en check-api) | — | — |
 | API: filtros y sorts en la query | Body `filter`/`sorts` como Notion | ✅ | `POST /databases/:id/query` con `applyViewConfig` (`5792695`), en docs y check-api | — | — |
