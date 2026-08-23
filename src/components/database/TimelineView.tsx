@@ -209,9 +209,10 @@ export function TimelineView({
 
       <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
         <div style={{ width: 180 + gridW }}>
-          {/* Cabecera */}
+          {/* Cabecera. La columna de títulos va sticky: es la «tabla lateral» que
+              se queda quieta mientras el gantt se desplaza en horizontal. */}
           <div className="flex border-b border-[var(--border)] bg-[var(--background)]">
-            <div className="w-[180px] shrink-0 px-2 py-1.5 text-xs font-medium text-[var(--muted)]">Registro</div>
+            <div className="sticky left-0 z-20 w-[180px] shrink-0 border-r border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs font-medium text-[var(--muted)]">Registro</div>
             {zoom.meses === 1 ? (
               <div className="flex">
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
@@ -250,9 +251,13 @@ export function TimelineView({
             const dx = esta ? drag!.dx : 0;
             return (
               <div key={rec.id} className="flex items-center border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/15">
-                <div className="w-[180px] shrink-0 truncate px-2 py-2 text-sm" title={recTitle(rec)}>
+                <button
+                  onClick={() => (openIn === "full" ? openFull?.(rec.id) : setOpenRec(rec))}
+                  className="sticky left-0 z-10 w-[180px] shrink-0 self-stretch truncate border-r border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-sm hover:text-brand"
+                  title={recTitle(rec)}
+                >
                   {recTitle(rec)}
-                </div>
+                </button>
                 <div className="relative py-2" style={{ width: gridW }}>
                   {hoyOff !== null && (
                     <div className="pointer-events-none absolute inset-y-0 border-l border-brand/50" style={{ left: hoyOff * DAY_W }} />
@@ -288,6 +293,37 @@ export function TimelineView({
           })}
         </div>
       </div>
+
+      {/* Registros sin fecha: como en Notion, se listan aparte para poder planificarlos. */}
+      {(() => {
+        const sinFecha = records.filter((r) => !dayOf(r.cells?.[startFieldId]));
+        if (!sinFecha.length) return null;
+        const hoyYmd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        return (
+          <div className="mt-3 rounded-lg border border-dashed border-[var(--border)] p-2">
+            <div className="mb-1 px-1 text-xs font-medium text-[var(--muted)]">
+              Sin fecha ({sinFecha.length})
+            </div>
+            {sinFecha.map((r) => (
+              <div key={r.id} className="group/sf flex items-center gap-2 rounded px-1 py-0.5 hover:bg-[var(--hover)]">
+                <button
+                  onClick={() => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r))}
+                  className="min-w-0 flex-1 truncate text-left text-sm"
+                >
+                  {recTitle(r)}
+                </button>
+                <button
+                  onClick={() => updateCell.mutate({ recordId: r.id, fieldId: startFieldId, value: hoyYmd })}
+                  className="al-pasar toque-estrecho shrink-0 text-xs text-brand hover:underline"
+                  title="Ponerle fecha de hoy para verlo en el cronograma"
+                >
+                  Planificar hoy
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {openRec && (
         <RecordPanel
