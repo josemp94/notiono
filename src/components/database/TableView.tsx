@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Info, Maximize2, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Info, Maximize2, Plus, Star, Trash2, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
 import { Cell, usePeople } from "./Cell";
@@ -14,7 +14,7 @@ import { Popover } from "./Popover";
 import { RelationCell } from "./RelationCell";
 import { RecordPanel } from "./RecordPanel";
 
-export type RowTemplate = { id: string; name: string; cells: Record<string, unknown> };
+export type RowTemplate = { id: string; name: string; cells: Record<string, unknown>; porDefecto?: boolean };
 
 type Rec = {
   id: string;
@@ -64,6 +64,7 @@ export function TableView({
   const duplicateRecord = trpc.db.duplicateRecord.useMutation({ onSuccess: invalidate });
   const moveRecord = trpc.db.moveRecord.useMutation({ onSuccess: invalidate });
   const deleteTemplate = trpc.db.deleteTemplate.useMutation({ onSuccess: invalidate });
+  const setDefaultTemplate = trpc.db.setDefaultTemplate.useMutation({ onSuccess: invalidate });
   const deleteField = trpc.db.deleteField.useMutation({ onSuccess: invalidate });
   const duplicateField = trpc.db.duplicateField.useMutation({ onSuccess: invalidate });
   const addField = trpc.db.addField.useMutation({ onSuccess: invalidate });
@@ -630,7 +631,8 @@ export function TableView({
 
       <div className="relative mt-2 flex items-center">
         <button
-          onClick={() => addRecord.mutate({ collectionId })}
+          // Si hay una plantilla marcada por defecto, «+ Nueva fila» nace con sus valores.
+          onClick={() => addRecord.mutate({ collectionId, cells: templates.find((t) => t.porDefecto)?.cells })}
           className="toque inline-flex items-center px-2 py-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
         >
           + Nueva fila
@@ -656,6 +658,13 @@ export function TableView({
                   className="min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
                 >
                   {t.name}
+                </button>
+                <button
+                  onClick={() => setDefaultTemplate.mutate({ collectionId, templateId: t.porDefecto ? null : t.id })}
+                  className={`px-1 ${t.porDefecto ? "text-brand" : "al-pasar text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+                  title={t.porDefecto ? "Quitar como predeterminada" : "Usarla en «+ Nueva fila»"}
+                >
+                  <Star size={13} fill={t.porDefecto ? "currentColor" : "none"} />
                 </button>
                 <button
                   onClick={() => deleteTemplate.mutate({ collectionId, templateId: t.id })}

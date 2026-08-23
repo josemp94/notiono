@@ -583,6 +583,25 @@ export const dbRouter = router({
       return template;
     }),
 
+  /** Marca (o desmarca) la plantilla que usa «+ Nueva fila». */
+  setDefaultTemplate: workspaceProcedure
+    .input(z.object({ collectionId: z.string(), templateId: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCollection(ctx, input.collectionId);
+      const col = await ctx.db.collection.findUnique({
+        where: { id: input.collectionId },
+        select: { templates: true },
+      });
+      const templates = (Array.isArray(col?.templates) ? col.templates : []) as { id: string }[];
+      await ctx.db.collection.update({
+        where: { id: input.collectionId },
+        data: {
+          templates: templates.map((t) => ({ ...t, porDefecto: t.id === input.templateId })) as Prisma.InputJsonValue,
+        },
+      });
+      return { ok: true };
+    }),
+
   deleteTemplate: workspaceProcedure
     .input(z.object({ collectionId: z.string(), templateId: z.string() }))
     .mutation(async ({ ctx, input }) => {
