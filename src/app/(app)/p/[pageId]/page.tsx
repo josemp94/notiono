@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, FileText, Folder, FolderInput, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Check, FileArchive, FileText, Folder, FolderInput, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -12,6 +12,9 @@ import { CommentsButton, CommentsPanel } from "@/components/CommentsPanel";
 import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory";
 import { ShareButton } from "@/components/SharePublish";
 import { MovePageModal } from "@/components/MovePage";
+import { usePeople } from "@/components/database/Cell";
+import { exportaZipConEditor } from "@/components/editor/exportarZip";
+import type { PaginaExport } from "@/lib/exportZip";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
 function haceCuanto(d: Date | string): string {
@@ -161,12 +164,31 @@ function Breadcrumbs({ pageId }: { pageId: string }) {
 }
 
 /** Menú "⋯" de la cabecera: Ancho completo (solo docs) y Mover a…. */
-function PageMenu({ page }: { page: { id: string; type: string; fullWidth: boolean } }) {
+function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean } }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
+  const people = usePeople();
+
+  async function exportarZip() {
+    setOpen(false);
+    setExportando(true);
+    try {
+      const pages = await utils.pages.exportTree.fetch({ pageId: page.id });
+      const r = await exportaZipConEditor({
+        pages: pages as unknown as PaginaExport[],
+        rootId: page.id,
+        people,
+        nombre: page.title || "pagina",
+      });
+      window.alert(`Exportadas ${r.paginas} páginas${r.adjuntos ? ` y ${r.adjuntos} adjuntos` : ""}.`);
+    } finally {
+      setExportando(false);
+    }
+  }
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -204,6 +226,14 @@ function PageMenu({ page }: { page: { id: string; type: string; fullWidth: boole
               {page.fullWidth && <Check size={14} className="ml-auto text-brand" />}
             </button>
           )}
+          <button
+            onClick={exportarZip}
+            disabled={exportando}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-60"
+          >
+            <FileArchive size={16} />
+            {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
+          </button>
           <button
             onClick={() => {
               setOpen(false);

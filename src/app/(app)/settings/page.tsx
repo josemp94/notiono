@@ -6,6 +6,9 @@ import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
 import apk from "@/lib/apk.json";
 import { WEBHOOK_EVENTS } from "@/lib/webhookEvents";
+import { usePeople } from "@/components/database/Cell";
+import { exportaZipConEditor } from "@/components/editor/exportarZip";
+import type { PaginaExport } from "@/lib/exportZip";
 
 export default function SettingsPage() {
   const { data: me } = trpc.auth.me.useQuery();
@@ -60,6 +63,7 @@ export default function SettingsPage() {
         {nameMsg && <p className="mt-2 text-xs text-[var(--muted)]">{nameMsg}</p>}
       </section>
 
+      <BackupSection />
       <AndroidSection />
       <EstadoSection />
       <PushSection />
@@ -162,6 +166,48 @@ function ApiTokensSection() {
  * Lo que lleva dentro es el envoltorio —nombre, icono y dirección—; la app en sí
  * sigue siendo esta web, así que **no hay que reinstalar nada** cuando se despliega.
  */
+/** Copia de seguridad del espacio entero: páginas en Markdown, BDs en CSV, adjuntos. */
+function BackupSection() {
+  const utils = trpc.useUtils();
+  const people = usePeople();
+  const [estado, setEstado] = useState<string | null>(null);
+
+  async function descargar() {
+    setEstado("Preparando…");
+    try {
+      const pages = await utils.pages.exportTree.fetch({ pageId: null });
+      const r = await exportaZipConEditor({
+        pages: pages as unknown as PaginaExport[],
+        rootId: null,
+        people,
+        nombre: "notiono_copia",
+        onProgress: setEstado,
+      });
+      setEstado(`Listo: ${r.paginas} páginas${r.adjuntos ? ` y ${r.adjuntos} adjuntos` : ""}.`);
+    } catch {
+      setEstado("No se pudo generar la copia.");
+    }
+  }
+
+  return (
+    <section className="mt-8">
+      <h2 className="font-display mb-2 font-bold">Copia de seguridad</h2>
+      <p className="mb-2 text-sm text-[var(--muted)]">
+        Descarga todo el espacio en un ZIP: las páginas en Markdown, las bases de datos en CSV y
+        los adjuntos que referencian.
+      </p>
+      <button
+        onClick={descargar}
+        disabled={estado !== null && !estado.startsWith("Listo") && !estado.startsWith("No se pudo")}
+        className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+      >
+        <Download size={15} /> Descargar copia (ZIP)
+      </button>
+      {estado && <p className="mt-2 text-xs text-[var(--muted)]">{estado}</p>}
+    </section>
+  );
+}
+
 function AndroidSection() {
   const mb = (apk.bytes / 1024 / 1024).toFixed(1).replace(".", ",");
 

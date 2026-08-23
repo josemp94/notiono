@@ -188,6 +188,47 @@ export const pagesRouter = router({
       return { ...page, nivel, editadoPor: autor ? autor.name || autor.email : null };
     }),
 
+  /**
+   * Datos para exportar a ZIP: la página pedida con todos sus descendientes, o el
+   * espacio entero (pageId null, la copia de seguridad). Solo lo que este usuario
+   * puede ver; las BD viajan con campos y filas.
+   */
+  exportTree: workspaceProcedure
+    .input(z.object({ pageId: z.string().nullable() }))
+    .query(async ({ ctx, input }) => {
+      if (input.pageId) await assertOwned(ctx, input.pageId, "view");
+      const all = await ctx.db.page.findMany({
+        where: { workspaceId: ctx.workspace.id, archivedAt: null, embedded: false },
+        select: {
+          id: true,
+          parentId: true,
+          title: true,
+          type: true,
+          content: true,
+          collection: {
+            select: {
+              fields: { orderBy: { order: "asc" }, select: { id: true, name: true, type: true, config: true } },
+              records: { where: { archivedAt: null }, orderBy: { order: "asc" }, select: { id: true, cells: true } },
+            },
+          },
+        },
+        orderBy: { order: "asc" },
+      });
+      const nivelDe = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
+      const visibles = all.filter((p) => alcanza(nivelDe(p.id), "view"));
+      if (!input.pageId) return visibles;
+      const hijosDe = new Map<string | null, typeof visibles>();
+      for (const p of visibles) hijosDe.set(p.parentId, [...(hijosDe.get(p.parentId) ?? []), p]);
+      const out: typeof visibles = [];
+      const cola = visibles.filter((p) => p.id === input.pageId);
+      while (cola.length) {
+        const p = cola.shift()!;
+        out.push(p);
+        cola.push(...(hijosDe.get(p.id) ?? []));
+      }
+      return out;
+    }),
+
   /** Crear página (opcionalmente hija de otra). */
   create: workspaceProcedure
     .input(z.object({ parentId: z.string().nullish(), title: z.string().default("") }))
