@@ -14,7 +14,7 @@ function abrirMenuVista(e: { preventDefault: () => void; clientX: number; client
 }
 import { PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
-import { applyViewConfig, openInOf, type DbField, type DbRecord } from "@/lib/viewData";
+import { applyViewConfig, conComputados, openInOf, type DbField, type DbRecord } from "@/lib/viewData";
 import { RecordCard } from "./RecordPanel";
 import { usePeople } from "./Cell";
 import { displayValue } from "@/lib/cellText";
@@ -94,9 +94,18 @@ export function Database({
   const active = col?.views.find((v) => v.id === activeViewId) ?? col?.views[0];
   const fields = col?.fields ?? [];
   const rawRecords = col?.records ?? [];
+  // Fórmulas y rollups calculados en el servidor, fundidos en las celdas para que
+  // filtros, orden y reglas de color los vean con el mismo motor que lo demás.
+  const { data: computedData } = trpc.db.computed.useQuery({ pageId });
   const viewRecords = useMemo(
-    () => applyViewConfig(rawRecords as unknown as DbRecord[], fields as unknown as DbField[], active?.config, me?.id),
-    [rawRecords, fields, active, me?.id],
+    () =>
+      applyViewConfig(
+        conComputados(rawRecords as unknown as DbRecord[], computedData?.rollups),
+        fields as unknown as DbField[],
+        active?.config,
+        me?.id,
+      ),
+    [rawRecords, fields, active, me?.id, computedData],
   );
   // Búsqueda interna (la lupa): sobre el texto visible de cada celda, después de filtros y orden.
   const shownRecords = useMemo(() => {

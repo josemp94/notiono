@@ -49,6 +49,24 @@ export function countFilters(nodes: FilterNode[]): number {
   return nodes.reduce((acc, n) => acc + (isFilterGroup(n) ? countFilters(n.filters) : 1), 0);
 }
 
+/** Ids de campo que usa un árbol de filtros (¿hace falta calcular fórmulas/rollups?). */
+export function filterFieldIds(nodes: FilterNode[]): string[] {
+  return nodes.flatMap((n) => (isFilterGroup(n) ? filterFieldIds(n.filters) : [n.fieldId]));
+}
+
+/**
+ * Copia los valores calculados (fórmula/rollup, `db.computed`) dentro de las celdas
+ * de cada registro, para que el MISMO motor de filtros y orden los vea sin cambiar.
+ * Devuelve copias; los registros originales no se tocan.
+ */
+export function conComputados(
+  records: DbRecord[],
+  computed?: Record<string, Record<string, string | number>>,
+): DbRecord[] {
+  if (!computed) return records;
+  return records.map((r) => (computed[r.id] ? { ...r, cells: { ...r.cells, ...computed[r.id] } } : r));
+}
+
 const s = (v: unknown): string => {
   if (v == null) return "";
   // Celdas de varios valores: adjuntos ({name}), personas y etiquetas (ids).
@@ -237,6 +255,20 @@ export function opsFor(type: string): { value: string; label: string }[] {
       ];
     case "files":
       return [...EMPTY_OPS];
+    case "formula":
+    case "rollup":
+      // El resultado puede ser texto o número, así que ofrece los dos juegos.
+      return [
+        { value: "is", label: "es" },
+        { value: "is_not", label: "no es" },
+        { value: "contains", label: "contiene" },
+        { value: "not_contains", label: "no contiene" },
+        { value: "gt", label: ">" },
+        { value: "lt", label: "<" },
+        { value: "gte", label: "≥" },
+        { value: "lte", label: "≤" },
+        ...EMPTY_OPS,
+      ];
     case "checkbox":
       // Una casilla siempre está marcada o sin marcar: no tiene "vacío".
       return [
@@ -373,6 +405,8 @@ function matchFilter(cell: unknown, field: DbField, op: string, value: any, me?:
 }
 
 function compareCells(a: unknown, b: unknown, field?: DbField): number {
+  // Fórmulas y rollups numéricos: la celda ya trae el número (10 antes que 9).
+  if (typeof a === "number" && typeof b === "number") return a - b;
   if (!field) return s(a).localeCompare(s(b));
   if (field.type === "number") {
     const x = n(a), y = n(b);

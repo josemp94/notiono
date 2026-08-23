@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { authApiRequest, jsonError, readJson } from "@/server/apiAuth";
-import { applyViewConfig, type DbField, type DbRecord } from "@/lib/viewData";
+import { applyViewConfig, conComputados, filterFieldIds, type DbField, type DbRecord, type FilterNode } from "@/lib/viewData";
+import { calculaComputados, necesitaComputados } from "@/server/services/computados";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     createdById: r.createdById,
     updatedById: r.updatedById,
   }));
-  const filtradas = applyViewConfig(all, fields, { filters, filterOp, sorts }, auth.userId ?? undefined);
+  // Si el filtro o el orden tocan una fórmula o un rollup, se calculan y se funden
+  // en las celdas: la API responde lo mismo que la tabla y la gráfica.
+  const usados = [
+    ...filterFieldIds((filters ?? []) as FilterNode[]),
+    ...(sorts ?? []).map((s) => s.fieldId),
+  ];
+  const base = necesitaComputados(col.fields, usados)
+    ? conComputados(all, (await calculaComputados(db, auth.workspaceId, col)).rollups)
+    : all;
+  const filtradas = applyViewConfig(base, fields, { filters, filterOp, sorts }, auth.userId ?? undefined);
 
   const desde = cursor ? filtradas.findIndex((r) => r.id === cursor) + 1 : 0;
   if (cursor && desde === 0) return jsonError(400, "Cursor desconocido (¿cambió el filtro entre páginas?).");

@@ -3,7 +3,7 @@
  * Ejecutar: npm run check
  */
 import assert from "node:assert/strict";
-import { applyViewConfig, colorByRules, matchesFilters, openInOf, opsFor, relativeRange, wrapOf, type DbField, type DbRecord } from "../src/lib/viewData";
+import { applyViewConfig, colorByRules, conComputados, matchesFilters, openInOf, opsFor, relativeRange, wrapOf, type DbField, type DbRecord } from "../src/lib/viewData";
 import { dateValue, dayOf, displayValue, endDayOf, formatDate, formatNumber, frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, rowColor } from "../src/lib/cellText";
 import { embedUrl } from "../src/lib/embed";
 import { computeCalc } from "../src/lib/calc";
@@ -46,6 +46,22 @@ assert.equal(wrapOf({ wrapText: true, wrapCols: { x: false } }, "x"), false);
 assert.equal(wrapOf({ wrapCols: { x: true } }, "x"), true);
 assert.equal(wrapOf({}, "x"), false);
 assert.equal(wrapOf(undefined, "x"), false);
+
+// Filtrar y ordenar por fórmula/rollup: los computados se funden en las celdas
+// (conComputados) y pasan por el MISMO motor que el resto de campos.
+const cfields: DbField[] = [f("nombre", "text"), f("total", "formula")];
+const crecs: DbRecord[] = [r("c1", { nombre: "a" }), r("c2", { nombre: "b" }), r("c3", { nombre: "c" })];
+const fusionados = conComputados(crecs, { c1: { total: 10 }, c2: { total: 9 }, c3: { total: "" } });
+assert.equal(ids(applyViewConfig(fusionados, cfields, { filters: [{ fieldId: "total", op: "gte", value: 10 }] })), "c1");
+assert.equal(ids(applyViewConfig(fusionados, cfields, { filters: [{ fieldId: "total", op: "is_empty", value: null }] })), "c3");
+// El orden numérico manda cuando la celda trae números (10 después de 9, no "10" < "9").
+const numericos = conComputados(crecs, { c1: { total: 10 }, c2: { total: 9 }, c3: { total: 100 } });
+assert.equal(ids(applyViewConfig(numericos, cfields, { sorts: [{ fieldId: "total", dir: "asc" }] })), "c2,c1,c3");
+// Sin computados, los registros salen intactos (misma referencia, cero coste).
+assert.equal(conComputados(crecs, undefined), crecs);
+// Fórmula y rollup tienen operadores propios (texto + número + vacío).
+assert.ok(opsFor("formula").some((o) => o.value === "gte"));
+assert.ok(opsFor("rollup").some((o) => o.value === "contains"));
 
 // Cómo se abren las fichas: config válida, o los defaults de Notion por tipo de vista.
 assert.equal(openInOf("table", {}), "side");
