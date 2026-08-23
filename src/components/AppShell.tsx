@@ -57,6 +57,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         // Ctrl+Mayús+L alterna claro/oscuro, como en Notion.
         e.preventDefault();
         setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+      } else if ((e.key === "[" || e.key === "]") && !e.altKey && !isTyping(e.target)) {
+        // Ctrl+[ y Ctrl+] navegan atrás/adelante, como Notion. Sin altKey: en el
+        // teclado español "[" se escribe con AltGr y eso no debe navegar.
+        e.preventDefault();
+        if (e.key === "[") history.back();
+        else history.forward();
       }
     };
     window.addEventListener("keydown", onKey);
