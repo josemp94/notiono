@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { FieldInput } from "@/components/database/FormFields";
+import { faltanObligatorios, FieldInput } from "@/components/database/FormFields";
 import type { FieldLite } from "@/lib/cellText";
 
 /** Formulario público: envía a /api/form/<token>, sin sesión ni tRPC. */
@@ -11,18 +11,24 @@ export function PublicForm({
   title,
   icon,
   fields,
+  required = [],
 }: {
   token: string;
   title: string;
   icon: string | null;
   fields: FieldLite[];
+  required?: string[];
 }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
+  const [falta, setFalta] = useState<string[]>([]);
   const [estado, setEstado] = useState<"editando" | "enviando" | "enviado" | "error">("editando");
 
   const set = (id: string, v: unknown) => setValues((s) => ({ ...s, [id]: v }));
 
   const submit = async () => {
+    const pendientes = faltanObligatorios(required, fields, values);
+    setFalta(pendientes.map((f) => f.id));
+    if (pendientes.length) return;
     setEstado("enviando");
     const cells: Record<string, unknown> = {};
     for (const f of fields) {
@@ -68,8 +74,12 @@ export function PublicForm({
         <div className="space-y-4">
           {fields.map((f) => (
             <div key={f.id}>
-              <label className="mb-1 block text-sm font-medium">{f.name}</label>
+              <label className="mb-1 block text-sm font-medium">
+                {f.name}
+                {required.includes(f.id) && <span className="ml-0.5 text-red-500">*</span>}
+              </label>
               <FieldInput field={f} value={values[f.id]} onChange={(v) => set(f.id, v)} />
+              {falta.includes(f.id) && <p className="mt-1 text-xs text-red-500">Este campo es obligatorio.</p>}
             </div>
           ))}
           {fields.length === 0 && <p className="text-sm text-[var(--muted)]">Este formulario no tiene campos.</p>}

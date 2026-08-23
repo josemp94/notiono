@@ -33,7 +33,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const hidden = new Set(((view.config ?? {}) as { hiddenFields?: string[] }).hiddenFields ?? []);
+  const cfg = (view.config ?? {}) as { hiddenFields?: string[]; requiredFields?: string[] };
+  const hidden = new Set(cfg.hiddenFields ?? []);
   const visibles = new Map(
     view.collection.fields
       .filter((f) => FORM_SUPPORTED.includes(f.type) && !hidden.has(f.id))
@@ -46,6 +47,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     if (!f) continue;
     const v = limpiaValor(f, valor);
     if (v !== undefined) cells[fieldId] = v;
+  }
+
+  // Obligatorios: solo cuentan los visibles (uno oculto no sale en el formulario)
+  // y nunca el checkbox («no» es respuesta válida).
+  const faltan = (cfg.requiredFields ?? []).filter((id) => {
+    const f = visibles.get(id);
+    return f && f.type !== "checkbox" && cells[id] === undefined;
+  });
+  if (faltan.length) {
+    return NextResponse.json(
+      { error: "required", fields: faltan.map((id) => visibles.get(id)!.name) },
+      { status: 400 },
+    );
   }
 
   const scope = { db, workspaceId: view.collection.page.workspaceId, userId: null };

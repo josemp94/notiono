@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Globe, Link2 } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
-import { FieldInput, FORM_SUPPORTED } from "./FormFields";
+import { faltanObligatorios, FieldInput, FORM_SUPPORTED } from "./FormFields";
 import type { FieldLite } from "@/lib/cellText";
 
 export function FormView({
@@ -34,12 +34,28 @@ export function FormView({
   });
   const publish = trpc.db.publishForm.useMutation({ onSuccess: invalidate });
   const unpublish = trpc.db.unpublishForm.useMutation({ onSuccess: invalidate });
+  const updateView = trpc.db.updateView.useMutation({ onSuccess: invalidate });
 
-  const publicToken = (view.config as { publicToken?: string } | null)?.publicToken;
+  const cfg = (view.config ?? {}) as { publicToken?: string; requiredFields?: string[] };
+  const publicToken = cfg.publicToken;
+  const required = cfg.requiredFields ?? [];
+  const [falta, setFalta] = useState<string[]>([]);
+
+  const toggleRequired = (fieldId: string) =>
+    updateView.mutate({
+      id: view.id,
+      config: {
+        ...cfg,
+        requiredFields: required.includes(fieldId) ? required.filter((x) => x !== fieldId) : [...required, fieldId],
+      },
+    });
 
   const set = (id: string, v: unknown) => setValues((s) => ({ ...s, [id]: v }));
 
   const submit = () => {
+    const pendientes = faltanObligatorios(required, formFields, values);
+    setFalta(pendientes.map((f) => f.id));
+    if (pendientes.length) return;
     const cells: Record<string, unknown> = {};
     for (const f of formFields) {
       const v = values[f.id];
@@ -88,8 +104,23 @@ export function FormView({
         <div className="space-y-4">
           {formFields.map((f) => (
             <div key={f.id}>
-              <label className="mb-1 block text-sm font-medium">{f.name}</label>
+              <label className="mb-1 flex items-center gap-1 text-sm font-medium">
+                {f.name}
+                {/* Alternar obligatorio: el * es botón aquí y solo adorno en el formulario público. */}
+                {f.type !== "checkbox" && (
+                  <button
+                    onClick={() => toggleRequired(f.id)}
+                    className={`toque-estrecho rounded px-1 text-base leading-none ${
+                      required.includes(f.id) ? "text-red-500" : "al-pasar text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                    title={required.includes(f.id) ? "Obligatorio — pulsa para hacerlo opcional" : "Hacer obligatorio"}
+                  >
+                    *
+                  </button>
+                )}
+              </label>
               <FieldInput field={f} value={values[f.id]} onChange={(v) => set(f.id, v)} />
+              {falta.includes(f.id) && <p className="mt-1 text-xs text-red-500">Este campo es obligatorio.</p>}
             </div>
           ))}
           {formFields.length === 0 && (

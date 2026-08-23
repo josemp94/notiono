@@ -53,7 +53,8 @@ del resto solo quedan detalles (formato anillo en Número, recordatorios en Fech
 
 Notiono tiene 8 (`VIEW_TYPES` en `DbToolbar.tsx`): ✅ Tabla, Kanban, Lista, Galería, Calendario,
 **Cronograma/Timeline**, Gráfica, Formulario (con **enlace público** `/f/<token>`: cualquiera
-con el enlace envía filas sin cuenta; ocultar una columna en la vista la quita del formulario).
+con el enlace envía filas sin cuenta; ocultar una columna en la vista la quita del formulario,
+y hay **campos obligatorios** con asterisco, validados también en el servidor).
 Faltan de Notion: ❌ **Mapa** (requiere campo Lugar), ❌ **Feed**, ❌ **Panel/Dashboard** con
 widgets y filtros globales.
 

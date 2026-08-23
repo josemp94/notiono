@@ -24,10 +24,12 @@ export default async function FormularioPublico({ params }: { params: Promise<{ 
   });
   if (!view || view.collection.page.archivedAt) notFound();
 
-  const hidden = new Set(((view.config ?? {}) as { hiddenFields?: string[] }).hiddenFields ?? []);
+  const cfg = (view.config ?? {}) as { hiddenFields?: string[]; requiredFields?: string[] };
+  const hidden = new Set(cfg.hiddenFields ?? []);
   const fields = view.collection.fields
     .filter((f) => FORM_SUPPORTED.includes(f.type) && !hidden.has(f.id))
     .map((f) => ({ id: f.id, name: f.name, type: f.type, config: f.config }));
+  const required = (cfg.requiredFields ?? []).filter((id) => fields.some((f) => f.id === id));
 
   return (
     <PublicForm
@@ -35,6 +37,7 @@ export default async function FormularioPublico({ params }: { params: Promise<{ 
       title={view.collection.page.title || "Formulario"}
       icon={view.collection.page.icon}
       fields={fields}
+      required={required}
     />
   );
 }

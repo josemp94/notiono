@@ -78,7 +78,9 @@
 > enlace envía filas sin cuenta vía `POST /api/form/<token>` (valida cada valor por tipo y solo acepta
 > campos visibles y compatibles; crea por `services/db.createRecord`, con webhooks y `seq`). Ocultar una
 > columna en la vista la quita del formulario. `FieldInput` extraído a `FormFields.tsx` (sin tRPC) y
-> compartido por la vista interna y la pública.
+> compartido por la vista interna y la pública. **Campos obligatorios**: asterisco por campo en la vista
+> interna (`view.config.requiredFields`), validados en cliente y en el endpoint; el checkbox no puede ser
+> obligatorio (false es respuesta válida).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -207,7 +209,7 @@ columnas interactivas, synced block y ecuaciones.
 | Galería — ajuste de imagen (fit/cover) | Configurable | ✅ | La vista previa de Archivos pinta la imagen; `imageFit` recortar/entera (tanda 12) | — | — |
 | **Gráfica** — 5 tipos, apilado, filtra antes de agregar, buckets de fecha | — | ✅ | `ChartView.tsx:49-162`, `db.ts:916` (commits recientes) | — | — |
 | **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ✅ | `/f/<token>` + `POST /api/form/<token>` (token en `view.config.publicToken`; validación por tipo en servidor; ocultar columna = quitar pregunta) — tanda 14 | — | — |
-| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ❌ | Sin `required`; «gracias» = pantalla fija con «Enviar otra respuesta» | P1 | M |
+| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ⚠️ | Obligatorios ✅ (asterisco por campo, `view.config.requiredFields`, validados en cliente y endpoint — tanda 14); «gracias» = pantalla fija con «Enviar otra respuesta», sin personalizar | P2 | S |
 | **Comunes** — crear/renombrar/duplicar/borrar vista | — | ✅ | `DbToolbar.tsx:69-91` | — | — |
 | Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
@@ -379,7 +381,7 @@ Agrupado en bloques delegables (cada bloque es autocontenido y cabe en una sesi�
 - Calendario: arrastrar eventos, crear arrastrando, hora visible, vista semana.
 - Kanban: reordenar dentro de la columna, añadir grupo desde el tablero, agregados por columna.
 - Comunes: ~~reordenar columnas de tabla arrastrando~~ ✅ (tanda 10), vista por defecto + reordenar pestañas de vista, ~~abrir BD embebida como página completa~~ ✅.
-- Formulario: campos obligatorios y página de gracias configurable (~~URL pública~~ ✅ tanda 14).
+- Formulario: página de gracias configurable (~~URL pública~~ ~~campos obligatorios~~ ✅ tanda 14).
 
 **Bloque 1.C — BD en tiempo real (o mitigación)**
 - ~~Camino corto: señal de invalidación por el WebSocket de /collab + merge por celda~~ ✅ (`87af34f`, `01030f3`; el merge fue mejor que comparar `updatedAt`: jsonb atómico en Postgres, sin falsos conflictos).

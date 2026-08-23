@@ -7,6 +7,23 @@ import { optionsOf, type FieldLite } from "@/lib/cellText";
  */
 export const FORM_SUPPORTED = ["text", "number", "select", "status", "date", "checkbox", "url", "email", "phone"];
 
+/**
+ * Campos obligatorios aún sin rellenar. El checkbox no puede ser obligatorio:
+ * «no» (false) es una respuesta tan válida como «sí».
+ */
+export function faltanObligatorios(
+  required: string[],
+  fields: FieldLite[],
+  values: Record<string, unknown>,
+): FieldLite[] {
+  return fields.filter(
+    (f) =>
+      required.includes(f.id) &&
+      f.type !== "checkbox" &&
+      (values[f.id] === undefined || values[f.id] === null || values[f.id] === ""),
+  );
+}
+
 export function FieldInput({ field, value, onChange }: { field: FieldLite; value: unknown; onChange: (v: unknown) => void }) {
   const base = "w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-brand";
   if (field.type === "checkbox") {

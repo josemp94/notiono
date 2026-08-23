@@ -503,6 +503,21 @@ import { evalFormula } from "../src/server/formula";
   assert.deepEqual(markdownABloques(""), []);
 }
 
+// --- Formulario: campos obligatorios -----------------------------------------
+import { faltanObligatorios } from "../src/components/database/FormFields";
+{
+  const campos = [
+    { id: "a", name: "Nombre", type: "text", config: null },
+    { id: "b", name: "Asistes", type: "checkbox", config: null },
+    { id: "c", name: "Cuántos", type: "number", config: null },
+  ];
+  // Falta el texto obligatorio; el checkbox nunca cuenta como obligatorio.
+  assert.deepEqual(faltanObligatorios(["a", "b"], campos, { c: 2 }).map((f) => f.id), ["a"]);
+  // "" y null cuentan como vacío; 0 y false no.
+  assert.equal(faltanObligatorios(["a", "c"], campos, { a: "", c: 0 }).length, 1);
+  assert.equal(faltanObligatorios(["a"], campos, { a: "Jose" }).length, 0);
+}
+
 compruebaColaboracion()
   .then(() => {
     console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración e import de Notion");
