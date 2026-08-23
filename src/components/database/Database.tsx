@@ -334,6 +334,7 @@ export function Database({
           openFull={openFull}
           canReorder={!asAny(active.config)?.sorts?.length}
           sumFieldId={asAny(active.config)?.kanbanSum}
+          view={active}
         />
       ) : active?.type === "chart" ? (
         <ChartView pageId={pageId} view={active} fields={fields} />

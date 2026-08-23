@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
 import { usePeople } from "./Cell";
@@ -26,6 +27,7 @@ export function KanbanView({
   openFull,
   canReorder = false,
   sumFieldId,
+  view,
 }: {
   pageId: string;
   collectionId: string;
@@ -41,6 +43,7 @@ export function KanbanView({
   canReorder?: boolean;
   /** Campo número cuya SUMA se enseña en la cabecera de cada columna (si no, contar). */
   sumFieldId?: string;
+  view: { id: string; config: unknown };
 }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.db.get.invalidate({ pageId });
@@ -48,6 +51,7 @@ export function KanbanView({
   const addRecord = trpc.db.addRecord.useMutation({ onSuccess: invalidate });
   const updateField = trpc.db.updateField.useMutation({ onSuccess: invalidate });
   const moveRecord = trpc.db.moveRecord.useMutation({ onSuccess: invalidate });
+  const updateView = trpc.db.updateView.useMutation({ onSuccess: invalidate });
   const [dragId, setDragId] = useState<string | null>(null);
   // Soltar sobre una tarjeta coloca la arrastrada encima/debajo (orden manual).
   const [dropCard, setDropCard] = useState<{ id: string; pos: "before" | "after" } | null>(null);
@@ -93,6 +97,14 @@ export function KanbanView({
             ...optionsOf(groupField).map((o) => ({ id: o.id, label: o.label, color: o.color ?? "gray" })),
             { id: "", label: "Sin asignar", color: "gray" },
           ];
+
+  // Columnas escondidas (view.config.hiddenGroups): sus tarjetas no se ven,
+  // como en Notion; se recuperan desde «Ocultas» al final del tablero.
+  const cfgV = (view.config ?? {}) as Record<string, unknown>;
+  const hiddenGroups: string[] = Array.isArray(cfgV.hiddenGroups) ? (cfgV.hiddenGroups as string[]) : [];
+  const setHiddenGroups = (next: string[]) => updateView.mutate({ id: view.id, config: { ...cfgV, hiddenGroups: next } });
+  const visibleColumns = columns.filter((c) => !hiddenGroups.includes(c.id));
+  const hiddenColumns = columns.filter((c) => hiddenGroups.includes(c.id));
 
   const cardTitle = (r: Rec) => {
     const v = titleField ? r.cells?.[titleField.id] : undefined;
@@ -142,7 +154,7 @@ export function KanbanView({
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
-      {columns.map((col) => {
+      {visibleColumns.map((col) => {
         const cards = records.filter((r) => columnOf(r) === col.id);
         return (
           <div
@@ -153,18 +165,27 @@ export function KanbanView({
             // Tinte suave: el color de la etiqueta rebajado con el fondo del tema.
             style={{ background: `color-mix(in srgb, ${OPTION_COLORS[col.color] ?? "var(--tag-default)"} 45%, var(--background))` }}
           >
-            <div className="mb-2 flex items-center justify-between px-1 text-sm font-medium">
-              <span>{col.label}</span>
-              {(() => {
-                const sumField = fields.find((f) => f.id === sumFieldId && f.type === "number");
-                if (!sumField) return <span className="text-[var(--muted)]">{cards.length}</span>;
-                const total = cards.reduce((a, r) => a + (Number(r.cells?.[sumField.id]) || 0), 0);
-                return (
-                  <span className="text-[var(--muted)]" title={`${cards.length} tarjetas`}>
-                    {formatNumber(total, sumField)}
-                  </span>
-                );
-              })()}
+            <div className="mb-2 flex items-center justify-between gap-1 px-1 text-sm font-medium">
+              <span className="min-w-0 truncate">{col.label}</span>
+              <span className="flex shrink-0 items-center gap-1">
+                {(() => {
+                  const sumField = fields.find((f) => f.id === sumFieldId && f.type === "number");
+                  if (!sumField) return <span className="text-[var(--muted)]">{cards.length}</span>;
+                  const total = cards.reduce((a, r) => a + (Number(r.cells?.[sumField.id]) || 0), 0);
+                  return (
+                    <span className="text-[var(--muted)]" title={`${cards.length} tarjetas`}>
+                      {formatNumber(total, sumField)}
+                    </span>
+                  );
+                })()}
+                <button
+                  onClick={() => setHiddenGroups([...hiddenGroups, col.id])}
+                  className="al-pasar toque-estrecho rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
+                  title="Ocultar esta columna"
+                >
+                  <EyeOff size={13} />
+                </button>
+              </span>
             </div>
             <div className="flex flex-col gap-2">
               {cards.map((r) => {
@@ -235,6 +256,24 @@ export function KanbanView({
           </div>
         );
       })}
+      {hiddenColumns.length > 0 && (
+        <div className={`${size.col} shrink-0 rounded-lg border border-dashed border-[var(--border)] p-2`}>
+          <div className="mb-2 px-1 text-sm font-medium text-[var(--muted)]">Ocultas</div>
+          <div className="flex flex-col gap-1">
+            {hiddenColumns.map((col) => (
+              <button
+                key={col.id || "none"}
+                onClick={() => setHiddenGroups(hiddenGroups.filter((id) => id !== col.id))}
+                className="toque-estrecho flex items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                title="Volver a mostrar"
+              >
+                <span className="min-w-0 truncate">{col.label}</span>
+                <Eye size={13} className="shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {(groupField.type === "select" || groupField.type === "status") && (
         <div className={`${size.col} shrink-0`}>
           {groupName === null ? (
