@@ -1,26 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Globe, Link2 } from "lucide-react";
 import { trpc } from "@/trpc/react";
-import { optionsOf, type FieldLite } from "@/lib/cellText";
+import { toast } from "@/components/Toast";
+import { FieldInput, FORM_SUPPORTED } from "./FormFields";
+import type { FieldLite } from "@/lib/cellText";
 
-const SUPPORTED = ["text", "number", "select", "status", "date", "checkbox", "url", "email", "phone"];
-
-export function FormView({ pageId, collectionId, fields }: { pageId: string; collectionId: string; fields: FieldLite[] }) {
+export function FormView({
+  pageId,
+  collectionId,
+  fields,
+  view,
+}: {
+  pageId: string;
+  collectionId: string;
+  fields: FieldLite[];
+  view: { id: string; config: unknown };
+}) {
   const utils = trpc.useUtils();
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [done, setDone] = useState(false);
-  const formFields = fields.filter((f) => SUPPORTED.includes(f.type));
+  const formFields = fields.filter((f) => FORM_SUPPORTED.includes(f.type));
 
+  const invalidate = () => utils.db.get.invalidate({ pageId });
   const addRecord = trpc.db.addRecord.useMutation({
     onSuccess: async () => {
-      await utils.db.get.invalidate({ pageId });
+      await invalidate();
       setValues({});
       setDone(true);
       setTimeout(() => setDone(false), 2500);
     },
   });
+  const publish = trpc.db.publishForm.useMutation({ onSuccess: invalidate });
+  const unpublish = trpc.db.unpublishForm.useMutation({ onSuccess: invalidate });
+
+  const publicToken = (view.config as { publicToken?: string } | null)?.publicToken;
 
   const set = (id: string, v: unknown) => setValues((s) => ({ ...s, [id]: v }));
 
@@ -35,6 +50,40 @@ export function FormView({ pageId, collectionId, fields }: { pageId: string; col
 
   return (
     <div className="mx-auto max-w-xl">
+      {/* Compartir en la web: cualquiera con /f/<token> envía filas sin cuenta. */}
+      <div className="mb-3 flex items-center justify-end gap-3 text-sm">
+        {publicToken ? (
+          <>
+            <button
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(`${location.origin}/f/${publicToken}`)
+                  .then(() => toast("Enlace del formulario copiado"))
+              }
+              className="toque-estrecho flex items-center gap-1.5 text-brand hover:underline"
+            >
+              <Link2 size={14} /> Copiar enlace público
+            </button>
+            <button
+              onClick={() => unpublish.mutate({ viewId: view.id })}
+              disabled={unpublish.isPending}
+              className="toque-estrecho text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              Dejar de compartir
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => publish.mutate({ viewId: view.id })}
+            disabled={publish.isPending}
+            className="toque-estrecho flex items-center gap-1.5 text-[var(--muted)] hover:text-[var(--foreground)]"
+            title="Cualquiera con el enlace podrá enviar filas, sin cuenta"
+          >
+            <Globe size={14} /> Compartir formulario
+          </button>
+        )}
+      </div>
+
       <div className="rounded-2xl border border-[var(--border)] p-6 shadow-sm">
         <div className="space-y-4">
           {formFields.map((f) => (
@@ -60,31 +109,4 @@ export function FormView({ pageId, collectionId, fields }: { pageId: string; col
       </div>
     </div>
   );
-}
-
-function FieldInput({ field, value, onChange }: { field: FieldLite; value: unknown; onChange: (v: unknown) => void }) {
-  const base = "w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-brand";
-  if (field.type === "checkbox") {
-    return (
-      <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand)]" />
-    );
-  }
-  if (field.type === "select" || field.type === "status") {
-    return (
-      <select value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} className={base}>
-        <option value="">—</option>
-        {optionsOf(field).map((o) => (
-          <option key={o.id} value={o.id}>{o.label}</option>
-        ))}
-      </select>
-    );
-  }
-  const type =
-    field.type === "date" ? "date"
-    : field.type === "number" ? "number"
-    : field.type === "url" ? "url"
-    : field.type === "email" ? "email"
-    : field.type === "phone" ? "tel"
-    : "text";
-  return <input type={type} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} className={base} />;
 }

@@ -375,7 +375,7 @@ export function Database({
           openFull={openFull}
         />
       ) : active?.type === "form" ? (
-        <FormView pageId={pageId} collectionId={col.id} fields={asAny(fields)} />
+        <FormView pageId={pageId} collectionId={col.id} fields={asAny(visibleFields)} view={active} />
       ) : (
         <TableView
           pageId={pageId}

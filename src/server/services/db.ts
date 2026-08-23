@@ -10,6 +10,7 @@
  * detrás) en vez de leerlo de un contexto: es lo que permite llamarlo desde una
  * petición con token, donde no hay sesión.
  */
+import { randomBytes } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { db as defaultDb } from "@/lib/db";
 import { rankAtEnd, rankBetween } from "@/lib/fractional";
@@ -71,7 +72,7 @@ async function assertField(scope: Scope, fieldId: string) {
 async function assertView(scope: Scope, viewId: string) {
   const v = await scope.db.view.findFirst({
     where: { id: viewId, collection: { page: { workspaceId: scope.workspaceId } } },
-    select: { id: true, collectionId: true },
+    select: { id: true, collectionId: true, type: true, config: true },
   });
   if (!v) throw noEncontrado("Vista");
   return v;
@@ -497,6 +498,34 @@ export async function deleteView(scope: Scope, input: { id: string }) {
   const count = await scope.db.view.count({ where: { collectionId: v.collectionId } });
   if (count <= 1) throw new DbError("bad_request", "No puedes borrar la última vista.");
   await scope.db.view.delete({ where: { id: input.id } });
+  return { ok: true as const };
+}
+
+/**
+ * Publica una vista de formulario en la web: cualquiera con el enlace /f/<token>
+ * puede enviar filas sin cuenta. El token vive en view.config.publicToken (solo
+ * tiene sentido en vistas "form"); volver a publicar conserva el token.
+ */
+export async function publishForm(scope: Scope, input: { viewId: string }) {
+  const view = await assertView(scope, input.viewId);
+  if (view.type !== "form") throw new DbError("bad_request", "Solo se puede publicar una vista de formulario.");
+  const cfg = (view.config ?? {}) as Record<string, unknown>;
+  const token = typeof cfg.publicToken === "string" ? cfg.publicToken : randomBytes(16).toString("base64url");
+  await scope.db.view.update({
+    where: { id: view.id },
+    data: { config: { ...cfg, publicToken: token } as Prisma.InputJsonValue },
+  });
+  return { token };
+}
+
+export async function unpublishForm(scope: Scope, input: { viewId: string }) {
+  const view = await assertView(scope, input.viewId);
+  const cfg = (view.config ?? {}) as Record<string, unknown>;
+  delete cfg.publicToken;
+  await scope.db.view.update({
+    where: { id: view.id },
+    data: { config: cfg as Prisma.InputJsonValue },
+  });
   return { ok: true as const };
 }
 

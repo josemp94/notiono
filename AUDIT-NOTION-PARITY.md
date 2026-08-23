@@ -73,6 +73,12 @@
 > con migración + `favorites.move` + drag en el sidebar), **la celda de ID copia el enlace de la fila**
 > (URL absoluta `/p/…?r=…`), **Ctrl+Mayús+L** alterna claro/oscuro y **skeletons de carga** (`.esqueleto`)
 > en página y BD.
+> **Decimocuarta tanda 23-ago-2026:** **formulario público** — «Compartir formulario» en la vista
+> Formulario publica `/f/<token>` (token en `view.config.publicToken`, sin migración); cualquiera con el
+> enlace envía filas sin cuenta vía `POST /api/form/<token>` (valida cada valor por tipo y solo acepta
+> campos visibles y compatibles; crea por `services/db.createRecord`, con webhooks y `seq`). Ocultar una
+> columna en la vista la quita del formulario. `FieldInput` extraído a `FormFields.tsx` (sin tRPC) y
+> compartido por la vista interna y la pública.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -200,8 +206,8 @@ columnas interactivas, synced block y ecuaciones.
 | **Lista / Galería** — agrupar, tamaño tarjeta, preview | — | ✅ | `ListView.tsx:38-42`, `GalleryView.tsx:45-86` | — | — |
 | Galería — ajuste de imagen (fit/cover) | Configurable | ✅ | La vista previa de Archivos pinta la imagen; `imageFit` recortar/entera (tanda 12) | — | — |
 | **Gráfica** — 5 tipos, apilado, filtra antes de agregar, buckets de fecha | — | ✅ | `ChartView.tsx:49-162`, `db.ts:916` (commits recientes) | — | — |
-| **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ❌ | `FormView.tsx` solo interno | P1 | L |
-| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ❌ | Sin `required`; «gracias» = toast 2,5 s (`FormView.tsx:20-34`) | P1 | M |
+| **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ✅ | `/f/<token>` + `POST /api/form/<token>` (token en `view.config.publicToken`; validación por tipo en servidor; ocultar columna = quitar pregunta) — tanda 14 | — | — |
+| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ❌ | Sin `required`; «gracias» = pantalla fija con «Enviar otra respuesta» | P1 | M |
 | **Comunes** — crear/renombrar/duplicar/borrar vista | — | ✅ | `DbToolbar.tsx:69-91` | — | — |
 | Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
@@ -373,7 +379,7 @@ Agrupado en bloques delegables (cada bloque es autocontenido y cabe en una sesi�
 - Calendario: arrastrar eventos, crear arrastrando, hora visible, vista semana.
 - Kanban: reordenar dentro de la columna, añadir grupo desde el tablero, agregados por columna.
 - Comunes: ~~reordenar columnas de tabla arrastrando~~ ✅ (tanda 10), vista por defecto + reordenar pestañas de vista, ~~abrir BD embebida como página completa~~ ✅.
-- Formulario: campos obligatorios, URL pública, página de gracias configurable.
+- Formulario: campos obligatorios y página de gracias configurable (~~URL pública~~ ✅ tanda 14).
 
 **Bloque 1.C — BD en tiempo real (o mitigación)**
 - ~~Camino corto: señal de invalidación por el WebSocket de /collab + merge por celda~~ ✅ (`87af34f`, `01030f3`; el merge fue mejor que comparar `updatedAt`: jsonb atómico en Postgres, sin falsos conflictos).

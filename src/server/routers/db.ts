@@ -799,6 +799,21 @@ export const dbRouter = router({
       return conTRPC(dbService.deleteView(scopeOf(ctx), input));
     }),
 
+  /** Publica la vista de formulario en /f/<token> (cualquiera con el enlace envía filas sin cuenta). */
+  publishForm: workspaceProcedure
+    .input(z.object({ viewId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await exigeVista(ctx, input.viewId);
+      return conTRPC(dbService.publishForm(scopeOf(ctx), input));
+    }),
+
+  unpublishForm: workspaceProcedure
+    .input(z.object({ viewId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await exigeVista(ctx, input.viewId);
+      return conTRPC(dbService.unpublishForm(scopeOf(ctx), input));
+    }),
+
   /** Cambiar el tipo de una vista ("Mostrar como"), recalculando su config por defecto. */
   setViewType: workspaceProcedure
     .input(z.object({ id: z.string(), type: z.enum(VIEW_TYPES) }))

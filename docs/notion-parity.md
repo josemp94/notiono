@@ -52,7 +52,8 @@ del resto solo quedan detalles (formato anillo en Número, recordatorios en Fech
 ### 1.2 Tipos de vista
 
 Notiono tiene 8 (`VIEW_TYPES` en `DbToolbar.tsx`): ✅ Tabla, Kanban, Lista, Galería, Calendario,
-**Cronograma/Timeline**, Gráfica, Formulario.
+**Cronograma/Timeline**, Gráfica, Formulario (con **enlace público** `/f/<token>`: cualquiera
+con el enlace envía filas sin cuenta; ocultar una columna en la vista la quita del formulario).
 Faltan de Notion: ❌ **Mapa** (requiere campo Lugar), ❌ **Feed**, ❌ **Panel/Dashboard** con
 widgets y filtros globales.
 
