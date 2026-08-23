@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Check, Copy, Expand, Paperclip, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Trash2, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
+import { confirmar } from "@/components/Confirmar";
 import { dateValue, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
 
 
@@ -343,14 +344,27 @@ function NumberCell({ field, value, onCommit }: { field: FieldLite; value: unkno
 }
 
 const COLOR_NAMES = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "default"];
+const COLOR_LABELS: Record<string, string> = {
+  gray: "Gris",
+  brown: "Marrón",
+  orange: "Naranja",
+  yellow: "Amarillo",
+  green: "Verde",
+  blue: "Azul",
+  purple: "Morado",
+  pink: "Rosa",
+  red: "Rojo",
+  default: "Claro",
+};
 
 function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown; onCommit: (v: unknown) => void }) {
   const utils = trpc.useUtils();
   const updateField = trpc.db.updateField.useMutation({ onSuccess: () => utils.db.get.invalidate() });
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  // Opción del Estado cuyo grupo se está cambiando (Por hacer / En curso / Hecho).
+  // Opción cuyo editor está abierto (nombre, color, grupo si es Estado, borrar).
   const [editingOpt, setEditingOpt] = useState<string | null>(null);
+  const [dragOpt, setDragOpt] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const multi = field.type === "multiselect";
   const isStatus = field.type === "status";
@@ -380,12 +394,41 @@ function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown;
     }
   };
 
-  const setGroup = (optionId: string, group: string) => {
+  const saveOpts = (next: Option[]) => {
     const cfg = (field.config as { options?: Option[] }) ?? {};
-    updateField.mutate({
-      id: field.id,
-      config: { ...cfg, options: opts.map((o) => (o.id === optionId ? { ...o, group } : o)) },
-    });
+    updateField.mutate({ id: field.id, config: { ...cfg, options: next } });
+  };
+
+  const setGroup = (optionId: string, group: string) =>
+    saveOpts(opts.map((o) => (o.id === optionId ? { ...o, group } : o)));
+
+  const renameOpt = (optionId: string, label: string) => {
+    const l = label.trim();
+    if (l) saveOpts(opts.map((o) => (o.id === optionId ? { ...o, label: l } : o)));
+  };
+
+  const colorOpt = (optionId: string, color: string) =>
+    saveOpts(opts.map((o) => (o.id === optionId ? { ...o, color } : o)));
+
+  const deleteOpt = async (o: Option) => {
+    if (!(await confirmar(`¿Borrar la opción «${o.label}»? Desaparecerá de todas las filas que la usen.`))) return;
+    saveOpts(opts.filter((x) => x.id !== o.id));
+    if (selected.includes(o.id)) commit(selected.filter((x) => x !== o.id));
+    setEditingOpt(null);
+  };
+
+  // Soltar una opción sobre otra la coloca delante; en Estado además adopta su grupo
+  // (el orden visual manda: si cae en «Hecho», es de «Hecho»).
+  const dropOpt = (targetId: string) => {
+    if (!dragOpt || dragOpt === targetId) return;
+    const src = opts.find((o) => o.id === dragOpt);
+    const target = opts.find((o) => o.id === targetId);
+    if (!src || !target) return;
+    const rest = opts.filter((o) => o.id !== dragOpt);
+    const moved = isStatus ? { ...src, group: target.group ?? "todo" } : src;
+    rest.splice(rest.findIndex((o) => o.id === targetId), 0, moved);
+    saveOpts(rest);
+    setDragOpt(null);
   };
 
   const addOption = () => {
@@ -459,40 +502,71 @@ function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown;
                   )}
                   {inGroup.map((o) => (
                     <div key={o.id}>
-                      <div className="group/opt flex items-center gap-1 rounded hover:bg-[var(--hover)]">
+                      <div
+                        className="group/opt flex items-center gap-1 rounded hover:bg-[var(--hover)]"
+                        draggable={!q}
+                        onDragStart={() => setDragOpt(o.id)}
+                        onDragEnd={() => setDragOpt(null)}
+                        onDragOver={(e) => dragOpt && e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); dropOpt(o.id); }}
+                      >
                         <button onClick={() => toggle(o.id)} className="flex min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left text-sm">
                           <span className="truncate rounded px-1.5 py-0.5 text-xs" style={{ background: OPTION_COLORS[o.color ?? "gray"], color: "var(--tag-fg)" }}>
                             {o.label}
                           </span>
                           {selected.includes(o.id) && <span className="ml-auto text-brand"><Check size={14} /></span>}
                         </button>
-                        {/* Cambiar de grupo va detrás de un icono, no de un <select> nativo suelto. */}
-                        {isStatus && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditingOpt(editingOpt === o.id ? null : o.id); }}
-                            className={`toque-estrecho shrink-0 rounded p-1 hover:bg-[var(--border)]/40 hover:text-[var(--foreground)] ${editingOpt === o.id ? "text-[var(--foreground)]" : "al-pasar text-[var(--muted)]"}`}
-                            title="Cambiar de grupo"
-                          >
-                            <SlidersHorizontal size={13} />
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingOpt(editingOpt === o.id ? null : o.id); }}
+                          className={`toque-estrecho shrink-0 rounded p-1 hover:bg-[var(--border)]/40 hover:text-[var(--foreground)] ${editingOpt === o.id ? "text-[var(--foreground)]" : "al-pasar text-[var(--muted)]"}`}
+                          title="Editar la opción"
+                        >
+                          <MoreHorizontal size={13} />
+                        </button>
                       </div>
-                      {isStatus && editingOpt === o.id && (
-                        <div className="mb-1 ml-1 flex flex-wrap items-center gap-1 py-0.5 pl-1">
-                          <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Grupo</span>
-                          {STATUS_GROUPS.map(([g, l]) => (
-                            <button
-                              key={g}
-                              onClick={() => { setGroup(o.id, g); setEditingOpt(null); }}
-                              className={`rounded px-1.5 py-0.5 text-xs ${
-                                (o.group ?? "todo") === g
-                                  ? "bg-brand text-white"
-                                  : "border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--hover)]"
-                              }`}
-                            >
-                              {l}
-                            </button>
-                          ))}
+                      {editingOpt === o.id && (
+                        <div className="mb-1 ml-2 space-y-1.5 rounded border border-[var(--border)] p-1.5">
+                          <input
+                            defaultValue={o.label}
+                            autoFocus
+                            onBlur={(e) => renameOpt(o.id, e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                            className="w-full rounded border border-[var(--border)] bg-transparent px-2 py-0.5 text-sm outline-none focus:border-brand"
+                          />
+                          <div className="flex flex-wrap gap-1">
+                            {COLOR_NAMES.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => colorOpt(o.id, c)}
+                                className="toque-estrecho flex size-[18px] items-center justify-center rounded-full border border-[var(--border)]"
+                                style={{ background: OPTION_COLORS[c] }}
+                                title={COLOR_LABELS[c]}
+                              >
+                                {(o.color ?? "gray") === c && <Check size={12} style={{ color: "var(--tag-fg)" }} />}
+                              </button>
+                            ))}
+                          </div>
+                          {isStatus && (
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="text-[10px] uppercase tracking-wide text-[var(--muted)]">Grupo</span>
+                              {STATUS_GROUPS.map(([g, l]) => (
+                                <button
+                                  key={g}
+                                  onClick={() => setGroup(o.id, g)}
+                                  className={`rounded px-1.5 py-0.5 text-xs ${
+                                    (o.group ?? "todo") === g
+                                      ? "bg-brand text-white"
+                                      : "border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--hover)]"
+                                  }`}
+                                >
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <button onClick={() => deleteOpt(o)} className="flex items-center gap-1 text-xs text-red-500 hover:underline">
+                            <Trash2 size={12} /> Borrar opción
+                          </button>
                         </div>
                       )}
                     </div>
