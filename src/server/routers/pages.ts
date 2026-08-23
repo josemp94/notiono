@@ -175,7 +175,17 @@ export const pagesRouter = router({
       if (!page) throw new TRPCError({ code: "NOT_FOUND" });
       // El nivel viaja con la página: el cliente decide con él si edita o solo lee.
       const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
-      return { ...page, nivel };
+      // «Editado por X hace Y»: el autor sale de la última versión con autor (solo
+      // las páginas doc versionan; las de BD enseñan solo el «hace Y»).
+      const ultima = await ctx.db.version.findFirst({
+        where: { pageId: page.id, authorId: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { authorId: true },
+      });
+      const autor = ultima?.authorId
+        ? await ctx.db.user.findUnique({ where: { id: ultima.authorId }, select: { name: true, email: true } })
+        : null;
+      return { ...page, nivel, editadoPor: autor ? autor.name || autor.email : null };
     }),
 
   /** Crear página (opcionalmente hija de otra). */

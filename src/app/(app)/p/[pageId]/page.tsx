@@ -13,6 +13,17 @@ import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory"
 import { ShareButton } from "@/components/SharePublish";
 import { MovePageModal } from "@/components/MovePage";
 
+/** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
+function haceCuanto(d: Date | string): string {
+  const min = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const dias = Math.floor(h / 24);
+  return dias === 1 ? "ayer" : `hace ${dias} días`;
+}
+
 export default function PageView() {
   const params = useParams<{ pageId: string }>();
   const pageId = params.pageId;
@@ -47,6 +58,14 @@ export default function PageView() {
           <Breadcrumbs pageId={page.id} />
           {!comments && (
             <div className="ml-auto flex shrink-0 items-center gap-1">
+              {/* «Editado por X hace Y», como Notion en su barra superior. */}
+              <span
+                className="hidden whitespace-nowrap px-1 text-xs text-[var(--muted)] lg:block"
+                title={new Date(page.updatedAt).toLocaleString("es")}
+              >
+                {page.editadoPor ? `Editado por ${page.editadoPor} ` : "Editado "}
+                {haceCuanto(page.updatedAt)}
+              </span>
               {canEdit && <FavoriteButton pageId={page.id} />}
               {nivel === "full" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
               {page.type !== "database" && <HistoryButton onClick={() => setHistory(true)} />}
