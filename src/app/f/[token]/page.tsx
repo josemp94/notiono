@@ -24,7 +24,7 @@ export default async function FormularioPublico({ params }: { params: Promise<{ 
   });
   if (!view || view.collection.page.archivedAt) notFound();
 
-  const cfg = (view.config ?? {}) as { hiddenFields?: string[]; requiredFields?: string[] };
+  const cfg = (view.config ?? {}) as { hiddenFields?: string[]; requiredFields?: string[]; thanksMessage?: string };
   const hidden = new Set(cfg.hiddenFields ?? []);
   const fields = view.collection.fields
     .filter((f) => FORM_SUPPORTED.includes(f.type) && !hidden.has(f.id))
@@ -38,6 +38,7 @@ export default async function FormularioPublico({ params }: { params: Promise<{ 
       icon={view.collection.page.icon}
       fields={fields}
       required={required}
+      thanksMessage={cfg.thanksMessage}
     />
   );
 }

@@ -12,12 +12,14 @@ export function PublicForm({
   icon,
   fields,
   required = [],
+  thanksMessage,
 }: {
   token: string;
   title: string;
   icon: string | null;
   fields: FieldLite[];
   required?: string[];
+  thanksMessage?: string;
 }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [falta, setFalta] = useState<string[]>([]);
@@ -49,7 +51,7 @@ export function PublicForm({
         <div className="rounded-2xl border border-[var(--border)] p-10 shadow-sm">
           <Check size={32} className="mx-auto text-brand" />
           <h1 className="mt-3 text-xl font-semibold">¡Enviado!</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">Tu respuesta se ha guardado.</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{thanksMessage || "Tu respuesta se ha guardado."}</p>
           <button
             onClick={() => {
               setValues({});

@@ -36,7 +36,7 @@ export function FormView({
   const unpublish = trpc.db.unpublishForm.useMutation({ onSuccess: invalidate });
   const updateView = trpc.db.updateView.useMutation({ onSuccess: invalidate });
 
-  const cfg = (view.config ?? {}) as { publicToken?: string; requiredFields?: string[] };
+  const cfg = (view.config ?? {}) as { publicToken?: string; requiredFields?: string[]; thanksMessage?: string };
   const publicToken = cfg.publicToken;
   const required = cfg.requiredFields ?? [];
   const [falta, setFalta] = useState<string[]>([]);
@@ -137,6 +137,21 @@ export function FormView({
           </button>
           {done && <span className="flex items-center gap-1 text-sm text-green-600"><Check size={14} /> Registro añadido</span>}
         </div>
+      </div>
+
+      {/* Qué lee quien envía el formulario público al terminar. */}
+      <div className="mt-4">
+        <label className="mb-1 block text-xs font-medium text-[var(--muted)]">Mensaje tras enviar (formulario público)</label>
+        <input
+          defaultValue={cfg.thanksMessage ?? ""}
+          placeholder="Tu respuesta se ha guardado."
+          onBlur={(e) => {
+            const m = e.target.value.trim();
+            if ((cfg.thanksMessage ?? "") !== m) updateView.mutate({ id: view.id, config: { ...cfg, thanksMessage: m } });
+          }}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          className="w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-1.5 text-sm outline-none focus:border-brand"
+        />
       </div>
     </div>
   );
