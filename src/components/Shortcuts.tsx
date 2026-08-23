@@ -18,6 +18,7 @@ const GRUPOS: { titulo: string; items: { teclas: string[]; que: string }[] }[] =
     items: [
       { teclas: ["Ctrl", "K"], que: "Buscar páginas y contenido" },
       { teclas: ["Ctrl", "\\"], que: "Plegar o desplegar el panel lateral" },
+      { teclas: ["Ctrl", "Mayús", "L"], que: "Cambiar entre modo claro y oscuro" },
       { teclas: ["?"], que: "Esta ventana" },
     ],
   },

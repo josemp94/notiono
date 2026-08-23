@@ -10,6 +10,7 @@ import { ToastHost } from "@/components/Toast";
 import { SearchPalette } from "@/components/SearchPalette";
 import { Shortcuts } from "@/components/Shortcuts";
 import { isTyping, NEW_PAGE_EVENT, SHORTCUTS_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
+import { setTheme } from "@/lib/theme";
 
 const COLLAPSED_KEY = "notiono.sidebar-collapsed";
 
@@ -52,6 +53,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       } else if (e.altKey && e.key.toLowerCase() === "n" && !isTyping(e.target)) {
         e.preventDefault();
         window.dispatchEvent(new Event(NEW_PAGE_EVENT));
+      } else if (e.shiftKey && e.key.toLowerCase() === "l" && !isTyping(e.target)) {
+        // Ctrl+Mayús+L alterna claro/oscuro, como en Notion.
+        e.preventDefault();
+        setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
       }
     };
     window.addEventListener("keydown", onKey);

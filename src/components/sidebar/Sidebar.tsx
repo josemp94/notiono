@@ -769,7 +769,7 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       className="shrink-0 rounded px-1.5 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-      title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+      title={`${theme === "dark" ? "Tema claro" : "Tema oscuro"} (Ctrl+Mayús+L)`}
     >
       {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
     </button>
