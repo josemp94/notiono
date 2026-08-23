@@ -40,6 +40,7 @@ Lista real: `FIELD_TYPES` en `src/server/routers/db.ts` y `TYPES`/`FIELD_LABELS`
 | Fecha de creación / Última edición | ✅ | ✅ `created_time`, `last_edited_time` |
 | **Creado por / Editado por** | ✅ | ✅ `created_by`, `last_edited_by` (`Record.createdById/updatedById`) |
 | ID único | ✅ | ✅ `id` con `seq` por colección, prefijo editable y botón para copiar el enlace de la fila |
+| Botón | ✅ | ✅ `button` — al pulsarlo aplica valores a la fila (casilla, estado, fecha de hoy, número, texto); en Notion además abre páginas/webhooks |
 | Relación | ✅ | 🟡 `relation` unidireccional (sin campo espejo en la BD destino) |
 | Rollup | ✅ | 🟡 `count, sum, avg, min, max, values` |
 | Fórmula | ✅ | 🟡 evaluador propio, 13 funciones (ver 1.4) |
@@ -71,6 +72,7 @@ Hecho:
 - ✅ **Card size** (pequeña/media/grande) y **card preview** en Kanban y Galería.
 - ✅ **Panel de registro** lateral (`RecordPanel.tsx`) con propiedades editables + cuerpo de bloques, en Tabla, Calendario, Cronograma, Galería y Lista.
 - ✅ Renombrar/borrar vista, «Mostrar como», exportar CSV, campo de fecha del Calendario, inicio/fin del Cronograma, config de Gráfica (barras/líneas/tarta/donut × contar/sumar/media).
+- ✅ **Cronograma con tabla lateral fija** (los títulos no se van con el scroll horizontal; clic abre la ficha) y sección **«Sin fecha»** con «Planificar hoy».
 
 Falta:
 - ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla. En el Kanban, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).

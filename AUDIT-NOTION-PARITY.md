@@ -89,6 +89,10 @@
 > (`Page.archivedById`, migración `20260823110000_borrado_por`; se limpia al restaurar) y
 > **Ctrl+[ / Ctrl+]** atrás/adelante (sin altKey: en el teclado español los corchetes van con AltGr).
 > La vista semana del Calendario resultó estar ya hecha (`bab6708`): se corrige la cabecera de la auditoría.
+> **Decimosexta tanda 23-ago-2026:** **tabla lateral del Cronograma** (columna de títulos sticky con clic
+> para abrir la ficha + sección «Sin fecha» con «Planificar hoy») y **tipo de campo Botón** (etiqueta +
+> acciones campo→valor sobre la fila: casilla, estado/selección, «@hoy», número, texto; configurado en el
+> menú de la columna; sin valor en celda → fuera de conversiones y vacío en CSV).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -168,7 +172,7 @@ columnas interactivas, synced block y ecuaciones.
 
 | Área | Qué hace Notion | Estado | Evidencia | Sev. | Esf. |
 |---|---|---|---|---|---|
-| Cobertura de tipos | 23 tipos | ⚠️ | 20 en `FIELD_TYPES` (`services/db.ts:24`); faltan **Botón**, **Lugar** y un **Título** real | P1 | — |
+| Cobertura de tipos | 23 tipos | ⚠️ | 21 en `FIELD_TYPES` (`services/db.ts:24`, Botón incluido — tanda 16); faltan **Lugar** y un **Título** real | P2 | — |
 | Tipo Título | Tipo especial; abre la página, no se borra | ⚠️ | El título es "el primer campo `text`" (`routers/db.ts:207,337`); flexible pero implícito | P2 | M |
 | Número: formatos | ~30 monedas, decimales configurables, %, barra **y anillo**, «mostrar número» | ⚠️ | 4 formatos (normal/€/%/barra) en `cellText.ts:65-82`; sin anillo ni más monedas | P2 | S |
 | Fecha: formato visible y hora 12/24 | Configurable (relativo, DD/MM/AAAA…) | ⚠️ | Formato fijo es-ES (`cellText.ts:51-62`); hora fija 24 h (`Cell.tsx:561-563`) | P2 | M |
@@ -182,7 +186,7 @@ columnas interactivas, synced block y ecuaciones.
 | Relación: límite 1/∞, limpieza al borrar fila | Configurable y con cascada | ⚠️ | Limpieza al PURGAR hecha (`limpiaReferencias`); falta el límite 1/∞ | P2 | S |
 | Rollup: agregaciones | ~24 (median, range, earliest/latest, % vacío, checked…) | ✅ | ~20 en `lib/rollup.ts` (`9287c3d`), probadas en check | — | — |
 | Fórmula | ~70 funciones, tipos fecha/lista | ✅ | ~55 funciones con fechas/listas/`current` (`formula.ts`, `4d2939b`) | — | — |
-| Botón (propiedad) | Acciones: editar props, abrir página, webhook | ❌ | No existe | P1 | L |
+| Botón (propiedad) | Acciones: editar props, abrir página, webhook | ⚠️ | Editar propiedades de la fila ✅ (etiqueta + acciones campo→valor, «@hoy» para fechas — tanda 16); sin abrir-página ni webhook (nicho) | P2 | M |
 | Lugar (mapa) | Dirección + mapa + vista Mapa | ❌ | No existe | P2 | L |
 | Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ❌ | Celdas = string plano (`Cell.tsx:144-176`) | P2 | L |
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
@@ -208,7 +212,7 @@ columnas interactivas, synced block y ecuaciones.
 | Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ⚠️ | Agregados ✅ (`kanbanSum`, tanda 12) y ocultar columnas ✅ (`hiddenGroups`, ojo en cabecera + sección «Ocultas», tanda 15); falta subagrupar | P2 | M |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
 | Timeline — arrastrar para mover/redimensionar/crear | Interacción directa con barras | ✅ | Mover arrastrando + tirador de duración + línea de hoy (`2ef0a92`); crear arrastrando no | — | — |
-| Timeline — dependencias (flechas) + tabla lateral | Ambas | ❌ | No existen | P1 | L |
+| Timeline — dependencias (flechas) + tabla lateral | Ambas | ⚠️ | Tabla lateral ✅: columna de títulos fija (sticky) + sección «Sin fecha» con «Planificar hoy» (tanda 16); dependencias no (nicho familia) | P2 | L |
 | Timeline — hoy marcado + botón Hoy | — | ✅ | `TimelineView.tsx:91-93,138` | — | — |
 | **Calendario** — vista semana | Toggle mes/semana | ✅ | Toggle guardado en la vista (`bab6708`) | — | — |
 | Calendario — arrastrar evento para cambiar fecha; crear arrastrando | Drag&drop | ✅ | Arrastrar a otro día conserva hora y duración (`2ef0a92`); crear sigue con el + | — | — |
