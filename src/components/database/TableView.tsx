@@ -9,7 +9,7 @@ import { Cell, usePeople } from "./Cell";
 import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
 import { CALC_OPTS, computeCalc } from "@/lib/calc";
 import { colorByRules, opsFor, wrapOf, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
-import { FILTER_MENU_EVENT, type FilterMenuDetail } from "@/lib/shortcuts";
+import { FILTER_MENU_EVENT, isTyping, type FilterMenuDetail } from "@/lib/shortcuts";
 import { FIELD_LABELS, AddFieldButton } from "./shared";
 import { Popover } from "./Popover";
 import { RelationCell } from "./RelationCell";
@@ -73,6 +73,8 @@ export function TableView({
   const [menuField, setMenuField] = useState<string | null>(null);
   const [newMenu, setNewMenu] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  // Navegación por teclado: celda seleccionada (clic o flechas). Enter edita, Escape sale.
+  const [sel, setSel] = useState<{ recId: string; fieldId: string } | null>(null);
   // Ancho de columna: se arrastra en local y se guarda en la vista al soltar.
   const [drag, setDrag] = useState<{ fieldId: string; startX: number; startW: number; w: number } | null>(null);
   // Arrastre de filas: solo con el orden natural (sin orden ni agrupación activos).
@@ -181,6 +183,78 @@ export function TableView({
     // Solo debe re-suscribirse al empezar o terminar el arrastre.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag?.fieldId]);
+
+  // Teclado sobre la celda seleccionada. La rejilla se recorre por el DOM
+  // (td[data-celda]) para que agrupaciones y subtareas no necesiten lógica aparte.
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const tablaRef = useRef<HTMLTableElement | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const s = selRef.current;
+      const cont = tablaRef.current;
+      if (!s || !cont || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTyping(e.target)) {
+        // Editando: las flechas mueven el cursor; Escape vuelve a la selección.
+        if (e.key === "Escape") (document.activeElement as HTMLElement | null)?.blur();
+        return;
+      }
+      const actual = cont.querySelector(`td[data-celda="${s.recId}:${s.fieldId}"]`);
+      if (e.key === "Escape") {
+        // preventDefault para que este Escape no cierre además el panel de ficha.
+        e.preventDefault();
+        setSel(null);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!actual) return;
+        const casilla = actual.querySelector<HTMLElement>('input[type="checkbox"]');
+        if (casilla) return casilla.click();
+        const campo = actual.querySelector<HTMLInputElement>("input,textarea");
+        if (campo) {
+          campo.focus();
+          campo.select?.();
+          return;
+        }
+        // Etiquetas, personas, fechas…: su botón abre el selector.
+        actual.querySelector<HTMLElement>("button")?.click();
+        return;
+      }
+      if (!e.key.startsWith("Arrow") || !actual) return;
+      e.preventDefault();
+      const filas = [...cont.querySelectorAll("tr")].filter((tr) => tr.querySelector("td[data-celda]"));
+      const fila = actual.closest("tr")!;
+      let destino: Element | null | undefined;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const celdas = [...fila.querySelectorAll("td[data-celda]")];
+        destino = celdas[celdas.indexOf(actual) + (e.key === "ArrowRight" ? 1 : -1)];
+      } else {
+        const otra = filas[filas.indexOf(fila) + (e.key === "ArrowDown" ? 1 : -1)];
+        destino = otra?.querySelector(`td[data-celda$=":${s.fieldId}"]`);
+      }
+      const id = destino?.getAttribute("data-celda");
+      if (id) {
+        // Los cuid y los ids de campo no llevan ":", el split es seguro.
+        const [recId, fieldId] = id.split(":");
+        setSel({ recId, fieldId });
+        (destino as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" });
+      }
+    };
+    // Un clic fuera de esta tabla suelta su selección (puede haber varias BD en la
+    // página). Los menús colgantes viven en un portal fuera de la tabla: no cuentan.
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (selRef.current && tablaRef.current && !tablaRef.current.contains(t) && !t?.closest?.("[data-menu]"))
+        setSel(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onDown);
+    };
+  }, []);
 
   // Agrupar en secciones plegables. Como en Notion, agrupar aplana la jerarquía de
   // subtareas: cada fila cae en el grupo de su propio valor, sin sangría.
@@ -317,11 +391,14 @@ export function TableView({
           ...(w ? { maxWidth: w, width: w } : {}),
           ...(left === null ? {} : { left, background: colorOf(r) ?? "var(--background)" }),
         };
+        const esSel = sel?.recId === r.id && sel?.fieldId === f.id;
         if (i !== 0)
           return (
             <td
               key={f.id}
-              className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"}`}
+              data-celda={`${r.id}:${f.id}`}
+              onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
+              className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
               style={style}
             >
               {cell}
@@ -331,7 +408,9 @@ export function TableView({
         return (
           <td
             key={f.id}
-            className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"}`}
+            data-celda={`${r.id}:${f.id}`}
+            onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
+            className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
             style={style}
           >
             <div className="flex items-center" style={{ paddingLeft: depth * 20 }}>
@@ -385,7 +464,7 @@ export function TableView({
   return (
     <div>
       <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+      <table ref={tablaRef} className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-y border-[var(--border)] text-left text-[var(--muted)]">
             <th className="group sticky left-0 z-20 bg-[var(--background)] text-center" style={margen}>

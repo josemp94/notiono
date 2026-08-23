@@ -31,6 +31,14 @@ const GRUPOS: { titulo: string; items: { teclas: string[]; que: string }[] }[] =
     ],
   },
   {
+    titulo: "En una tabla",
+    items: [
+      { teclas: ["↑", "↓", "←", "→"], que: "Moverse entre celdas (tras hacer clic en una)" },
+      { teclas: ["Intro"], que: "Editar la celda seleccionada o abrir su selector" },
+      { teclas: ["Esc"], que: "Salir de la edición; otra vez, soltar la selección" },
+    ],
+  },
+  {
     titulo: "Con el ratón",
     items: [
       { teclas: ["Clic derecho"], que: "Sobre una pestaña de vista: sus opciones" },
