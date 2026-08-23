@@ -119,7 +119,19 @@ export function Database({
   }, [viewRecords, fields, q, people]);
 
   if (isLoading || !col) {
-    return <div className="px-4 py-6 text-[var(--muted)]">Cargando base de datos…</div>;
+    return (
+      <div className="px-4 py-6">
+        <div className="flex gap-2">
+          <div className="esqueleto h-6 w-24" />
+          <div className="esqueleto h-6 w-16" />
+        </div>
+        <div className="mt-3 space-y-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="esqueleto h-7 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   }
   if (!active) {
     return <div className="px-4 py-6 text-[var(--muted)]">Esta base de datos no tiene vistas.</div>;

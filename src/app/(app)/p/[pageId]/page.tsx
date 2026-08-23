@@ -48,7 +48,16 @@ export default function PageView() {
   }, [page, workspaceId]);
 
   if (isLoading) {
-    return <div className="px-12 py-16 text-[var(--muted)]">Cargando…</div>;
+    return (
+      <div className="px-12 py-16">
+        <div className="esqueleto h-9 w-1/3" />
+        <div className="mt-8 space-y-3">
+          <div className="esqueleto h-4 w-2/3" />
+          <div className="esqueleto h-4 w-1/2" />
+          <div className="esqueleto h-4 w-3/5" />
+        </div>
+      </div>
+    );
   }
   if (error || !page) {
     return <div className="px-12 py-16 text-[var(--muted)]">Página no encontrada.</div>;

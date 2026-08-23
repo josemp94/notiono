@@ -291,3 +291,16 @@ td input[type="tel"] {
     min-height: 40px;
   }
 }
+
+/* Placeholder de carga: bloque gris con un brillo que lo recorre (skeleton). */
+.esqueleto {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--hover) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: esqueleto 1.4s ease infinite;
+}
+@keyframes esqueleto {
+  to {
+    background-position: -200% 0;
+  }
+}
