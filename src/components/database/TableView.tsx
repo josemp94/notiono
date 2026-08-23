@@ -925,6 +925,19 @@ function FieldMenu({
         {frozen ? "Descongelar desde aquí" : "Congelar hasta esta columna"}
       </button>
 
+      {/* Límite de la relación: un solo vínculo (elegir otro sustituye al anterior). */}
+      {field.type === "relation" && (
+        <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
+          <span>Solo un vínculo</span>
+          <input
+            type="checkbox"
+            defaultChecked={Boolean((field.config as { single?: boolean } | null)?.single)}
+            onChange={(e) => onConfig({ single: e.target.checked })}
+            className="size-4 accent-[var(--color-brand,#ff5c28)]"
+          />
+        </label>
+      )}
+
       {/* Como en Notion, el wrap se decide por columna (solo tiene efecto en texto). */}
       {field.type === "text" && (
         <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">

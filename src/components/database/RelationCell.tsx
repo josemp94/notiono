@@ -15,7 +15,10 @@ export function RelationCell({
   value: unknown;
   onCommit: (v: unknown) => void;
 }) {
-  const targetCollectionId = (field.config as { targetCollectionId?: string })?.targetCollectionId;
+  const cfg = field.config as { targetCollectionId?: string; single?: boolean } | null;
+  const targetCollectionId = cfg?.targetCollectionId;
+  // Límite 1: elegir un vínculo sustituye al anterior, como en Notion.
+  const single = Boolean(cfg?.single);
   const [open, setOpen] = useState(false);
   const { data: options } = trpc.db.relationOptions.useQuery(
     { collectionId: targetCollectionId ?? "" },
@@ -26,6 +29,11 @@ export function RelationCell({
   const titleOf = (id: string) => options?.find((o) => o.id === id)?.title ?? "…";
 
   const toggle = (id: string) => {
+    if (single) {
+      onCommit(ids.includes(id) ? null : [id]);
+      setOpen(false);
+      return;
+    }
     const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
     onCommit(next.length ? next : null);
   };
