@@ -302,14 +302,52 @@ function SectionLink({ page }: { page: { id: string; title: string; icon: string
   );
 }
 
-/** Favoritos del usuario (por encima del árbol). */
+/** Favoritos del usuario (por encima del árbol), reordenables arrastrando. */
 function Favorites() {
+  const utils = trpc.useUtils();
   const { data: favs } = trpc.favorites.list.useQuery();
+  const move = trpc.favorites.move.useMutation({ onSuccess: () => utils.favorites.list.invalidate() });
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [drop, setDrop] = useState<{ id: string; pos: "before" | "after" } | null>(null);
   if (!favs?.length) return null;
   return (
     <Section icon={<Star size={12} />} title="Favoritos">
       {favs.map((p) => (
-        <SectionLink key={p.id} page={p} />
+        <div
+          key={p.id}
+          draggable
+          onDragStart={(e) => {
+            e.stopPropagation();
+            setDragId(p.id);
+          }}
+          onDragEnd={() => {
+            setDragId(null);
+            setDrop(null);
+          }}
+          onDragOver={(e) => {
+            if (!dragId || dragId === p.id) return;
+            e.preventDefault();
+            const r = e.currentTarget.getBoundingClientRect();
+            setDrop({ id: p.id, pos: e.clientY < r.top + r.height / 2 ? "before" : "after" });
+          }}
+          onDragLeave={() => setDrop((d) => (d?.id === p.id ? null : d))}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (dragId && drop?.id === p.id && dragId !== p.id)
+              move.mutate({ pageId: dragId, ...(drop.pos === "before" ? { beforePageId: p.id } : { afterPageId: p.id }) });
+            setDragId(null);
+            setDrop(null);
+          }}
+          className={
+            drop?.id === p.id
+              ? drop.pos === "before"
+                ? "shadow-[inset_0_2px_0_0_var(--color-brand)]"
+                : "shadow-[inset_0_-2px_0_0_var(--color-brand)]"
+              : ""
+          }
+        >
+          <SectionLink page={p} />
+        </div>
       ))}
     </Section>
   );

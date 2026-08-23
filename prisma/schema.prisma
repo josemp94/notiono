@@ -118,6 +118,7 @@ model Favorite {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   pageId    String
   page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  order     String // índice fraccional: reordenar arrastrando sin renumerar
   createdAt DateTime @default(now())
 
   @@unique([userId, pageId])

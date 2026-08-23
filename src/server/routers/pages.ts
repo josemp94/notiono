@@ -619,7 +619,14 @@ export const pagesRouter = router({
         await ctx.db.favorite.delete({ where: key });
         return { favorite: false };
       }
-      await ctx.db.favorite.create({ data: { userId: ctx.user.id, pageId: input.pageId } });
+      const last = await ctx.db.favorite.findFirst({
+        where: { userId: ctx.user.id },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      await ctx.db.favorite.create({
+        data: { userId: ctx.user.id, pageId: input.pageId, order: rankAtEnd(last?.order ?? null) },
+      });
       return { favorite: true };
     }),
 
@@ -727,13 +734,42 @@ export const favoritesRouter = router({
   list: workspaceProcedure.query(async ({ ctx }) => {
     const favs = await ctx.db.favorite.findMany({
       where: { userId: ctx.user.id, page: { workspaceId: ctx.workspace.id, archivedAt: null } },
-      orderBy: { createdAt: "asc" },
+      orderBy: { order: "asc" },
       select: { page: { select: { id: true, title: true, icon: true } } },
     });
     // Si te restringieron una página que tenías en favoritos, tampoco sale aquí.
     const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
     return favs.map((f) => f.page).filter((p) => alcanza(nivel(p.id), "view"));
   }),
+
+  /** Recoloca un favorito respecto a otro (arrastrar en el sidebar). */
+  move: workspaceProcedure
+    .input(z.object({ pageId: z.string(), beforePageId: z.string().optional(), afterPageId: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const mine = await ctx.db.favorite.findMany({
+        where: { userId: ctx.user.id, page: { workspaceId: ctx.workspace.id } },
+        orderBy: { order: "asc" },
+        select: { id: true, pageId: true, order: true },
+      });
+      const fav = mine.find((f) => f.pageId === input.pageId);
+      if (!fav) throw new TRPCError({ code: "NOT_FOUND" });
+      const rest = mine.filter((f) => f.pageId !== input.pageId);
+      const anchorId = input.beforePageId ?? input.afterPageId;
+      const at = anchorId ? rest.findIndex((f) => f.pageId === anchorId) : -1;
+      let a: string | null = rest.at(-1)?.order ?? null; // por defecto, al final
+      let b: string | null = null;
+      if (at !== -1) {
+        if (input.beforePageId) {
+          a = rest[at - 1]?.order ?? null;
+          b = rest[at].order;
+        } else {
+          a = rest[at].order;
+          b = rest[at + 1]?.order ?? null;
+        }
+      }
+      await ctx.db.favorite.update({ where: { id: fav.id }, data: { order: rankBetween(a, b) } });
+      return { ok: true as const };
+    }),
 });
 
 /** Sustituye ids antiguos por nuevos dentro de un JSON (cells, configs, specs). Los cuid son únicos, el reemplazo textual es seguro. */
