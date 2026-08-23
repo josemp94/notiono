@@ -909,6 +909,7 @@ function FieldMenu({
         onBlur={(e) => onConfig({ description: e.target.value.trim() })}
         className="mb-1 w-full resize-none rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs outline-none placeholder:text-[var(--muted)] focus:border-brand"
       />
+      <div className="my-1 border-t border-[var(--border)]" />
       <button onClick={() => onSort("asc")} className={item}>
         <ArrowUp size={14} /> Ordenar ascendente
       </button>
@@ -921,6 +922,7 @@ function FieldMenu({
       <button onClick={onHide} className={item}>
         <EyeOff size={14} /> Ocultar en la vista
       </button>
+      <div className="my-1 border-t border-[var(--border)]" />
       <button onClick={onFreeze} className={item} title="Las columnas congeladas no se mueven al desplazar la tabla en horizontal">
         {frozen ? "Descongelar desde aquí" : "Congelar hasta esta columna"}
       </button>
@@ -1030,6 +1032,7 @@ function FieldMenu({
         </>
       )}
 
+      <div className="my-1 border-t border-[var(--border)]" />
       <button onClick={() => onInsert("izquierda")} className={item}>
         <ArrowLeftToLine size={14} /> Insertar a la izquierda
       </button>
@@ -1039,6 +1042,7 @@ function FieldMenu({
       <button onClick={onDuplicate} className={item}>
         <Copy size={14} /> Duplicar propiedad
       </button>
+      <div className="my-1 border-t border-[var(--border)]" />
       <button onClick={onDelete} className={`${item} text-red-500`}>
         <Trash2 size={14} /> Borrar columna
       </button>
