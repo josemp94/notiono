@@ -5,7 +5,14 @@ import { CornerDownRight, FileText } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
 
-type Item = { id: string; title: string; icon: string | null; parentId: string | null; archivedAt: Date };
+type Item = {
+  id: string;
+  title: string;
+  icon: string | null;
+  parentId: string | null;
+  archivedAt: Date;
+  archivedBy: { name: string | null; email: string } | null;
+};
 
 /** Debe coincidir con TRASH_TTL_DAYS del servidor. */
 const TRASH_TTL_DAYS = 30;
@@ -135,7 +142,8 @@ export default function TrashPage() {
                       </span>
                     )}
                     <span className="ml-2 text-xs font-normal text-[var(--muted)]">
-                      · se borrará en {daysLeft(p.archivedAt)} día{daysLeft(p.archivedAt) === 1 ? "" : "s"}
+                      {p.archivedBy ? `· por ${p.archivedBy.name || p.archivedBy.email} ` : ""}· se borrará en{" "}
+                      {daysLeft(p.archivedAt)} día{daysLeft(p.archivedAt) === 1 ? "" : "s"}
                     </span>
                   </span>
                   <span className="flex shrink-0 gap-3 text-sm">

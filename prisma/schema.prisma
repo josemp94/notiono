@@ -25,6 +25,7 @@ model User {
   favorites    Favorite[]
   pushSubscriptions PushSubscription[]
   pagePermissions   PagePermission[]
+  archivedPages     Page[]         @relation("archivedPages")
 }
 
 /**
@@ -97,6 +98,8 @@ model Page {
   publicToken String?   @unique // si no es null, la página está publicada en la web (/s/<token>)
   restricted  Boolean   @default(false) // corta la herencia: solo entra quien esté en PagePermission (y owner/admin)
   archivedAt  DateTime?
+  archivedById String? // quién la envió a la papelera (se limpia al restaurar)
+  archivedBy  User?     @relation("archivedPages", fields: [archivedById], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

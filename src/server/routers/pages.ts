@@ -556,7 +556,7 @@ export const pagesRouter = router({
       const ids = await descendantIds(ctx, input.id);
       await ctx.db.page.updateMany({
         where: { id: { in: ids } },
-        data: { archivedAt: new Date() },
+        data: { archivedAt: new Date(), archivedById: ctx.user.id },
       });
       return { archived: ids.length };
     }),
@@ -565,7 +565,14 @@ export const pagesRouter = router({
   trash: workspaceProcedure.query(async ({ ctx }) => {
     return ctx.db.page.findMany({
       where: { workspaceId: ctx.workspace.id, archivedAt: { not: null } },
-      select: { id: true, title: true, icon: true, parentId: true, archivedAt: true },
+      select: {
+        id: true,
+        title: true,
+        icon: true,
+        parentId: true,
+        archivedAt: true,
+        archivedBy: { select: { name: true, email: true } },
+      },
       orderBy: { archivedAt: "desc" },
     });
   }),
@@ -578,7 +585,7 @@ export const pagesRouter = router({
       const ids = await descendantIds(ctx, input.id);
       await ctx.db.page.updateMany({
         where: { id: { in: ids } },
-        data: { archivedAt: null },
+        data: { archivedAt: null, archivedById: null },
       });
       return { restored: ids.length };
     }),
