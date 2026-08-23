@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/react";
-import { OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
+import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
 import { usePeople } from "./Cell";
 import { RecordPanel } from "./RecordPanel";
 
@@ -25,6 +25,7 @@ export function KanbanView({
   openIn = "side",
   openFull,
   canReorder = false,
+  sumFieldId,
 }: {
   pageId: string;
   collectionId: string;
@@ -38,6 +39,8 @@ export function KanbanView({
   openFull?: (recId: string) => void;
   /** Reordenar tarjetas dentro de la columna (solo sin orden activo en la vista). */
   canReorder?: boolean;
+  /** Campo número cuya SUMA se enseña en la cabecera de cada columna (si no, contar). */
+  sumFieldId?: string;
 }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.db.get.invalidate({ pageId });
@@ -152,7 +155,16 @@ export function KanbanView({
           >
             <div className="mb-2 flex items-center justify-between px-1 text-sm font-medium">
               <span>{col.label}</span>
-              <span className="text-[var(--muted)]">{cards.length}</span>
+              {(() => {
+                const sumField = fields.find((f) => f.id === sumFieldId && f.type === "number");
+                if (!sumField) return <span className="text-[var(--muted)]">{cards.length}</span>;
+                const total = cards.reduce((a, r) => a + (Number(r.cells?.[sumField.id]) || 0), 0);
+                return (
+                  <span className="text-[var(--muted)]" title={`${cards.length} tarjetas`}>
+                    {formatNumber(total, sumField)}
+                  </span>
+                );
+              })()}
             </div>
             <div className="flex flex-col gap-2">
               {cards.map((r) => {

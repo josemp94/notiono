@@ -426,6 +426,24 @@ export function DbToolbar({
                     ))}
                   </select>
                 </label>
+                {/* Resumen de la cabecera de cada columna: contar, o la suma de un número. */}
+                {view.type === "kanban" && (
+                  <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
+                    <span>Resumen de columna</span>
+                    <select
+                      value={view.config?.kanbanSum ?? ""}
+                      onChange={(e) => saveConfig({ kanbanSum: e.target.value || null })}
+                      className="max-w-[140px] rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+                    >
+                      <option value="">Contar tarjetas</option>
+                      {fields
+                        .filter((f) => f.type === "number")
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>Suma de {f.name}</option>
+                        ))}
+                    </select>
+                  </label>
+                )}
                 {/* Solo la Galería pinta la vista previa como imagen. */}
                 {view.type === "gallery" && (
                   <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
