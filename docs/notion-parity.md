@@ -73,7 +73,7 @@ Hecho:
 - ✅ Renombrar/borrar vista, «Mostrar como», exportar CSV, campo de fecha del Calendario, inicio/fin del Cronograma, config de Gráfica (barras/líneas/tarta/donut × contar/sumar/media).
 
 Falta:
-- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla.
+- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla. En el Kanban, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).
 - ✅ **Duplicar vista** con todos sus ajustes.
 - ✅ **Panel de registro** también en Kanban; **modos side/center/página completa** (`view.config.openIn`, selector «Abrir filas en», defaults de Notion; página completa = `/p/<pageId>?r=<recordId>`); **peek redimensionable** arrastrando el borde (localStorage) y botón de expandir; **Escape** cierra menús y panel; **comentarios de fila** en la ficha (`Comment.recordId`, con aviso y push).
 - ✅ **Ancho de columna** ajustable arrastrando y persistente por vista (doble clic vuelve al automático).
@@ -133,7 +133,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Historial de versiones** con UI (snapshot con throttle de 2 min, últimas 50, restaurar). Solo páginas `doc`.
 - ✅ **Buscador global Ctrl+K**, que busca por título y **dentro del texto de los bloques**.
 - ✅ **Favoritos** (reordenables arrastrando) y **Recientes** en el sidebar.
-- ✅ **Papelera** con jerarquía, retención de 30 días con purga perezosa, vaciar y buscar.
+- ✅ **Papelera** con jerarquía, retención de 30 días con purga perezosa, vaciar, buscar y «borrado por».
 - ✅ **Publicar página en la web** (`/s/<token>`, solo lectura, resuelve también las BD embebidas).
 - ✅ **Recordatorios**: al abrir la app avisa en la bandeja de lo que tienes asignado y ya vence.
 - ✅ **Colaboración en tiempo real**: edición simultánea, cursores con nombre y **avatares de presencia** en la cabecera.
@@ -153,7 +153,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Import/Export**: Markdown ↔ página, CSV ↔ base de datos, **página con subpáginas a ZIP** y **copia de seguridad del espacio entero** (Ajustes; MD + CSV + adjuntos). ❌ PDF y HTML.
 - ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide.
 - ✅ **API REST v1** con tokens por espacio (`docs/api.md`).
-- 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página) y Ctrl+Mayús+L (modo oscuro). Faltan favorito, cambiar de vista y mover bloque.
+- 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página), Ctrl+Mayús+L (modo oscuro) y Ctrl+[ / Ctrl+] (atrás/adelante). Faltan favorito, cambiar de vista y mover bloque.
 - ✅ **Mis tareas** (`/my-tasks`): lo que tengo asignado por un campo Persona en cualquier base de datos.
 - ❌ **Home/Inicio** personalizable.
 - ❌ Reposicionar la portada; galería de imágenes de portada.

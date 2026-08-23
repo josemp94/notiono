@@ -36,7 +36,7 @@
 > **Octava tanda 21-ago-2026 (`2ef0a92`): Calendario y Cronograma editables — EL TOP-10 QUEDA COMPLETO.**
 > Arrastrar eventos entre días (hora y duración conservadas) y hora visible en el Calendario; zoom
 > Mes/Trimestre/Año, arrastrar barras y redimensionar con tirador en el Cronograma, con línea de «hoy».
-> Quedan como P1-P2 de esa área: dependencias + tabla lateral del Timeline y la vista semana del Calendario.
+> Quedan como P1-P2 de esa área: dependencias + tabla lateral del Timeline (la vista semana del Calendario ya está: `bab6708`).
 > **Novena tanda 21-ago-2026 (`0c49c01`…`055cc86`), pulido:** abrir BD embebida como página completa, editar el
 > comentario propio, vista Semana del Calendario, Favorito + Copiar enlace en el menú del árbol y sidebar
 > redimensionable (200–480px, persistente). El indicador de guardado ya se mostraba bien (fila desfasada).
@@ -84,6 +84,11 @@
 > **Navegación por teclado en la tabla**: clic selecciona la celda (anillo), flechas por la rejilla
 > (recorrida por el DOM, sobrevive a grupos y subtareas), Intro edita o abre el selector, Escape sale;
 > documentada en la ventana de Atajos.
+> **Decimoquinta tanda 23-ago-2026:** **ocultar columnas de grupo en el Kanban** (`hiddenGroups`, ojo en
+> la cabecera + sección «Ocultas» para recuperarlas), **«borrado por» en la papelera**
+> (`Page.archivedById`, migración `20260823110000_borrado_por`; se limpia al restaurar) y
+> **Ctrl+[ / Ctrl+]** atrás/adelante (sin altKey: en el teclado español los corchetes van con AltGr).
+> La vista semana del Calendario resultó estar ya hecha (`bab6708`): se corrige la cabecera de la auditoría.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -117,7 +122,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 5. ~~**Las BD no son tiempo-real y las celdas son last-write-wins**~~ — ✅ HECHO por el camino corto (`01030f3`, `87af34f`): merge atómico por celda (campos distintos ya no se pisan; misma celda gana el último, como Notion) + los cambios de otros aparecen al momento. CRDT real solo si algún día hace falta.
 6. ~~**Fórmulas: 13 funciones vs ~70 de Notion Formula 2.0**~~ — ✅ HECHO (`4d2939b`): fechas y listas como valores, `current`/`index`, ~55 funciones, `prop("Relación")`. Queda P2: editor con autocompletado.
 7. ~~**Relación unidireccional + rollups a medias**~~ — ✅ HECHO: campo espejo con sincronía y limpieza al purgar (`512a9aa`) + las ~20 agregaciones (`9287c3d`). Queda P2: límite 1/∞ por relación.
-8. ~~**Timeline y Calendario de solo lectura**~~ — ✅ HECHO en lo gordo (`2ef0a92`): arrastrar/redimensionar/zoom/hora. Quedan dependencias, tabla lateral y vista semana (P1-P2).
+8. ~~**Timeline y Calendario de solo lectura**~~ — ✅ HECHO en lo gordo (`2ef0a92`): arrastrar/redimensionar/zoom/hora; la vista semana también (`bab6708`). Quedan dependencias y tabla lateral del Timeline (P1-P2).
 9. ~~**Modo oscuro roto en las etiquetas**~~ — ✅ HECHO (`56740cb`): 10 colores con variante clara/oscura (`--tag-*` en `globals.css`).
 10. ~~**Migración e intercambio pobres**~~ — ✅ CASI HECHO (`ff8b7d5`, `3af6270`, `5792695`): ZIP de Notion, tipos en CSV y API con paginación+filtros. Queda el export (subpáginas/PDF/HTML, backup) y CSV a BD existente, P1.
 
@@ -200,7 +205,7 @@ columnas interactivas, synced block y ecuaciones.
 | **Kanban** — agrupar por select/status/person/checkbox | + fecha | ✅ | `KanbanView.tsx:51-83` | — | — |
 | Kanban — reordenar tarjetas DENTRO de una columna | Drag con orden manual | ✅ | Soltar sobre una tarjeta coloca encima/debajo (`moveRecord`); solo sin orden activo, como Notion (tanda 11) | — | — |
 | Kanban — añadir grupo/opción desde el tablero | «+ Añadir grupo» | ✅ | Crea la opción del select/estado in situ (`KanbanView.tsx`, `a00f570`) | — | — |
-| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ⚠️ | Agregados ✅ (contar o sumar un número, `kanbanSum`, tanda 12); faltan ocultar columnas de grupo y subagrupar | P2 | M |
+| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ⚠️ | Agregados ✅ (`kanbanSum`, tanda 12) y ocultar columnas ✅ (`hiddenGroups`, ojo en cabecera + sección «Ocultas», tanda 15); falta subagrupar | P2 | M |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
 | Timeline — arrastrar para mover/redimensionar/crear | Interacción directa con barras | ✅ | Mover arrastrando + tirador de duración + línea de hoy (`2ef0a92`); crear arrastrando no | — | — |
 | Timeline — dependencias (flechas) + tabla lateral | Ambas | ❌ | No existen | P1 | L |
@@ -253,7 +258,7 @@ columnas interactivas, synced block y ecuaciones.
 | Breadcrumb clicable | Truncado con «…» si es largo | ✅ | `p/[pageId]/page.tsx:97-140` | — | — |
 | Favoritos/Recientes reordenables | Drag | ✅ | Favoritos con `Favorite.order` fraccional + drag en el sidebar (tanda 13); Recientes son cronológicos por definición | — | — |
 | Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK (`pages.ts:309-359`, `VersionHistory.tsx:40-121`); sin diff, solo docs | P1 | M |
-| Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx:16-163`; falta borrado-por | P2 | S |
+| Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx`; «por X» con `Page.archivedById` (tanda 15) | — | — |
 | Icono de página | Emoji **o imagen subida** | ⚠️ | Solo emoji (`PageIcon.tsx:5-97`) | P2 | S |
 | Portada: reposicionar + galería (Unsplash) | Crop/offset | ⚠️ | Gradientes/subir/URL OK (`PageCover.tsx:9-183`); sin reposicionar ni galería | P2 | M |
 | Home/Inicio con widgets | Recientes, tareas, eventos | ❌ | `(app)/page.tsx:7-23` redirige a la primera página; `/my-tasks` cubre parte | P2 | L |
@@ -262,7 +267,7 @@ columnas interactivas, synced block y ecuaciones.
 | Copiar enlace privado (botón) | En menú y cabecera | ⚠️ | Solo URL pública en `SharePublish.tsx:77-93` | P2 | S |
 | Deep-links a bloque/heading (#anchor) | Copiar enlace al bloque | ❌ | Sin anchors; la ToC hace scroll interno pero no hay URLs de bloque | P1 | M-L |
 | Peek: abrir página en panel lateral | Ctrl+clic → peek | ❌ | Solo navegación completa (las filas de BD sí tienen `RecordPanel`) | P2 | M |
-| Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ⚠️ | Ctrl+K, Ctrl+\, Ctrl+Alt+N, ?, y Ctrl+Mayús+L para el tema (tanda 13); faltan Ctrl+[ ] (atrás/adelante) | P2 | S |
+| Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ✅ | Ctrl+K, Ctrl+\, Ctrl+Alt+N, ?, Ctrl+Mayús+L (tema) y Ctrl+[ ] atrás/adelante (tanda 15; Ctrl+P es Ctrl+K) | — | — |
 | Notificaciones por comentario/asignación | Además de menciones y vencimientos | ✅ | Tipos `comment` y `assign` con push y bandeja (`comments.ts`, `db.ts updateCell`, `598a9ee`) | — | — |
 | Multi-workspace con selector | — | ✅ | `Sidebar.tsx:469-536` | — | — |
 
