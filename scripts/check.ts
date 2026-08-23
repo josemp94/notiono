@@ -63,6 +63,19 @@ assert.equal(conComputados(crecs, undefined), crecs);
 assert.ok(opsFor("formula").some((o) => o.value === "gte"));
 assert.ok(opsFor("rollup").some((o) => o.value === "contains"));
 
+// Diff del historial: aplanar bloques a líneas y LCS por líneas.
+import { diffLineas, lineasDe } from "../src/lib/diff";
+{
+  const bloques = [
+    { type: "paragraph", content: [{ text: "Hola" }] },
+    { type: "heading", content: [{ text: "Título" }], children: [{ type: "paragraph", content: [{ text: "hijo" }] }] },
+    { type: "image", content: [] },
+  ];
+  assert.deepEqual(lineasDe(bloques), ["Hola", "Título", "  hijo", "[image]"]);
+  const d = diffLineas(["a", "b", "c"], ["a", "c", "d"]);
+  assert.deepEqual(d.map((l) => l.tipo + ":" + l.texto), ["igual:a", "menos:b", "igual:c", "mas:d"]);
+}
+
 // Cómo se abren las fichas: config válida, o los defaults de Notion por tipo de vista.
 assert.equal(openInOf("table", {}), "side");
 assert.equal(openInOf("gallery", {}), "center");

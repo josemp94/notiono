@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { History, X } from "lucide-react";
+import { diffLineas, lineasDe } from "@/lib/diff";
 import { createPortal } from "react-dom";
 import { es } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -50,7 +51,11 @@ export function VersionHistoryModal({
 }) {
   const { data: versions } = trpc.pages.versions.list.useQuery({ pageId });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [verDiff, setVerDiff] = useState(false);
   const selected = versions?.find((v) => v.id === selectedId) ?? versions?.[0];
+  // La versión inmediatamente anterior a la seleccionada (la lista va de nueva a vieja).
+  const idx = versions?.findIndex((v) => v.id === selected?.id) ?? -1;
+  const anterior = idx >= 0 ? versions?.[idx + 1] : undefined;
 
   const restore = trpc.pages.versions.restore.useMutation({
     onSuccess: async () => {
@@ -69,7 +74,25 @@ export function VersionHistoryModal({
           {!versions ? (
             <p className="px-8 text-sm text-[var(--muted)]">Cargando…</p>
           ) : selected ? (
-            <Preview key={selected.id} content={selected.snapshot} />
+            <>
+              {anterior && (
+                <div className="mb-3 flex justify-end px-8">
+                  <button
+                    onClick={() => setVerDiff((v) => !v)}
+                    className={`rounded-md border border-[var(--border)] px-2 py-1 text-xs ${
+                      verDiff ? "bg-[var(--active)] font-medium" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {verDiff ? "Ver la versión" : "Ver los cambios"}
+                  </button>
+                </div>
+              )}
+              {verDiff && anterior ? (
+                <Diff key={selected.id} a={anterior.snapshot} b={selected.snapshot} />
+              ) : (
+                <Preview key={selected.id} content={selected.snapshot} />
+              )}
+            </>
           ) : (
             <p className="px-8 text-sm text-[var(--muted)]">Todavía no hay versiones de esta página.</p>
           )}
@@ -117,6 +140,36 @@ export function VersionHistoryModal({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** Qué cambió respecto a la versión anterior, línea a línea (verde entra, rojo sale). */
+function Diff({ a, b }: { a: unknown; b: unknown }) {
+  const lineas = diffLineas(lineasDe(a), lineasDe(b));
+  if (!lineas.some((l) => l.tipo !== "igual")) {
+    return <p className="px-8 text-sm text-[var(--muted)]">Sin cambios de texto respecto a la anterior.</p>;
+  }
+  return (
+    <div className="space-y-0.5 px-8 text-sm">
+      {lineas.map((l, i) => (
+        <div
+          key={i}
+          className={`whitespace-pre-wrap rounded px-1.5 ${
+            l.tipo === "mas"
+              ? "bg-green-500/15"
+              : l.tipo === "menos"
+                ? "bg-red-500/15 line-through opacity-70"
+                : "text-[var(--muted)]"
+          }`}
+        >
+          {/* El +/− acompaña al color: legible también sin distinguirlos. */}
+          <span className="mr-1 inline-block w-3 select-none text-xs text-[var(--muted)]">
+            {l.tipo === "mas" ? "+" : l.tipo === "menos" ? "−" : ""}
+          </span>
+          {l.texto || " "}
+        </div>
+      ))}
+    </div>
   );
 }
 
