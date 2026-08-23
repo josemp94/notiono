@@ -4,15 +4,15 @@ import { useState } from "react";
 import { trpc } from "@/trpc/react";
 import { RecordPanel } from "./RecordPanel";
 import { usePeople } from "./Cell";
-import { displayValue, groupBy, rowColor, type FieldLite } from "@/lib/cellText";
+import { displayValue, groupBy, rowColor, type Attachment, type FieldLite } from "@/lib/cellText";
 import { colorByRules, type ColorRule, type DbField, type DbRecord } from "@/lib/viewData";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
 
-const SIZES: Record<string, { grid: string; card: string; title: string }> = {
-  small: { grid: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6", card: "p-3 text-xs", title: "text-sm" },
-  medium: { grid: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", card: "p-4 text-sm", title: "" },
-  large: { grid: "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3", card: "p-5 text-sm", title: "text-lg" },
+const SIZES: Record<string, { grid: string; card: string; title: string; img: string }> = {
+  small: { grid: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6", card: "p-3 text-xs", title: "text-sm", img: "h-24" },
+  medium: { grid: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", card: "p-4 text-sm", title: "", img: "h-32" },
+  large: { grid: "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3", card: "p-5 text-sm", title: "text-lg", img: "h-44" },
 };
 
 export function GalleryView({
@@ -25,6 +25,7 @@ export function GalleryView({
   colorFieldId,
   groupByFieldId,
   colorRules,
+  imageFit,
   openIn = "center",
   openFull,
 }: {
@@ -37,6 +38,8 @@ export function GalleryView({
   colorFieldId?: string;
   groupByFieldId?: string;
   colorRules?: ColorRule[];
+  /** Ajuste de la imagen de la vista previa: recortar (cover) o entera (contain). */
+  imageFit?: string;
   /** Cómo abrir la ficha (lateral/centrado/página completa). */
   openIn?: "side" | "center" | "full";
   openFull?: (recId: string) => void;
@@ -84,7 +87,23 @@ export function GalleryView({
           >
             <div className={`font-display truncate font-semibold ${size.title}`}>{recTitle(r)}</div>
             {previewField && (() => {
-              const txt = displayValue(previewField, r.cells?.[previewField.id], people);
+              const v = r.cells?.[previewField.id];
+              // Un campo de Archivos con imagen se enseña como imagen, no como su nombre.
+              const files = previewField.type === "files" && Array.isArray(v) ? (v as Attachment[]) : [];
+              const img = files.find((x) => x.mime?.startsWith("image/"));
+              if (img) {
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={img.url}
+                    alt=""
+                    className={`${size.img} w-full rounded-md ${
+                      imageFit === "contain" ? "bg-[var(--border)]/30 object-contain" : "object-cover"
+                    }`}
+                  />
+                );
+              }
+              const txt = displayValue(previewField, v, people);
               if (!txt) return null;
               return (
                 <div className="line-clamp-4 break-words rounded-md bg-[var(--border)]/30 p-2">{txt}</div>

@@ -426,6 +426,20 @@ export function DbToolbar({
                     ))}
                   </select>
                 </label>
+                {/* Solo la Galería pinta la vista previa como imagen. */}
+                {view.type === "gallery" && (
+                  <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
+                    <span>Ajuste de imagen</span>
+                    <select
+                      value={view.config?.imageFit ?? "cover"}
+                      onChange={(e) => saveConfig({ imageFit: e.target.value })}
+                      className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+                    >
+                      <option value="cover">Recortar</option>
+                      <option value="contain">Imagen entera</option>
+                    </select>
+                  </label>
+                )}
               </div>
             )}
             <button

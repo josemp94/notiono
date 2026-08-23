@@ -347,6 +347,7 @@ export function Database({
           colorFieldId={asAny(active.config)?.rowColorFieldId}
           groupByFieldId={asAny(active.config)?.groupByFieldId}
           colorRules={asAny(active.config)?.colorRules}
+          imageFit={asAny(active.config)?.imageFit}
           openIn={openIn}
           openFull={openFull}
         />
