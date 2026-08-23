@@ -29,6 +29,7 @@ export function Cell({
   updatedById,
   seq,
   wrap = false,
+  rowUrl,
 }: {
   field: FieldLite;
   value: unknown;
@@ -41,13 +42,16 @@ export function Cell({
   seq?: number;
   /** La vista pide envolver el texto largo en vez de recortarlo. */
   wrap?: boolean;
+  /** Ruta de la fila (/p/…?r=…); con ella el ID ofrece copiar su enlace. */
+  rowUrl?: string;
 }) {
-  // ID incremental (solo lectura), con prefijo opcional
+  // ID incremental (solo lectura), con prefijo opcional y copia del enlace de la fila
   if (field.type === "id") {
     const prefix = (field.config as { prefix?: string })?.prefix ?? "";
     return (
-      <span className="block px-1 py-0.5 text-sm text-[var(--muted)]">
-        {seq == null ? "—" : `${prefix}${seq}`}
+      <span className="group/celda flex items-center gap-1 px-1 py-0.5 text-sm text-[var(--muted)]">
+        <span className="min-w-0 truncate">{seq == null ? "—" : `${prefix}${seq}`}</span>
+        {rowUrl && seq != null && <CopiarBtn value={rowUrl} title="Copiar el enlace de la fila" />}
       </span>
     );
   }
@@ -258,18 +262,19 @@ function ExpandePopover({
  * hace lo mismo). Deliberadamente NO usa `.al-pasar`: en táctil sería un icono
  * permanente en cada celda, y ahí el valor ya se alcanza abriendo la ficha.
  */
-function CopiarBtn({ value }: { value: string }) {
+function CopiarBtn({ value, title = "Copiar" }: { value: string; title?: string }) {
   const [copiado, setCopiado] = useState(false);
   return (
     <button
       onClick={() =>
-        navigator.clipboard.writeText(value).then(() => {
+        // Las rutas relativas se copian como URL absoluta (enlace de la fila).
+        navigator.clipboard.writeText(value.startsWith("/") ? location.origin + value : value).then(() => {
           setCopiado(true);
           setTimeout(() => setCopiado(false), 1000);
         })
       }
       className="shrink-0 rounded p-0.5 text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--foreground)] group-hover/celda:opacity-100 group-focus-within/celda:opacity-100"
-      title="Copiar"
+      title={title}
     >
       {copiado ? <Check size={13} className="text-brand" /> : <Copy size={13} />}
     </button>

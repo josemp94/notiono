@@ -306,6 +306,7 @@ export function TableView({
               createdById={r.createdById}
               updatedById={r.updatedById}
               seq={r.seq}
+              rowUrl={`/p/${pageId}?r=${r.id}`}
               onCommit={(value) => updateCell.mutate({ recordId: r.id, fieldId: f.id, value })}
             />
           );
