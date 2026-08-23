@@ -54,7 +54,8 @@ del resto solo quedan detalles (formato anillo en Número, recordatorios en Fech
 Notiono tiene 8 (`VIEW_TYPES` en `DbToolbar.tsx`): ✅ Tabla, Kanban, Lista, Galería, Calendario,
 **Cronograma/Timeline**, Gráfica, Formulario (con **enlace público** `/f/<token>`: cualquiera
 con el enlace envía filas sin cuenta; ocultar una columna en la vista la quita del formulario,
-y hay **campos obligatorios** con asterisco, validados también en el servidor).
+y hay **campos obligatorios** con asterisco, validados también en el servidor, y **mensaje
+de gracias personalizable**).
 Faltan de Notion: ❌ **Mapa** (requiere campo Lugar), ❌ **Feed**, ❌ **Panel/Dashboard** con
 widgets y filtros globales.
 
@@ -79,6 +80,7 @@ Falta:
 - ✅ **Congelar columnas** al desplazar en horizontal: se elige hasta cuál en el menú de la columna (por defecto la primera). ✅ **Envolver texto por columna** (`wrapCols`, con el ajuste por vista como default) y **menú de cabecera completo al hacer clic** (nombre editable, ordenar asc/desc, filtrar, ocultar, ajustar texto, congelar, tipo, duplicar propiedad con valores, insertar izquierda/derecha, borrar). ✅ **Celdas con acciones al pasar el ratón**: ABRIR en el título, copiar en texto/URL/correo/tel, «Expandir» cuando el contenido no cabe (popup editable).
 - ✅ **Reordenar filas arrastrando** (cuando la vista no tiene orden ni agrupación) y **duplicar fila** con sus subtareas.
 - ✅ **Reordenar columnas arrastrando** la cabecera (`moveField`, orden fraccional).
+- ✅ **Navegación por teclado en la Tabla**: clic selecciona la celda, flechas para moverse (sobrevive a grupos y subtareas), Intro edita o abre el selector, Escape sale.
 - ❌ Fila de cálculos fuera de la Tabla.
 - ✅ **Plantillas de fila** («Nueva fila ▾», guardadas desde la ficha de una fila).
 - ✅ **Color de fila y de tarjeta** por la opción de una etiqueta («Color por»).

@@ -80,7 +80,10 @@
 > columna en la vista la quita del formulario. `FieldInput` extraído a `FormFields.tsx` (sin tRPC) y
 > compartido por la vista interna y la pública. **Campos obligatorios**: asterisco por campo en la vista
 > interna (`view.config.requiredFields`), validados en cliente y en el endpoint; el checkbox no puede ser
-> obligatorio (false es respuesta válida).
+> obligatorio (false es respuesta válida). **Mensaje de gracias personalizable** (`thanksMessage`).
+> **Navegación por teclado en la tabla**: clic selecciona la celda (anillo), flechas por la rejilla
+> (recorrida por el DOM, sobrevive a grupos y subtareas), Intro edita o abre el selector, Escape sale;
+> documentada en la ventana de Atajos.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -193,10 +196,11 @@ columnas interactivas, synced block y ecuaciones.
 | Tabla — fila de cálculos, agrupar+subagrupar, ancho, congelar, envolver, reordenar filas | — | ✅ | `TableView.tsx:427-485`, `DbToolbar.tsx:287-347`, `lib/calc.ts` | — | — |
 | Tabla — abrir fila: modos peek lateral/central/completo | Selector side/center/full | ✅ | `view.config.openIn` + «Abrir filas en»; peek redimensionable y expandible; en las 6 vistas, Kanban incluido (tanda 10) | — | — |
 | Tabla — navegación ↑↓ entre filas abiertas | Anterior/siguiente en el panel | ✅ | Prop `nav` en `RecordPanel.tsx`, cableada en Tabla sobre el orden visible (`d36aabb`) | — | — |
+| Tabla — navegación por teclado entre celdas | Flechas + Enter edita + Esc | ✅ | Selección con anillo, rejilla recorrida por el DOM (`td[data-celda]`), Intro edita o abre el selector (tanda 14) | — | — |
 | **Kanban** — agrupar por select/status/person/checkbox | + fecha | ✅ | `KanbanView.tsx:51-83` | — | — |
 | Kanban — reordenar tarjetas DENTRO de una columna | Drag con orden manual | ✅ | Soltar sobre una tarjeta coloca encima/debajo (`moveRecord`); solo sin orden activo, como Notion (tanda 11) | — | — |
 | Kanban — añadir grupo/opción desde el tablero | «+ Añadir grupo» | ✅ | Crea la opción del select/estado in situ (`KanbanView.tsx`, `a00f570`) | — | — |
-| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ❌ | Sin filtro de grupos ni sum/avg en cabecera | P2 | M |
+| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ⚠️ | Agregados ✅ (contar o sumar un número, `kanbanSum`, tanda 12); faltan ocultar columnas de grupo y subagrupar | P2 | M |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
 | Timeline — arrastrar para mover/redimensionar/crear | Interacción directa con barras | ✅ | Mover arrastrando + tirador de duración + línea de hoy (`2ef0a92`); crear arrastrando no | — | — |
 | Timeline — dependencias (flechas) + tabla lateral | Ambas | ❌ | No existen | P1 | L |
@@ -209,7 +213,7 @@ columnas interactivas, synced block y ecuaciones.
 | Galería — ajuste de imagen (fit/cover) | Configurable | ✅ | La vista previa de Archivos pinta la imagen; `imageFit` recortar/entera (tanda 12) | — | — |
 | **Gráfica** — 5 tipos, apilado, filtra antes de agregar, buckets de fecha | — | ✅ | `ChartView.tsx:49-162`, `db.ts:916` (commits recientes) | — | — |
 | **Formulario** — compartir públicamente | URL pública tipo Notion Forms | ✅ | `/f/<token>` + `POST /api/form/<token>` (token en `view.config.publicToken`; validación por tipo en servidor; ocultar columna = quitar pregunta) — tanda 14 | — | — |
-| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ⚠️ | Obligatorios ✅ (asterisco por campo, `view.config.requiredFields`, validados en cliente y endpoint — tanda 14); «gracias» = pantalla fija con «Enviar otra respuesta», sin personalizar | P2 | S |
+| Formulario — campos obligatorios, página de gracias personalizable | Validación + branding | ✅ | Obligatorios (asterisco, `requiredFields`, validados en cliente y endpoint) + mensaje de gracias editable (`thanksMessage`) — tanda 14 | — | — |
 | **Comunes** — crear/renombrar/duplicar/borrar vista | — | ✅ | `DbToolbar.tsx:69-91` | — | — |
 | Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
