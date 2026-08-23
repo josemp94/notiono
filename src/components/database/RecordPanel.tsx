@@ -8,7 +8,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "@/components/editor/mention";
-import { confirmar } from "@/components/Confirmar";
+import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
 import { Cell } from "./Cell";
@@ -66,6 +66,7 @@ export function RecordCard({
       onDeleted();
     },
   });
+  const restoreRecord = trpc.db.restoreRecord.useMutation({ onSuccess: invalidate });
 
   const titleField = fields.find((f) => f.type === "text") ?? fields[0];
   const [title, setTitle] = useState(tituloDe(record, fields));
@@ -154,9 +155,11 @@ export function RecordCard({
         </BlockNoteView>
       </div>
 
+      {/* Sin confirmación: el borrado es reversible desde el propio aviso. */}
       <button
-        onClick={async () => {
-          if (await confirmar("¿Borrar este registro?")) deleteRecord.mutate({ id: record.id });
+        onClick={() => {
+          deleteRecord.mutate({ id: record.id });
+          toast("Fila borrada", { etiqueta: "Deshacer", onClick: () => restoreRecord.mutate({ id: record.id }) });
         }}
         className="mt-8 flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-red-500"
       >

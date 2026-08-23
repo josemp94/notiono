@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Info, Maximize2, Plus, Star, Trash2, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
+import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { Cell, usePeople } from "./Cell";
 import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
@@ -55,12 +56,7 @@ export function TableView({
   const addRecord = trpc.db.addRecord.useMutation({ onSuccess: invalidate });
   const addSubRecord = trpc.db.addSubRecord.useMutation({ onSuccess: invalidate });
   const deleteRecord = trpc.db.deleteRecord.useMutation({ onSuccess: invalidate });
-  const restoreRecord = trpc.db.restoreRecord.useMutation({
-    onSuccess: () => {
-      setDeleted(null);
-      invalidate();
-    },
-  });
+  const restoreRecord = trpc.db.restoreRecord.useMutation({ onSuccess: invalidate });
   const duplicateRecord = trpc.db.duplicateRecord.useMutation({ onSuccess: invalidate });
   const moveRecord = trpc.db.moveRecord.useMutation({ onSuccess: invalidate });
   const deleteTemplate = trpc.db.deleteTemplate.useMutation({ onSuccess: invalidate });
@@ -76,8 +72,6 @@ export function TableView({
 
   const [menuField, setMenuField] = useState<string | null>(null);
   const [newMenu, setNewMenu] = useState(false);
-  // Borrar una fila es reversible: se guarda cuál fue para poder deshacerlo.
-  const [deleted, setDeleted] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   // Ancho de columna: se arrastra en local y se guarda en la vista al soltar.
   const [drag, setDrag] = useState<{ fieldId: string; startX: number; startW: number; w: number } | null>(null);
@@ -219,8 +213,13 @@ export function TableView({
     });
   // ponytail: en lote = Promise.all sobre los endpoints de a uno; con miles de filas haría falta un endpoint bulk.
   const bulkDelete = async () => {
-    await Promise.all(selectedIds.map((id) => deleteRecord.mutateAsync({ id })));
+    const ids = [...selectedIds];
+    await Promise.all(ids.map((id) => deleteRecord.mutateAsync({ id })));
     setSelected(new Set());
+    toast(`${ids.length} fila${ids.length > 1 ? "s" : ""} borrada${ids.length > 1 ? "s" : ""}`, {
+      etiqueta: "Deshacer",
+      onClick: () => ids.forEach((id) => restoreRecord.mutate({ id })),
+    });
   };
   const bulkSet = (fieldId: string, value: unknown) =>
     selectedIds.forEach((id) => updateCell.mutate({ recordId: id, fieldId, value }));
@@ -370,7 +369,7 @@ export function TableView({
           <button
             onClick={() => {
               deleteRecord.mutate({ id: r.id });
-              setDeleted(r.id);
+              toast("Fila borrada", { etiqueta: "Deshacer", onClick: () => restoreRecord.mutate({ id: r.id }) });
             }}
             className="text-[var(--muted)] al-pasar hover:text-red-500"
             title="Borrar fila"
@@ -700,21 +699,6 @@ export function TableView({
             className="text-[var(--muted)] hover:text-[var(--foreground)]"
             title="Quitar la selección"
           >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {deleted && (
-        <div className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm shadow-xl md:bottom-4">
-          <span>Fila borrada</span>
-          <button
-            onClick={() => restoreRecord.mutate({ id: deleted })}
-            className="font-medium text-brand hover:underline"
-          >
-            Deshacer
-          </button>
-          <button onClick={() => setDeleted(null)} className="text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
             <X size={14} />
           </button>
         </div>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { BarraInferior } from "@/components/BarraInferior";
 import { ConfirmHost } from "@/components/Confirmar";
+import { ToastHost } from "@/components/Toast";
 import { SearchPalette } from "@/components/SearchPalette";
 import { Shortcuts } from "@/components/Shortcuts";
 import { isTyping, NEW_PAGE_EVENT, SHORTCUTS_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
@@ -71,6 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SearchPalette />
       <Shortcuts />
       <ConfirmHost />
+      <ToastHost />
       {/* Fondo oscuro al abrir el panel en móvil */}
       {open && (
         <div
