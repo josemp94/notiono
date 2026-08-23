@@ -65,6 +65,14 @@
 > **imagen en la Galería** con ajuste recortar/entera (`imageFit`), **límite de un solo vínculo** en
 > relaciones (`config.single`), **suma por columna en el Kanban** (`kanbanSum`) y separadores en el menú
 > de columna.
+> **Decimotercera tanda 23-ago-2026 (resto del lote barato):** **editar opciones de etiqueta desde el
+> desplegable** (⋯ por opción: nombre, paleta de colores, grupo del Estado, borrar con confirmación;
+> arrastrar reordena y en Estado adopta el grupo de destino), **sistema de toasts con «Deshacer»**
+> (`Toast.tsx`, patrón de Confirmar; borrar fila —suelta, en lote o desde la ficha— ya no pide
+> confirmación porque se deshace desde el aviso), **favoritos reordenables** (`Favorite.order` fraccional
+> con migración + `favorites.move` + drag en el sidebar), **la celda de ID copia el enlace de la fila**
+> (URL absoluta `/p/…?r=…`), **Ctrl+Mayús+L** alterna claro/oscuro y **skeletons de carga** (`.esqueleto`)
+> en página y BD.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -151,7 +159,7 @@ columnas interactivas, synced block y ecuaciones.
 | Fecha: recordatorio en la celda | «Recordar 1 día antes» al poner la fecha | ⚠️ | El aviso existe pero centralizado: `notifications.checkDue` al abrir la app (`notifications.ts:50-122`), no configurable por celda | P2 | M |
 | Fecha: zona horaria | Selector TZ | ❌ | Sin config en `Field.config` | P2 | M |
 | Select/Status: colores de opción | 10 colores | ✅ | 10 en `Cell.tsx:216` COLOR_NAMES + variante dark (`56740cb`) | — | — |
-| Opciones: reordenar arrastrando, renombrar/recolorear desde la celda | Edición in-place | ❌ | Solo crear opción al vuelo (`Cell.tsx:263-280`); editar exige el editor de etiquetas del campo | P2 | M |
+| Opciones: reordenar arrastrando, renombrar/recolorear desde la celda | Edición in-place | ✅ | ⋯ por opción en el desplegable: nombre, color, grupo, borrar; drag reordena (tanda 13) | — | — |
 | Persona | Varios, avatar, notifica | ✅ | `Cell.tsx:389-463`; sin notificación automática al asignar (solo menciones) | P2 | S |
 | Archivos | Varios, preview, descarga | ✅ | `Cell.tsx:468-534`, 8 MB máx.; sin renombrar | P2 | S |
 | Relación bidireccional (campo espejo) | «Mostrar en <BD destino>» | ✅ | `mirror` en addRelation + sincronía en updateCell (`services/relations.ts`, `512a9aa`) | — | — |
@@ -164,7 +172,7 @@ columnas interactivas, synced block y ecuaciones.
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
 | Descripción de propiedad (ℹ) | Texto de ayuda por campo | ✅ | `Field.config.description` (sin migración): textarea en el menú de la columna + ℹ/tooltip (tanda 11) | — | — |
 | Conversión de tipo | Convierte valores al cambiar tipo | ✅ | `services/db.ts:270-344`; multiselect divide por comas | — | — |
-| ID único clicable | El ID enlaza a la fila | ⚠️ | Se muestra con prefijo pero como texto plano (`Cell.tsx:45-51`) | P2 | S |
+| ID único clicable | El ID enlaza a la fila | ✅ | Botón de copiar al pasar el ratón: URL absoluta `/p/…?r=…` (tanda 13) | — | — |
 
 ---
 
@@ -231,7 +239,7 @@ columnas interactivas, synced block y ecuaciones.
 | Árbol: drag&drop, + al pasar, menú contextual | Menú completo (Favorito, Copiar enlace, Renombrar, abrir en pestaña) | ✅ | Favorito y Copiar enlace añadidos (`055cc86`); renombrar se hace en la página (el título) | — | — |
 | Búsqueda Ctrl+K por título y contenido | + recientes al abrir + filtros (creador/fecha) | ⚠️ | Recientes al abrir ✅ (`3ff6c77`, y la sección del sidebar fuera, como Notion); faltan filtros | P2 | M |
 | Breadcrumb clicable | Truncado con «…» si es largo | ✅ | `p/[pageId]/page.tsx:97-140` | — | — |
-| Favoritos/Recientes reordenables | Drag | ❌ | Orden por `createdAt`/inserción | P2 | S |
+| Favoritos/Recientes reordenables | Drag | ✅ | Favoritos con `Favorite.order` fraccional + drag en el sidebar (tanda 13); Recientes son cronológicos por definición | — | — |
 | Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK (`pages.ts:309-359`, `VersionHistory.tsx:40-121`); sin diff, solo docs | P1 | M |
 | Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx:16-163`; falta borrado-por | P2 | S |
 | Icono de página | Emoji **o imagen subida** | ⚠️ | Solo emoji (`PageIcon.tsx:5-97`) | P2 | S |
@@ -242,7 +250,7 @@ columnas interactivas, synced block y ecuaciones.
 | Copiar enlace privado (botón) | En menú y cabecera | ⚠️ | Solo URL pública en `SharePublish.tsx:77-93` | P2 | S |
 | Deep-links a bloque/heading (#anchor) | Copiar enlace al bloque | ❌ | Sin anchors; la ToC hace scroll interno pero no hay URLs de bloque | P1 | M-L |
 | Peek: abrir página en panel lateral | Ctrl+clic → peek | ❌ | Solo navegación completa (las filas de BD sí tienen `RecordPanel`) | P2 | M |
-| Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ⚠️ | Solo Ctrl+K, Ctrl+\, Ctrl+Alt+N, ? (`AppShell.tsx:36-61`) | P2 | S |
+| Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ⚠️ | Ctrl+K, Ctrl+\, Ctrl+Alt+N, ?, y Ctrl+Mayús+L para el tema (tanda 13); faltan Ctrl+[ ] (atrás/adelante) | P2 | S |
 | Notificaciones por comentario/asignación | Además de menciones y vencimientos | ✅ | Tipos `comment` y `assign` con push y bandeja (`comments.ts`, `db.ts updateCell`, `598a9ee`) | — | — |
 | Multi-workspace con selector | — | ✅ | `Sidebar.tsx:469-536` | — | — |
 
@@ -286,10 +294,10 @@ columnas interactivas, synced block y ecuaciones.
 | Sidebar redimensionable | Drag del borde | ✅ | 200–480px persistente en localStorage (`055cc86`) | — | — |
 | Sidebar peek al pasar el ratón (plegado) | Hover-reveal | ❌ | Plegado = solo botón (`AppShell.tsx:82-87`) | P2 | M |
 | Transiciones/micro-animaciones | Hover, apertura de popovers, colapsos suaves | ⚠️ | Solo `opacity .15s` en `.al-pasar` (`globals.css:199`) y el drawer móvil; popovers aparecen a saco | P2 | M |
-| Skeletons de carga | Shimmer en tablas/páginas | ❌ | Texto plano «Cargando…» (`Database.tsx:102`, `databaseBlock.tsx:11`) | P2 | M |
+| Skeletons de carga | Shimmer en tablas/páginas | ✅ | `.esqueleto` en `globals.css`; página, BD y BD embebida (tanda 13) | — | — |
 | Tooltips con atajo | Estilizados, kbd a la derecha | ⚠️ | Solo `title=""` nativo; kbd solo en la ventana Atajos (`Shortcuts.tsx:107-112`) | P2 | M |
 | Menús: separadores, altura de item | Dividers + ~28px + kbd hints | ⚠️ | `Popover.tsx:92` bien (radius/sombra); faltan dividers | P2 | S |
-| Toast genérico con Deshacer | Sistema de toasts | ⚠️ | Solo el «Deshacer» de borrar fila (`TableView.tsx:567`), ad-hoc | P2 | M |
+| Toast genérico con Deshacer | Sistema de toasts | ✅ | `Toast.tsx` (host en AppShell); borrar fila suelta/lote/ficha con «Deshacer» y sin confirmación (tanda 13) | — | — |
 | Modo oscuro base, scrollbars, focus, z-index, iconos lucide, headings responsive, táctil 40px | — | ✅ | `globals.css:20-77,232-260`; z-index ordenado | — | — |
 | Página pública /s/ con tema | — | ✅ | `PublicView.tsx:30-50` | — | — |
 | Drag&drop: ghost/indicadores | Línea de inserción + ghost | ⚠️ | Línea sí (`Sidebar.tsx:783-789`); sin ghost | P2 | S |

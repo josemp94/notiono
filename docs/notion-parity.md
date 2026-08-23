@@ -31,7 +31,7 @@ Lista real: `FIELD_TYPES` en `src/server/routers/db.ts` y `TYPES`/`FIELD_LABELS`
 |---|---|---|
 | Título / Texto | ✅ | 🟡 no hay tipo "título": el título es el primer campo `text` |
 | Número | ✅ | ✅ formatos normal, euros, porcentaje y barra (con máximo configurable); falta anillo |
-| Selección / Selección múltiple | ✅ | ✅ `select`, `multiselect` (editor de etiquetas con 6 colores, crear al vuelo) |
+| Selección / Selección múltiple | ✅ | ✅ `select`, `multiselect` — 10 colores, crear al vuelo y editar desde el desplegable (renombrar, color, borrar, reordenar arrastrando) |
 | Estado | ✅ | ✅ `status` con grupos Por hacer / En curso / Hecho y opciones movibles entre grupos |
 | Fecha | ✅ | ✅ `date` con hora, rango y recordatorio en la bandeja al llegar el día |
 | Casilla / URL / Correo / Teléfono | ✅ | ✅ |
@@ -39,7 +39,7 @@ Lista real: `FIELD_TYPES` en `src/server/routers/db.ts` y `TYPES`/`FIELD_LABELS`
 | **Archivos y multimedia** | ✅ | ✅ `files` — adjuntos a `/api/upload` (máx. 8 MB), miniatura si es imagen |
 | Fecha de creación / Última edición | ✅ | ✅ `created_time`, `last_edited_time` |
 | **Creado por / Editado por** | ✅ | ✅ `created_by`, `last_edited_by` (`Record.createdById/updatedById`) |
-| ID único | ✅ | ✅ `id` con `seq` por colección y prefijo editable desde el menú de la columna |
+| ID único | ✅ | ✅ `id` con `seq` por colección, prefijo editable y botón para copiar el enlace de la fila |
 | Relación | ✅ | 🟡 `relation` unidireccional (sin campo espejo en la BD destino) |
 | Rollup | ✅ | 🟡 `count, sum, avg, min, max, values` |
 | Fórmula | ✅ | 🟡 evaluador propio, 13 funciones (ver 1.4) |
@@ -83,7 +83,7 @@ Falta:
 - ✅ **Cambiar el tipo** de una columna ya creada, convirtiendo los valores.
 - ✅ **Vistas enlazadas**: el menú `/` inserta una base de datos que ya existe en cualquier página.
 - ✅ **Color condicional por reglas** («si vence antes de hoy, en rojo»), además del color por etiqueta.
-- ✅ **Borrar fila es reversible** (se archiva y hay «Deshacer»).
+- ✅ **Borrar fila es reversible** (se archiva y el toast trae «Deshacer»; sin diálogo de confirmación, como Notion).
 - ✅ **Papelera de filas** con listado, restaurar, borrar para siempre y purga a los 30 días.
 - ❌ Bloquear esquema.
 
@@ -128,7 +128,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Menciones** @página y @persona + **bandeja de notificaciones** con contador.
 - ✅ **Historial de versiones** con UI (snapshot con throttle de 2 min, últimas 50, restaurar). Solo páginas `doc`.
 - ✅ **Buscador global Ctrl+K**, que busca por título y **dentro del texto de los bloques**.
-- ✅ **Favoritos** y **Recientes** en el sidebar; arrastrar para reordenar y mover.
+- ✅ **Favoritos** (reordenables arrastrando) y **Recientes** en el sidebar.
 - ✅ **Papelera** con jerarquía, retención de 30 días con purga perezosa, vaciar y buscar.
 - ✅ **Publicar página en la web** (`/s/<token>`, solo lectura, resuelve también las BD embebidas).
 - ✅ **Recordatorios**: al abrir la app avisa en la bandeja de lo que tienes asignado y ya vence.
@@ -149,7 +149,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Import/Export**: Markdown ↔ página, CSV ↔ base de datos, **página con subpáginas a ZIP** y **copia de seguridad del espacio entero** (Ajustes; MD + CSV + adjuntos). ❌ PDF y HTML.
 - ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide.
 - ✅ **API REST v1** con tokens por espacio (`docs/api.md`).
-- 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel) y Ctrl+Alt+N (nueva página). Faltan favorito, cambiar de vista y mover bloque.
+- 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página) y Ctrl+Mayús+L (modo oscuro). Faltan favorito, cambiar de vista y mover bloque.
 - ✅ **Mis tareas** (`/my-tasks`): lo que tengo asignado por un campo Persona en cualquier base de datos.
 - ❌ **Home/Inicio** personalizable.
 - ❌ Reposicionar la portada; galería de imágenes de portada.

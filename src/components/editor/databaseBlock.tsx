@@ -8,7 +8,13 @@ import { createReactBlockSpec } from "@blocknote/react";
 // y deja las vistas de BD fuera del bundle de páginas que no embeben ninguna.
 const Database = dynamic(() => import("@/components/database/Database").then((m) => m.Database), {
   ssr: false,
-  loading: () => <div className="py-4 text-sm text-[var(--muted)]">Cargando base de datos…</div>,
+  loading: () => (
+    <div className="space-y-2 py-4">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="esqueleto h-7 w-full" />
+      ))}
+    </div>
+  ),
 });
 
 export type PublicDbTable = { headers: string[]; rows: string[][] };
