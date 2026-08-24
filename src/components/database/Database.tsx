@@ -56,7 +56,9 @@ export function Database({
   const { data: col, isLoading } = trpc.db.get.useQuery({ pageId });
   // Los cambios de otros aparecen al momento (señal por la sala Yjs de la página).
   useDbLive(pageId);
-  const [activeViewId, setActiveViewId] = useState<string | null>(viewId ?? null);
+  // La vista activa: la del bloque embebido, o la del enlace ?v= («Copiar enlace
+  // a la vista»), o la primera.
+  const [activeViewId, setActiveViewId] = useState<string | null>(viewId ?? (embedded ? null : searchParams.get("v")));
   const [title, setTitle] = useState(initialTitle);
   // Si renombran la BD desde fuera (sidebar, otra persona), adoptar el nombre
   // nuevo — salvo mientras se edita aquí, que teclear encima lo pisaría.

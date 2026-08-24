@@ -2,8 +2,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, List, Pencil, Plus, Table, Trash2, X } from "lucide-react";
+import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, Pencil, Plus, Table, Trash2, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
+import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { usePeople } from "./Cell";
@@ -471,6 +472,16 @@ export function DbToolbar({
                 )}
               </div>
             )}
+            <button
+              onClick={() => {
+                // El enlace abre la BD con ESTA vista activa (?v=), como en Notion.
+                navigator.clipboard.writeText(`${location.origin}/p/${pageId}?v=${view.id}`);
+                toast("Enlace a la vista copiado");
+              }}
+              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+            >
+              <LinkIcon size={14} /> Copiar enlace a la vista
+            </button>
             <button
               onClick={() => duplicateView.mutate({ id: view.id })}
               className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
