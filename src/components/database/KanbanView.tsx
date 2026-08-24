@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
+import { confirmar } from "@/components/Confirmar";
 import { usePeople } from "./Cell";
+import { Popover } from "./Popover";
 import { RecordPanel } from "./RecordPanel";
 import { ScrollHorizontal } from "./ScrollHorizontal";
 
@@ -62,6 +64,10 @@ export function KanbanView({
   const abrir = (r: Rec) => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r));
   // «+ Añadir grupo»: crea una opción nueva del campo select/estado desde el tablero.
   const [groupName, setGroupName] = useState<string | null>(null);
+  // Menú «⋯» de un grupo. La clave lleva el carril (con subagrupado la misma
+  // columna se pinta en cada carril y el menú solo debe abrirse en uno).
+  const [menuCol, setMenuCol] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   // Carriles del subagrupado plegados (solo estado de cliente, como en la Tabla).
   const [foldedLanes, setFoldedLanes] = useState<Set<string>>(new Set());
   const people = usePeople();
@@ -190,6 +196,38 @@ export function KanbanView({
     updateField.mutate({ id: groupField!.id, config: { ...cfg, options: [...opts, option] } });
   }
 
+  // Renombrar/mover/eliminar un grupo editan las opciones del campo, como el
+  // editor de etiquetas de la celda (Cell.tsx). Persona y casilla no tienen
+  // opciones —sus grupos son los miembros o hecho/sin hacer—: solo ocultar.
+  const conOpciones = groupField.type === "select" || groupField.type === "status";
+  const cerrarMenu = () => {
+    setMenuCol(null);
+    setRenaming(null);
+  };
+  const saveOpts = (next: Option[]) => {
+    const cfg = (groupField.config as { options?: Option[] }) ?? {};
+    updateField.mutate({ id: groupField.id, config: { ...cfg, options: next } });
+  };
+  const renombrarGrupo = (id: string, label: string) => {
+    const l = label.trim();
+    if (l) saveOpts(optionsOf(groupField).map((o) => (o.id === id ? { ...o, label: l } : o)));
+    cerrarMenu();
+  };
+  const moverGrupo = (id: string, dir: -1 | 1) => {
+    const opts = [...optionsOf(groupField)];
+    const i = opts.findIndex((o) => o.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= opts.length) return;
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+    saveOpts(opts);
+    cerrarMenu();
+  };
+  const eliminarGrupo = async (col: { id: string; label: string }) => {
+    cerrarMenu();
+    if (!(await confirmar(`¿Eliminar el grupo «${col.label}»? Sus tarjetas pasarán a «Sin asignar».`))) return;
+    saveOpts(optionsOf(groupField).filter((o) => o.id !== col.id));
+  };
+
   /** Una fila de columnas (el tablero); con subagrupado, una por carril. */
   const filaColumnas = (recs: Rec[], laneId: string | null, conExtras: boolean) => (
     <div className="flex w-max min-w-full gap-3">
@@ -217,13 +255,87 @@ export function KanbanView({
                     </span>
                   );
                 })()}
-                <button
-                  onClick={() => setHiddenGroups([...hiddenGroups, col.id])}
-                  className="al-pasar toque-estrecho rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
-                  title="Ocultar esta columna"
-                >
-                  <EyeOff size={13} />
-                </button>
+                {(() => {
+                  const clave = `${laneId ?? ""}|${col.id}`;
+                  const abierto = menuCol === clave;
+                  const opts = optionsOf(groupField);
+                  const idx = opts.findIndex((o) => o.id === col.id);
+                  const editable = conOpciones && col.id !== "";
+                  return (
+                    <>
+                      <button
+                        onClick={() => (abierto ? cerrarMenu() : setMenuCol(clave))}
+                        className="al-pasar toque-estrecho rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
+                        title="Opciones del grupo"
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+                      {abierto && (
+                        <Popover onClose={cerrarMenu} className="right-0 w-52 p-1">
+                          {renaming !== null ? (
+                            <input
+                              autoFocus
+                              value={renaming}
+                              onChange={(e) => setRenaming(e.target.value)}
+                              onBlur={() => renombrarGrupo(col.id, renaming)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") renombrarGrupo(col.id, renaming);
+                              }}
+                              className="w-full rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm outline-none"
+                            />
+                          ) : (
+                            <>
+                              {editable && (
+                                <>
+                                  <button
+                                    onClick={() => setRenaming(col.label)}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
+                                  >
+                                    <Pencil size={14} /> Renombrar
+                                  </button>
+                                  <button
+                                    onClick={() => moverGrupo(col.id, -1)}
+                                    disabled={idx <= 0}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm enabled:hover:bg-[var(--hover)] disabled:opacity-40"
+                                  >
+                                    <ArrowLeft size={14} /> Mover a la izquierda
+                                  </button>
+                                  <button
+                                    onClick={() => moverGrupo(col.id, 1)}
+                                    disabled={idx < 0 || idx === opts.length - 1}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm enabled:hover:bg-[var(--hover)] disabled:opacity-40"
+                                  >
+                                    <ArrowRight size={14} /> Mover a la derecha
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => {
+                                  cerrarMenu();
+                                  setHiddenGroups([...hiddenGroups, col.id]);
+                                }}
+                                className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
+                              >
+                                <EyeOff size={14} /> Ocultar
+                              </button>
+                              {editable && (
+                                <>
+                                  <div className="my-1 border-t border-[var(--border)]" />
+                                  <button
+                                    onClick={() => eliminarGrupo(col)}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm text-red-500 hover:bg-[var(--hover)]"
+                                  >
+                                    <Trash2 size={14} /> Eliminar grupo
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </Popover>
+                      )}
+                    </>
+                  );
+                })()}
               </span>
             </div>
             <div className="flex flex-col gap-2">
