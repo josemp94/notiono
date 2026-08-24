@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Database, FunctionSquare, Link2, Plus, Sigma } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { IconoPagina } from "@/components/PageIcon";
 import { Popover } from "./Popover";
 import type { FieldLite } from "@/lib/cellText";
 import { ROLLUP_AGG_LABELS, type RollupAgg } from "@/lib/rollup";
@@ -182,7 +183,7 @@ export function AddFieldButton({
                     className="flex min-w-0 flex-1 items-center gap-1 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
                     title="Relación solo en esta base de datos"
                   >
-                    {d.icon ? <span>{d.icon}</span> : <Database size={14} className="shrink-0 text-[var(--muted)]" />}
+                    {d.icon ? <span><IconoPagina icon={d.icon} size={14} /></span> : <Database size={14} className="shrink-0 text-[var(--muted)]" />}
                     <span className="truncate">{d.title || "Sin título"}</span>
                   </button>
                   <button

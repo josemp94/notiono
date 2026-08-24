@@ -5,6 +5,7 @@ import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineC
 import { codeBlockOptions } from "@blocknote/code-block";
 import { createReactInlineContentSpec, SuggestionMenuController } from "@blocknote/react";
 import { trpc } from "@/trpc/react";
+import { IconoPagina } from "@/components/PageIcon";
 import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
 import { CalloutBlock } from "./calloutBlock";
@@ -28,7 +29,7 @@ const Mention = createReactInlineContentSpec(
         href={`/p/${inlineContent.props.pageId}`}
         className="whitespace-nowrap rounded bg-brand-50 px-1 font-medium text-brand no-underline hover:underline"
       >
-        {inlineContent.props.icon || <FileText size={13} className="inline align-[-2px]" />}{" "}
+        {inlineContent.props.icon ? <IconoPagina icon={inlineContent.props.icon} size={14} /> : <FileText size={13} className="inline align-[-2px]" />}{" "}
         {inlineContent.props.title || "Sin título"}
       </a>
     ),
@@ -118,7 +119,7 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
           })),
           ...pages.map((p) => ({
             title: p.title || "Sin título",
-            icon: p.icon ? <span>{p.icon}</span> : <FileText size={16} />,
+            icon: p.icon ? <span><IconoPagina icon={p.icon} size={16} /></span> : <FileText size={16} />,
             group: "Páginas",
             onItemClick: () => {
               editor.insertInlineContent([

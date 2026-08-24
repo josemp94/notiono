@@ -40,7 +40,7 @@ import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
 import { downloadText } from "@/lib/download";
 import { useTheme } from "@/lib/theme";
-import { PageIcon } from "@/components/PageIcon";
+import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
 
 type SaveState = "saved" | "saving" | "idle";
@@ -487,7 +487,7 @@ function Backlinks({ pageId }: { pageId: string }) {
           <li key={p.id}>
             <Link href={`/p/${p.id}`} className="flex items-center gap-1.5 py-0.5 text-sm hover:text-[var(--foreground)]">
               <span className="flex items-center text-[var(--muted)]">
-                {p.icon ?? (p.type === "database" ? <Database size={14} /> : <FileText size={14} />)}
+                {p.icon ? <IconoPagina icon={p.icon} size={14} /> : p.type === "database" ? <Database size={14} /> : <FileText size={14} />}
               </span>
               {p.title || "Sin título"}
             </Link>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CornerDownRight, FileText } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
+import { IconoPagina } from "@/components/PageIcon";
 
 type Item = {
   id: string;
@@ -134,7 +135,7 @@ export default function TrashPage() {
               <li key={p.id} className="py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="min-w-0 truncate font-medium">
-                    {p.icon ? `${p.icon} ` : <FileText size={14} className="mr-1 inline align-[-2px]" />}
+                    {p.icon ? <><IconoPagina icon={p.icon} size={14} />{" "}</> : <FileText size={14} className="mr-1 inline align-[-2px]" />}
                     {p.title || "Sin título"}
                     {n > 0 && (
                       <span className="ml-2 text-xs font-normal text-[var(--muted)]">

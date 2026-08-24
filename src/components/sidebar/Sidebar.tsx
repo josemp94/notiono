@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BlockNoteEditor } from "@blocknote/core";
 import { Bell, ChevronDown, ChevronRight, CircleCheck, Copy, Database, FilePlus, FileText, Folder, FolderInput, Keyboard, Link2, Loader2, Moon, MoreHorizontal, PanelLeftClose, Plus, Search, Settings, Sparkles, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { emojiIcono, IconoPagina } from "@/components/PageIcon";
 import { openShortcuts } from "@/components/Shortcuts";
 import { NEW_PAGE_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
 import { parseCsv } from "@/lib/csv";
@@ -295,7 +296,7 @@ function SectionLink({ page }: { page: { id: string; title: string; icon: string
       }`}
     >
       <span className="truncate">
-        {page.icon ? `${page.icon} ` : <FileText size={13} className="mr-1 inline align-[-2px]" />}
+        {page.icon ? <><IconoPagina icon={page.icon} size={14} />{" "}</> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
         {page.title || "Sin título"}
       </span>
     </Link>
@@ -453,31 +454,31 @@ function NotificationsBell() {
                         {n.type === "due" ? (
                           <>
                             Te toca: <span className="font-medium">{n.title || "una tarea"}</span> en «
-                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una base borrada"}»
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
                           </>
                         ) : n.type === "comment" ? (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> comentó en «
-                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una página borrada"}»
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}»
                             {n.title ? <>: «{n.title}»</> : null}
                           </>
                         ) : n.type === "assign" ? (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te asignó{" "}
                             <span className="font-medium">{n.title || "una tarea"}</span> en «
-                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una base borrada"}»
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
                           </>
                         ) : n.type === "form" ? (
                           // Sin actor: quien envía el formulario público es anónimo.
                           <>
                             Nueva respuesta del formulario de «
-                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una base borrada"}»
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
                             {n.title ? <>: «{n.title}»</> : null}
                           </>
                         ) : (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te mencionó en «
-                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una página borrada"}»
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}»
                           </>
                         )}
                       </span>
@@ -928,7 +929,7 @@ function TreeItem({
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <Link href={`/p/${node.id}`} className="toque flex flex-1 items-center truncate py-1" draggable={false}>
-          {node.icon ? `${node.icon} ` : <FileText size={13} className="mr-1 inline align-[-2px]" />}
+          {node.icon ? <><IconoPagina icon={node.icon} size={14} />{" "}</> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
           {node.title || "Sin título"}
         </Link>
         {canEdit && (

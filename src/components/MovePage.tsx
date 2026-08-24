@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Folder, FolderInput, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { IconoPagina } from "@/components/PageIcon";
 
 /**
  * Modal "Mover a…": buscador sobre el árbol del workspace; al elegir destino
@@ -85,7 +86,7 @@ export function MovePageModal({ pageId, onClose }: { pageId: string; onClose: ()
               className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
             >
               {p.icon ? (
-                <span className="w-4 shrink-0 text-center">{p.icon}</span>
+                <span className="w-4 shrink-0 text-center"><IconoPagina icon={p.icon} size={14} /></span>
               ) : (
                 <FileText size={14} className="shrink-0 text-[var(--muted)]" />
               )}

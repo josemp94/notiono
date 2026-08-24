@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Clock, Database, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/react";
+import { IconoPagina } from "@/components/PageIcon";
 import { getRecents } from "@/lib/recents";
 
 /** Evento global para abrir la paleta desde cualquier botón (p. ej. el sidebar). */
@@ -168,7 +169,7 @@ export function SearchPalette() {
               }`}
             >
               <span className="flex shrink-0 items-center text-[var(--muted)]">
-                {p.icon ?? (p.type === "database" ? <Database size={16} /> : <FileText size={16} />)}
+                {p.icon ? <IconoPagina icon={p.icon} size={16} /> : p.type === "database" ? <Database size={16} /> : <FileText size={16} />}
               </span>
               <span className="min-w-0 flex-1 truncate">{p.title || "Sin título"}</span>
               <span className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--muted)]">

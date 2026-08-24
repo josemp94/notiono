@@ -14,6 +14,7 @@ import { ShareButton } from "@/components/SharePublish";
 import { MovePageModal } from "@/components/MovePage";
 import { toast } from "@/components/Toast";
 import { usePeople } from "@/components/database/Cell";
+import { IconoPagina } from "@/components/PageIcon";
 import { exportaZipConEditor } from "@/components/editor/exportarZip";
 import type { PaginaExport } from "@/lib/exportZip";
 
@@ -159,7 +160,7 @@ function Breadcrumbs({ pageId }: { pageId: string }) {
           {sep}
           {i === chain.length - 1 ? (
             <span className="flex min-w-0 items-center gap-1 px-1 py-0.5 text-[var(--foreground)]">
-              {p.icon ? <span className="shrink-0">{p.icon}</span> : <FileText size={13} className="shrink-0" />}
+              {p.icon ? <span className="shrink-0"><IconoPagina icon={p.icon} size={14} /></span> : <FileText size={13} className="shrink-0" />}
               <span className="truncate">{p.title || "Sin título"}</span>
             </span>
           ) : (
@@ -167,7 +168,7 @@ function Breadcrumbs({ pageId }: { pageId: string }) {
               href={`/p/${p.id}`}
               className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
             >
-              {p.icon ? <span className="shrink-0">{p.icon}</span> : <FileText size={13} className="shrink-0" />}
+              {p.icon ? <span className="shrink-0"><IconoPagina icon={p.icon} size={14} /></span> : <FileText size={13} className="shrink-0" />}
               <span className="max-w-32 truncate">{p.title || "Sin título"}</span>
             </Link>
           )}

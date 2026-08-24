@@ -1,11 +1,49 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ImagePlus } from "lucide-react";
 
 const COMMON = [
   "📄","📝","📌","✅","📆","💡","🔥","⭐","🎯","🚀","📊","📈","💰","🏦","🧾","🛒",
   "🏠","🍔","✈️","🎓","💼","🔧","🎨","🎵","📚","❤️","🧡","🌟","⚡","🌈","🐢","🧠",
 ];
+
+/** ¿El icono es una imagen subida (URL) en vez de un emoji? */
+export const esIconoImagen = (icon?: string | null): boolean =>
+  !!icon && (icon.startsWith("/") || /^https?:\/\//i.test(icon));
+
+/** El icono para contextos de SOLO texto (notificaciones…): el emoji seguido de
+ *  espacio, o nada si es una imagen (su URL como texto no pinta nada). */
+export const emojiIcono = (icon?: string | null): string =>
+  icon && !esIconoImagen(icon) ? `${icon} ` : "";
+
+/**
+ * Icono de página en cualquier lista (árbol, migas, buscador…): el emoji tal
+ * cual, o la imagen subida a su tamaño. `fallback` para cuando no hay icono.
+ */
+export function IconoPagina({
+  icon,
+  size = 16,
+  fallback = null,
+}: {
+  icon?: string | null;
+  size?: number;
+  fallback?: React.ReactNode;
+}) {
+  if (!icon) return <>{fallback}</>;
+  if (esIconoImagen(icon)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={icon}
+        alt=""
+        style={{ width: size, height: size }}
+        className="inline-block shrink-0 rounded-sm object-cover align-[-2px]"
+      />
+    );
+  }
+  return <>{icon}</>;
+}
 
 export function PageIcon({
   icon,
@@ -17,7 +55,9 @@ export function PageIcon({
   editable: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -28,6 +68,27 @@ export function PageIcon({
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  // Subir una imagen como icono, como en Notion (va a /api/upload; el icono
+  // guarda la URL del Asset — un string, igual que el emoji).
+  const subir = async (picked: FileList | null) => {
+    const file = picked?.[0];
+    if (!file) return;
+    setSubiendo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok && data?.url) {
+        onChange(data.url);
+        setOpen(false);
+      }
+    } finally {
+      setSubiendo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   if (!icon && !editable) return null;
 
   return (
@@ -35,10 +96,15 @@ export function PageIcon({
       {icon ? (
         <button
           onClick={() => editable && setOpen((o) => !o)}
-          className={`text-6xl leading-none ${editable ? "cursor-pointer rounded-lg p-1 hover:bg-[var(--hover)]" : "cursor-default"}`}
+          className={`leading-none ${esIconoImagen(icon) ? "" : "text-6xl"} ${editable ? "cursor-pointer rounded-lg p-1 hover:bg-[var(--hover)]" : "cursor-default"}`}
           title={editable ? "Cambiar icono" : undefined}
         >
-          {icon}
+          {esIconoImagen(icon) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={icon} alt="" className="size-16 rounded-lg object-cover" />
+          ) : (
+            icon
+          )}
         </button>
       ) : (
         <button
@@ -69,7 +135,7 @@ export function PageIcon({
           </div>
           <div className="mt-2 flex items-center gap-2 border-t border-[var(--border)] pt-2">
             <input
-              defaultValue={icon ?? ""}
+              defaultValue={esIconoImagen(icon) ? "" : (icon ?? "")}
               onKeyDown={(ev) => {
                 if (ev.key === "Enter") {
                   const v = (ev.target as HTMLInputElement).value.trim();
@@ -92,6 +158,14 @@ export function PageIcon({
               </button>
             )}
           </div>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={subiendo}
+            className="mt-1.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:opacity-60"
+          >
+            <ImagePlus size={15} /> {subiendo ? "Subiendo…" : "Subir una imagen"}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => subir(e.target.files)} />
         </div>
       )}
     </div>
