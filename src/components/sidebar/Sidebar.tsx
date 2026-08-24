@@ -467,6 +467,13 @@ function NotificationsBell() {
                             <span className="font-medium">{n.title || "una tarea"}</span> en «
                             {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una base borrada"}»
                           </>
+                        ) : n.type === "form" ? (
+                          // Sin actor: quien envía el formulario público es anónimo.
+                          <>
+                            Nueva respuesta del formulario de «
+                            {n.page ? `${n.page.icon ? `${n.page.icon} ` : ""}${n.page.title || "Sin título"}` : "una base borrada"}»
+                            {n.title ? <>: «{n.title}»</> : null}
+                          </>
                         ) : (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te mencionó en «
@@ -558,8 +565,19 @@ function WorkspaceBar({ me }: { me: Me }) {
   const roleLabel =
     me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Editor" : me?.wsRole === "viewer" ? "Solo lectura" : "";
 
+  // Clic fuera cierra el selector, como el resto de menús del sidebar.
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!openList) return;
+    const h = (e: MouseEvent) => {
+      if (barRef.current && !barRef.current.contains(e.target as globalThis.Node)) setOpenList(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [openList]);
+
   return (
-    <div className="relative px-3 pb-2 pt-1">
+    <div ref={barRef} className="relative px-3 pb-2 pt-1">
       <div className="flex items-center gap-1">
         <button
           onClick={() => setOpenList((o) => !o)}
