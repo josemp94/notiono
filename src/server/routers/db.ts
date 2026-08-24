@@ -313,6 +313,10 @@ export const dbRouter = router({
       return conTRPC(dbService.moveField(scopeOf(ctx), input));
     }),
 
+  setCollectionDescription: workspaceProcedure
+    .input(z.object({ collectionId: z.string(), description: z.string().max(2000) }))
+    .mutation(({ ctx, input }) => conTRPC(dbService.setCollectionDescription(scopeOf(ctx), input))),
+
   updateField: workspaceProcedure
     .input(z.object({ id: z.string(), name: z.string().optional(), config: z.any().optional() }))
     .mutation(async ({ ctx, input }) => {

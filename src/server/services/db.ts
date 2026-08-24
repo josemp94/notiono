@@ -271,6 +271,16 @@ async function ordenPegadoA(scope: Scope, collectionId: string, beforeFieldId?: 
 }
 
 /** Reordena una columna entre las de su colección (mismo patrón que moveRecord). */
+/** Descripción de la BD (el texto bajo el título, como en Notion). */
+export async function setCollectionDescription(scope: Scope, input: { collectionId: string; description: string }) {
+  await assertCollection(scope, input.collectionId);
+  return scope.db.collection.update({
+    where: { id: input.collectionId },
+    data: { description: input.description.trim() },
+    select: { id: true, description: true },
+  });
+}
+
 export async function moveField(scope: Scope, input: { id: string; beforeId?: string; afterId?: string }) {
   const field = await assertField(scope, input.id);
   const siblings = await scope.db.field.findMany({

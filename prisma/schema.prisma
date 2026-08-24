@@ -152,6 +152,7 @@ model Collection {
   pageId    String @unique
   page      Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
   name      String
+  description String @default("") // texto bajo el título, como la descripción de BD de Notion
   templates Json   @default("[]") // plantillas de fila: [{ id, name, cells }]
   fields  Field[]
   records Record[]

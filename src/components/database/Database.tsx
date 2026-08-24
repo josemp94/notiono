@@ -76,6 +76,9 @@ export function Database({
   const { data: me } = trpc.auth.me.useQuery();
 
   const rename = trpc.pages.rename.useMutation({ onSuccess: () => utils.pages.tree.invalidate() });
+  const setDescription = trpc.db.setCollectionDescription.useMutation({
+    onSuccess: () => utils.db.get.invalidate({ pageId }),
+  });
   const setCoverM = trpc.pages.setCover.useMutation();
   // Reordenar las pestañas de vista arrastrándolas: la primera es la vista por defecto.
   const moveView = trpc.db.moveView.useMutation({ onSuccess: () => utils.db.get.invalidate({ pageId }) });
@@ -200,6 +203,37 @@ export function Database({
             className="font-display w-full bg-transparent text-2xl font-extrabold outline-none placeholder:text-[var(--border)] md:text-3xl"
           />
         </div>
+        {/* Descripción bajo el título, como en Notion. Editable in situ; el
+            placeholder solo asoma al pasar el ratón por la cabecera. */}
+        {col && (canEdit ? (
+          <textarea
+            key={col.description}
+            defaultValue={col.description}
+            rows={1}
+            placeholder="Añade una descripción…"
+            onBlur={(e) => {
+              if (e.target.value.trim() !== col.description) {
+                setDescription.mutate({ collectionId: col.id, description: e.target.value });
+              }
+            }}
+            ref={(el) => {
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = `${el.scrollHeight}px`;
+              }
+            }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              el.style.height = `${el.scrollHeight}px`;
+            }}
+            className={`w-full resize-none bg-transparent text-sm text-[var(--muted)] outline-none placeholder:text-transparent focus:placeholder:text-[var(--border)] group-hover/header:placeholder:text-[var(--border)] ${
+              col.description ? "" : "-mt-1"
+            }`}
+          />
+        ) : (
+          col.description && <p className="text-sm text-[var(--muted)]">{col.description}</p>
+        ))}
       </div>
       )}
 
