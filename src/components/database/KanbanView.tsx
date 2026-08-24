@@ -7,6 +7,7 @@ import { RichText } from "@/lib/mdInline";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
 import { usePeople } from "./Cell";
 import { RecordPanel } from "./RecordPanel";
+import { ScrollHorizontal } from "./ScrollHorizontal";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
 
@@ -154,7 +155,7 @@ export function KanbanView({
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
+    <ScrollHorizontal className="flex gap-3 pb-4">
       {visibleColumns.map((col) => {
         const cards = records.filter((r) => columnOf(r) === col.id);
         return (
@@ -316,6 +317,6 @@ export function KanbanView({
             />
           );
         })()}
-    </div>
+    </ScrollHorizontal>
   );
 }

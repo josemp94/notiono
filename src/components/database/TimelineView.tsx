@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
+import { ScrollHorizontal } from "./ScrollHorizontal";
 import { dayOf, endDayOf, shiftDateValue, stretchDateValue } from "@/lib/cellText";
 import type { FieldLite } from "@/lib/cellText";
 
@@ -208,7 +209,7 @@ export function TimelineView({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
+      <ScrollHorizontal className="rounded-lg border border-[var(--border)]">
         <div style={{ width: 180 + gridW }}>
           {/* Cabecera. La columna de títulos va sticky: es la «tabla lateral» que
               se queda quieta mientras el gantt se desplaza en horizontal. */}
@@ -293,7 +294,7 @@ export function TimelineView({
             );
           })}
         </div>
-      </div>
+      </ScrollHorizontal>
 
       {/* Registros sin fecha: como en Notion, se listan aparte para poder planificarlos. */}
       {(() => {

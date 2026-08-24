@@ -14,6 +14,7 @@ import { FIELD_LABELS, AddFieldButton } from "./shared";
 import { Popover } from "./Popover";
 import { RelationCell } from "./RelationCell";
 import { RecordPanel } from "./RecordPanel";
+import { ScrollHorizontal } from "./ScrollHorizontal";
 
 export type RowTemplate = { id: string; name: string; cells: Record<string, unknown>; porDefecto?: boolean };
 
@@ -467,7 +468,7 @@ export function TableView({
 
   return (
     <div>
-      <div className="overflow-x-auto">
+      <ScrollHorizontal>
       <table ref={tablaRef} className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-y border-[var(--border)] text-left text-[var(--muted)]">
@@ -711,7 +712,7 @@ export function TableView({
           </tr>
         </tfoot>
       </table>
-      </div>
+      </ScrollHorizontal>
 
       <div className="relative mt-2 flex items-center">
         <button
