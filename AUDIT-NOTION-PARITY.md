@@ -116,6 +116,16 @@
 > **Vigesimoprimera tanda 24-ago-2026:** **filtros en Ctrl+K** — chips de tipo (Todo/Páginas/BDs) y de
 > edición reciente (Hoy/7/30 días) bajo el buscador, aplicados en servidor en ambas ramas de `pages.search`
 > (`Prisma.empty` para componer el SQL); los recientes no se filtran, como Notion.
+> **Vigesimosegunda tanda 24-ago-2026 (UX de BD, verificada con banco Playwright):** **la ficha re-mide
+> los textos al cambiar el ancho** (ResizeObserver en `WrappedTextCell`; el alto se calculaba al montar y el
+> panel restaura su ancho de localStorage después → 40px de hueco muerto por campo, medido) y alinea las
+> etiquetas arriba; **la barra de scroll horizontal se ve** (el pulgar heredaba `--border`, contraste ~1.1:1
+> → `--muted` vía `.barra-scroll`); **envolver texto por defecto en TODAS las columnas de texto** y también
+> en **URL/correo/teléfono** (`WRAP_TYPES`; la celda pinta el valor envuelto y el clic edita — un input no
+> puede envolver), con **toda la fila alineada arriba** como Notion; **menús colgantes con fundido de 120ms**
+> (`[data-menu]` + el atributo en los 7 inline que no lo llevaban, que ganan de paso los objetivos táctiles)
+> y **«Copiar enlace» (privado) en el menú ⋯ de la página**. Corrección a la dimensión 7: el editor SÍ tiene
+> max-width (708px vía `max-w-3xl`, `Editor.tsx:251`) — esa fila estaba desfasada.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -334,7 +344,7 @@ columnas interactivas, synced block y ecuaciones.
 | Colores de etiqueta | 10 | ✅ | `cellText.ts:86` OPTION_COLORS con 10 | — | — |
 | **Diálogos nativos** | Notion jamás usa `confirm()` | ✅ | Modal propio `Confirmar.tsx` (singleton con promesa) en los 8 sitios (`5da0b35`) | — | — |
 | Densidad de tabla | Filas ~32px, celdas 14px | ✅ | `py-1.5` (~32px de fila) en las celdas de `TableView.tsx` (`7db1359`) | — | — |
-| Ancho de contenido del editor | 708px centrado / full | ⚠️ | Editor sin max-width en escritorio (solo públicas `max-w-3xl`, `(app)/layout.tsx:32-33`) | P2 | S |
+| Ancho de contenido del editor | 708px centrado / full | ✅ | `max-w-3xl` centrado + toggle Ancho completo (`Editor.tsx:251`); la fila anterior estaba desfasada | — | — |
 | Sidebar redimensionable | Drag del borde | ✅ | 200–480px persistente en localStorage (`055cc86`) | — | — |
 | Sidebar peek al pasar el ratón (plegado) | Hover-reveal | ❌ | Plegado = solo botón (`AppShell.tsx:82-87`) | P2 | M |
 | Transiciones/micro-animaciones | Hover, apertura de popovers, colapsos suaves | ⚠️ | Solo `opacity .15s` en `.al-pasar` (`globals.css:199`) y el drawer móvil; popovers aparecen a saco | P2 | M |
