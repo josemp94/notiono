@@ -330,7 +330,7 @@ export function TableView({
       }}
     >
       <td
-        className="sticky left-0 z-10 py-1.5 text-center"
+        className="sticky left-0 z-10 py-1.5 text-center align-top"
         style={{ ...margen, background: colorOf(r) ?? "var(--background)" }}
       >
         {/* Con selección activa el margen es solo checkboxes, como en Notion. */}
@@ -362,7 +362,7 @@ export function TableView({
         </div>
       </td>
       {fields.map((f, i) => {
-        const envolver = wrapOf(cfg, f.id, i === 0 && f.type === "text");
+        const envolver = wrapOf(cfg, f.id, f.type === "text");
         const cell =
           f.type === "relation" ? (
             <RelationCell
@@ -401,7 +401,7 @@ export function TableView({
               key={f.id}
               data-celda={`${r.id}:${f.id}`}
               onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-              className={`px-2 py-1.5 ${envolver ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+              className={`px-2 py-1.5 align-top ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
               style={style}
             >
               {cell}
@@ -413,7 +413,7 @@ export function TableView({
             key={f.id}
             data-celda={`${r.id}:${f.id}`}
             onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-            className={`px-2 py-1.5 ${envolver ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+            className={`px-2 py-1.5 align-top ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
             style={style}
           >
             <div className="relative flex items-center" style={{ paddingLeft: depth * 20 }}>
@@ -442,7 +442,7 @@ export function TableView({
           </td>
         );
       })}
-      <td className="whitespace-nowrap px-2 py-1.5">
+      <td className="whitespace-nowrap px-2 py-1.5 align-top">
         <div className="flex items-center gap-1">
           <button
             onClick={() => addSub(r.id)}
@@ -564,7 +564,7 @@ export function TableView({
                     onRename={(name) => updateField.mutate({ id: f.id, name })}
                     frozen={i < frozen}
                     onFreeze={() => { setFrozen(i < frozen ? i : i + 1); setMenuField(null); }}
-                    wrap={wrapOf(cfg, f.id, i === 0 && f.type === "text")}
+                    wrap={wrapOf(cfg, f.id, f.type === "text")}
                     onWrap={(v) => setWrapCol(f.id, v)}
                     onSort={(dir) => {
                       const sorts: Sort[] = Array.isArray(cfg.sorts) ? cfg.sorts : [];
