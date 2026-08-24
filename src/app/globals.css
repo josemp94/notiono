@@ -146,6 +146,75 @@ h1, h2, h3, .font-display {
   padding: 0;
 }
 
+/* Contenedores posicionados para poder colgarles el tirador y el «+»
+   (mismo par de selectores con y sin .react-renderer que arriba). */
+.bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type="columnList"]),
+.bn-block-outer:has(> .bn-block > .react-renderer > .bn-block-content[data-content-type="columnList"]),
+.bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type="column"]),
+.bn-block-outer:has(> .bn-block > .react-renderer > .bn-block-content[data-content-type="column"]) {
+  position: relative;
+}
+
+/* Tirador de ancho en el borde derecho de cada columna (vive en el hueco del gap). */
+.asa-columna {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1.05rem;
+  width: 9px;
+  cursor: col-resize;
+  opacity: 0;
+  z-index: 10;
+  transition: opacity 0.15s;
+}
+.asa-columna::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  border-radius: 2px;
+  background: var(--color-brand, #ff5c28);
+}
+.asa-columna:hover {
+  opacity: 0.7;
+}
+/* La última columna no tiene vecina con la que repartirse. */
+.bn-block-outer:last-child > .bn-block .asa-columna {
+  display: none;
+}
+
+/* «+» de añadir columna, pegado al borde derecho del layout, al pasar el ratón. */
+.asa-anadir-columna {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1.5rem;
+  width: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type="columnList"]):hover .asa-anadir-columna,
+.bn-block-outer:has(> .bn-block > .react-renderer > .bn-block-content[data-content-type="columnList"]):hover .asa-anadir-columna {
+  opacity: 1;
+}
+.asa-anadir-columna:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+
+/* En táctil las columnas se apilan: ni tirador ni «+» tienen sentido ahí. */
+@media (pointer: coarse) {
+  .asa-columna,
+  .asa-anadir-columna {
+    display: none;
+  }
+}
+
 /* --- Móvil -----------------------------------------------------------------
    Con el dedo no se acierta en un icono de 28 px: en pantallas táctiles los
    botones de la interfaz crecen a 40, que es lo que mide una yema. Y los campos
