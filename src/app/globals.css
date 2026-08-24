@@ -242,13 +242,6 @@ h1, h2, h3, .font-display {
   display: none;
 }
 
-/* La barra gemela de ScrollHorizontal (la que sustituye a la nativa escondida).
-   Con el gris del borde de las barras normales no se veía —contraste ~1.1:1
-   sobre el fondo—: el pulgar va en --muted, visible en claro y en oscuro. */
-.barra-scroll {
-  scrollbar-color: var(--muted) transparent;
-}
-
 /* Los menús colgantes asoman con un fundido corto, como en Notion: antes
    aparecían a saco. Solo si el sistema no pide menos movimiento. */
 @media (prefers-reduced-motion: no-preference) {
