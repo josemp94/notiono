@@ -362,6 +362,19 @@ export const pagesRouter = router({
       });
     }),
 
+  /** Candado anti-ediciones accidentales: cualquiera con edición lo pone y lo
+   *  quita, como en Notion (no es un permiso, es un «no tocar sin querer»). */
+  setLocked: workspaceProcedure
+    .input(z.object({ id: z.string(), value: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id);
+      return ctx.db.page.update({
+        where: { id: input.id },
+        data: { locked: input.value },
+        select: { id: true, locked: true },
+      });
+    }),
+
   /** Guardar contenido de bloques (autosave). Snapshota el contenido anterior como Version. */
   updateContent: workspaceProcedure
     .input(z.object({ id: z.string(), content: z.any() }))

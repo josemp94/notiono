@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -41,6 +41,9 @@ export default function PageView() {
   // El nivel por página viene del servidor con pages.get; el rol viewer sigue mandando.
   const nivel = page?.nivel ?? "edit";
   const canEdit = me?.wsRole !== "viewer" && (nivel === "edit" || nivel === "full");
+  // El candado apaga la edición del CONTENIDO sin tocar permisos: quien puede
+  // editar puede quitarlo (es un «no tocar sin querer», como en Notion).
+  const editable = canEdit && !page?.locked;
 
   // Registra la visita en 🕘 Recientes (localStorage, por workspace).
   const workspaceId = me?.workspace?.id;
@@ -79,6 +82,7 @@ export default function PageView() {
                 {page.editadoPor ? `Editado por ${page.editadoPor} ` : "Editado "}
                 {haceCuanto(page.updatedAt)}
               </span>
+              {page.locked && <LockedPill pageId={page.id} canEdit={canEdit} />}
               {canEdit && <FavoriteButton pageId={page.id} />}
               {nivel === "full" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
               {page.type !== "database" && <HistoryButton onClick={() => setHistory(true)} />}
@@ -95,7 +99,7 @@ export default function PageView() {
               initialTitle={page.title || "Base de datos"}
               initialIcon={page.icon}
               initialCover={page.cover}
-              canEdit={canEdit}
+              canEdit={editable}
             />
           ) : (
             <Editor
@@ -106,7 +110,7 @@ export default function PageView() {
               initialIcon={page.icon}
               initialCover={page.cover}
               fullWidth={page.fullWidth}
-              canEdit={canEdit}
+              canEdit={editable}
             />
           )}
         </div>
@@ -173,14 +177,34 @@ function Breadcrumbs({ pageId }: { pageId: string }) {
   );
 }
 
+/** Pill «Bloqueada» de la barra: enseña el candado y, con permiso, lo quita. */
+function LockedPill({ pageId, canEdit }: { pageId: string; canEdit: boolean }) {
+  const utils = trpc.useUtils();
+  const setLocked = trpc.pages.setLocked.useMutation();
+  return (
+    <button
+      disabled={!canEdit}
+      onClick={() => {
+        utils.pages.get.setData({ id: pageId }, (p) => (p ? { ...p, locked: false } : p));
+        setLocked.mutate({ id: pageId, value: false });
+      }}
+      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:cursor-default"
+      title={canEdit ? "Pulsar para desbloquear" : "Página bloqueada"}
+    >
+      <Lock size={13} /> Bloqueada
+    </button>
+  );
+}
+
 /** Menú "⋯" de la cabecera: Ancho completo (solo docs) y Mover a…. */
-function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean } }) {
+function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean } }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [exportando, setExportando] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
+  const setLocked = trpc.pages.setLocked.useMutation();
   const people = usePeople();
 
   async function exportarZip() {
@@ -236,6 +260,19 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
           >
             <LinkIcon size={16} />
             Copiar enlace
+          </button>
+          <button
+            onClick={() => {
+              const value = !page.locked;
+              utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, locked: value } : p));
+              setLocked.mutate({ id: page.id, value });
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+          >
+            <Lock size={16} />
+            {page.type === "database" ? "Bloquear base de datos" : "Bloquear página"}
+            {page.locked && <Check size={14} className="ml-auto text-brand" />}
           </button>
           {page.type !== "database" && (
             <button
