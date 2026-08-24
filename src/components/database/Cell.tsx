@@ -132,7 +132,7 @@ export function Cell({
 
   // url / email / phone: input con tipo adecuado + enlace clicable si hay valor
   if (field.type === "url" || field.type === "email" || field.type === "phone") {
-    return <LinkCell field={field} value={value} onCommit={onCommit} />;
+    return <LinkCell field={field} value={value} onCommit={onCommit} wrap={wrap} />;
   }
 
   if (field.type === "number") {
@@ -214,7 +214,7 @@ function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) 
 }
 
 /** Celda URL / correo / teléfono: input nativo + copiar + abrir + expandir. */
-function LinkCell({ field, value, onCommit }: { field: FieldLite; value: unknown; onCommit: (v: unknown) => void }) {
+function LinkCell({ field, value, onCommit, wrap = false }: { field: FieldLite; value: unknown; onCommit: (v: unknown) => void; wrap?: boolean }) {
   const raw = value == null ? "" : String(value);
   const href =
     field.type === "email" ? `mailto:${raw}` : field.type === "phone" ? `tel:${raw}` : /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
@@ -222,6 +222,29 @@ function LinkCell({ field, value, onCommit }: { field: FieldLite; value: unknown
   const inputRef = useRef<HTMLInputElement>(null);
   const [desborda, setDesborda] = useState(false);
   const [abierto, setAbierto] = useState(false);
+  const [editando, setEditando] = useState(false);
+
+  // Con «Ajustar texto», el valor se pinta envuelto (un input no puede) y el
+  // clic pasa a editar, como el texto con formato.
+  if (wrap && raw && !editando) {
+    return (
+      <div className="group/celda relative flex w-full items-start">
+        <button
+          onClick={() => setEditando(true)}
+          className="min-w-0 flex-1 whitespace-pre-wrap break-all px-1 py-0.5 text-left text-sm"
+          title="Pulsa para editar"
+        >
+          {raw}
+        </button>
+        <AccionesCelda>
+          <CopiarBtn value={raw} />
+          <a href={href} target="_blank" rel="noreferrer" className="flex shrink-0 items-center rounded p-0.5 text-brand" title="Abrir">
+            <ArrowUpRight size={13} />
+          </a>
+        </AccionesCelda>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -238,7 +261,11 @@ function LinkCell({ field, value, onCommit }: { field: FieldLite; value: unknown
         ref={inputRef}
         type={field.type === "email" ? "email" : field.type === "phone" ? "tel" : "url"}
         defaultValue={raw}
-        onBlur={(e) => e.target.value !== raw && onCommit(e.target.value === "" ? null : e.target.value)}
+        autoFocus={editando}
+        onBlur={(e) => {
+          setEditando(false);
+          if (e.target.value !== raw) onCommit(e.target.value === "" ? null : e.target.value);
+        }}
         className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
       {raw && (

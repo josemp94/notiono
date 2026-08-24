@@ -8,7 +8,7 @@ import { trpc } from "@/trpc/react";
 import { Cell, usePeople, type AccionBoton } from "./Cell";
 import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
 import { CALC_OPTS, computeCalc } from "@/lib/calc";
-import { colorByRules, opsFor, wrapOf, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
+import { colorByRules, opsFor, wrapOf, WRAP_TYPES, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
 import { FILTER_MENU_EVENT, isTyping, type FilterMenuDetail } from "@/lib/shortcuts";
 import { FIELD_LABELS, AddFieldButton } from "./shared";
 import { Popover } from "./Popover";
@@ -362,7 +362,7 @@ export function TableView({
         </div>
       </td>
       {fields.map((f, i) => {
-        const envolver = wrapOf(cfg, f.id, f.type === "text");
+        const envolver = wrapOf(cfg, f.id, WRAP_TYPES.includes(f.type));
         const cell =
           f.type === "relation" ? (
             <RelationCell
@@ -564,7 +564,7 @@ export function TableView({
                     onRename={(name) => updateField.mutate({ id: f.id, name })}
                     frozen={i < frozen}
                     onFreeze={() => { setFrozen(i < frozen ? i : i + 1); setMenuField(null); }}
-                    wrap={wrapOf(cfg, f.id, f.type === "text")}
+                    wrap={wrapOf(cfg, f.id, WRAP_TYPES.includes(f.type))}
                     onWrap={(v) => setWrapCol(f.id, v)}
                     onSort={(dir) => {
                       const sorts: Sort[] = Array.isArray(cfg.sorts) ? cfg.sorts : [];
@@ -732,7 +732,7 @@ export function TableView({
           </button>
         )}
         {newMenu && (
-          <div className="absolute bottom-full left-0 z-30 mb-1 w-56 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+          <div data-menu="" className="absolute bottom-full left-0 z-30 mb-1 w-56 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
             {templates.map((t) => (
               <div key={t.id} className="group/tpl flex items-center">
                 <button
@@ -1012,8 +1012,8 @@ function FieldMenu({
         </label>
       )}
 
-      {/* Como en Notion, el wrap se decide por columna (solo tiene efecto en texto). */}
-      {field.type === "text" && (
+      {/* Como en Notion, el wrap se decide por columna (texto, URL, correo y teléfono). */}
+      {WRAP_TYPES.includes(field.type) && (
         <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
           <span>Ajustar texto</span>
           <input

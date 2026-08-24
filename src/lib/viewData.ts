@@ -29,6 +29,9 @@ export const isFilterGroup = (n: FilterNode): n is FilterGroup =>
  * `porDefecto` (la Tabla lo pone a true en el título, que en Notion envuelve
  * de fábrica).
  */
+/** Tipos de columna a los que aplica «Ajustar texto» (envuelven de fábrica). */
+export const WRAP_TYPES = ["text", "url", "email", "phone"];
+
 export function wrapOf(config: any, fieldId: string, porDefecto = false): boolean {
   const porColumna = config?.wrapCols?.[fieldId];
   if (typeof porColumna === "boolean") return porColumna;
