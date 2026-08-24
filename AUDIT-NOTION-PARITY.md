@@ -104,6 +104,11 @@
 > fila; rama de la campana por cortesía de la sesión de fixes, `757d0ce`) y **subagrupar el Kanban en
 > carriles plegables** («Carriles por»; soltar en un carril adopta su valor; columnas y carriles comparten
 > `gruposDe`/`claveDe`/`valorDeGrupo`).
+> **Decimonovena tanda 24-ago-2026 (editor):** **ancho de columnas ajustable** (prop `ancho` = flex-grow,
+> aplicada al `.bn-block-outer` ancestro con un efecto; el tirador reparte con la vecina conservando la
+> suma), **«+» para añadir columna** a un layout ya creado (borde derecho, al pasar el ratón; ambos solo
+> ratón — en táctil las columnas se apilan) y **«/subpágina»** (crea la página hija colgando de la actual
+> y la enlaza con la mención en el sitio del cursor). Queda el drag-to-create-column (L).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -155,8 +160,8 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Embeds: Figma / X / Maps / PDF / iframe | Bloque Embed genérico + previews específicas | ❌ | `src/lib/embed.ts:1-20` solo reconoce YouTube/Vimeo; el resto cae a tarjeta OpenGraph (`bookmarkBlock.tsx:48-60`) | P2 | M |
 | Bookmark con OpenGraph | Tarjeta con imagen/título/dominio | ✅ | `bookmarkBlock.tsx:33-84` + `linkPreview` con anti-SSRF | — | — |
 | Columnas: crear 2/3 desde `/` | También arrastrando un bloque al lado de otro | ⚠️ | `Editor.tsx:281-297` crea `columnList`; **no** hay drag-to-create-column | P1 | L |
-| Columnas: ancho ajustable arrastrando | Tirador entre columnas | ❌ | `globals.css:87-99` reparte con `flex: 1 1 0` fijo; `columnBlock.tsx:5-6` lo documenta | P1 | L |
-| Columnas: añadir columna a un layout ya creado | Botón + en el borde | ❌ | No hay UI; solo crear de cero desde `/` | P1 | M |
+| Columnas: ancho ajustable arrastrando | Tirador entre columnas | ✅ | Prop `ancho` (flex-grow) + tirador que reparte con la columna vecina conservando la suma (`columnBlock.tsx`, tanda 19) | — | — |
+| Columnas: añadir columna a un layout ya creado | Botón + en el borde | ✅ | «+» en el borde derecho del layout al pasar el ratón (tanda 19) | — | — |
 | Bloque sincronizado | Contenido espejado en varias páginas | ❌ | No existe en `editorSchema` (`mention.tsx:57-68`) | P2 | L |
 | Bloque botón | Ejecuta acciones / inserta plantilla | ❌ | No existe | P2 | L |
 | Bloque breadcrumb | Ruta de ancestros en el cuerpo | ❌ | No existe | P2 | M |
@@ -166,7 +171,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Comentario anclado a un bloque | Además del comentario sobre selección | ❌ | Solo selección de texto (`Editor.tsx:88-89`, `FloatingComposerController`) | P2 | L |
 | Toggle heading / listas toggle / cita / divisor / tabla | Básicos | ✅ | `defaultBlockSpecs` de BlockNote 0.53 vía `mention.tsx:57-68` | — | — |
 | Tabla simple: merge de celdas, colores | Extras de la tabla | ⚠️ | La tabla de BlockNote; merge sin verificar, sin personalización | P2 | M |
-| Subpágina como bloque / enlace a página como bloque | `/page` crea subpágina en el sitio; link-to-page | ❌ | Solo `mention` inline; no hay bloque de página | P1 | M |
+| Subpágina como bloque / enlace a página como bloque | `/page` crea subpágina en el sitio; link-to-page | ✅ | «/subpágina» crea la hija y la enlaza con la mención (tanda 19); enlace-a-página = mención @ | — | — |
 | Export Markdown fiel | Callout/columnas/BD sobreviven al export | ⚠️ | `blocksToMarkdownLossy` (`Editor.tsx:197`); callout→blockquote y toc→ul OK (`calloutBlock.tsx:41-49`, `tocBlock.tsx:42-49`), pero `database` desaparece y `column` exporta `<div>` vacío (`columnBlock.tsx:22-31`) | P2 | M |
 | Estilo por página (Serif/Mono, texto pequeño) | Menú ⋯ de página | ❌ | No existe; fuentes solo globales | P2 | M |
 | Ancho completo | Toggle por página | ✅ | `Editor.tsx:34-49,170` | — | — |
