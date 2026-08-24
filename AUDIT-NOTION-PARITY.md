@@ -126,6 +126,13 @@
 > (`[data-menu]` + el atributo en los 7 inline que no lo llevaban, que ganan de paso los objetivos táctiles)
 > y **«Copiar enlace» (privado) en el menú ⋯ de la página**. Corrección a la dimensión 7: el editor SÍ tiene
 > max-width (708px vía `max-w-3xl`, `Editor.tsx:251`) — esa fila estaba desfasada.
+> **Vigesimotercera tanda 24-ago-2026 (paridad S-M):** **formatos de número** ($, £, decimales fijos 0-3 y
+> el **Anillo** de progreso con su «Máximo», junto a la barra); **renombrar adjuntos** (lápiz inline en la
+> celda Archivos; el Asset conserva el original); **el panel plegado asoma flotante** al pasar el ratón por
+> el borde izquierdo o el botón (300ms de gracia, solo escritorio); **«Copiar enlace a la vista»** en el
+> menú de la vista + la BD a página completa honra `?v=`; y **candado «Bloquear página/BD»** (`Page.locked`
+> con migración, pill «Bloqueada» clicable en la barra, contenido a solo lectura; anti-accidentes, no
+> permiso — como en Notion).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -207,14 +214,14 @@ columnas interactivas, synced block y ecuaciones.
 |---|---|---|---|---|---|
 | Cobertura de tipos | 23 tipos | ⚠️ | 21 en `FIELD_TYPES` (`services/db.ts:24`, Botón incluido — tanda 16); faltan **Lugar** y un **Título** real | P2 | — |
 | Tipo Título | Tipo especial; abre la página, no se borra | ⚠️ | El título es "el primer campo `text`" (`routers/db.ts:207,337`); flexible pero implícito | P2 | M |
-| Número: formatos | ~30 monedas, decimales configurables, %, barra **y anillo**, «mostrar número» | ⚠️ | 4 formatos (normal/€/%/barra) en `cellText.ts:65-82`; sin anillo ni más monedas | P2 | S |
+| Número: formatos | ~30 monedas, decimales configurables, %, barra **y anillo**, «mostrar número» | ✅ | €/$/£, decimales 0-3 o automático y Anillo con «Máximo» (tanda 23); más monedas si algún día hacen falta | — | — |
 | Fecha: formato visible y hora 12/24 | Configurable (relativo, DD/MM/AAAA…) | ⚠️ | Formato fijo es-ES (`cellText.ts:51-62`); hora fija 24 h (`Cell.tsx:561-563`) | P2 | M |
 | Fecha: recordatorio en la celda | «Recordar 1 día antes» al poner la fecha | ⚠️ | El aviso existe pero centralizado: `notifications.checkDue` al abrir la app (`notifications.ts:50-122`), no configurable por celda | P2 | M |
 | Fecha: zona horaria | Selector TZ | ❌ | Sin config en `Field.config` | P2 | M |
 | Select/Status: colores de opción | 10 colores | ✅ | 10 en `Cell.tsx:216` COLOR_NAMES + variante dark (`56740cb`) | — | — |
 | Opciones: reordenar arrastrando, renombrar/recolorear desde la celda | Edición in-place | ✅ | ⋯ por opción en el desplegable: nombre, color, grupo, borrar; drag reordena (tanda 13) | — | — |
 | Persona | Varios, avatar, notifica | ✅ | `Cell.tsx:389-463`; sin notificación automática al asignar (solo menciones) | P2 | S |
-| Archivos | Varios, preview, descarga | ✅ | `Cell.tsx:468-534`, 8 MB máx.; sin renombrar | P2 | S |
+| Archivos | Varios, preview, descarga | ✅ | Con renombrar inline (lápiz, tanda 23); el Asset conserva el nombre original | — | — |
 | Relación bidireccional (campo espejo) | «Mostrar en <BD destino>» | ✅ | `mirror` en addRelation + sincronía en updateCell (`services/relations.ts`, `512a9aa`) | — | — |
 | Relación: límite 1/∞, limpieza al borrar fila | Configurable y con cascada | ⚠️ | Limpieza al PURGAR hecha (`limpiaReferencias`); falta el límite 1/∞ | P2 | S |
 | Rollup: agregaciones | ~24 (median, range, earliest/latest, % vacío, checked…) | ✅ | ~20 en `lib/rollup.ts` (`9287c3d`), probadas en check | — | — |
@@ -260,7 +267,7 @@ columnas interactivas, synced block y ecuaciones.
 | Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
 | Comunes — «Abrir como página completa» una BD embebida | Expandir | ✅ | Icono junto a las pestañas (`0c49c01`) | — | — |
-| Comunes — copiar enlace a la vista; descripción de BD; bloquear BD | — | ❌ | Sin URL por vista, sin description, `canEdit` solo por rol | P2 | S-M |
+| Comunes — copiar enlace a la vista; descripción de BD; bloquear BD | — | ⚠️ | Enlace por vista (`?v=`) y candado de página/BD hechos (tanda 23); falta la descripción de BD | P2 | S |
 
 ---
 
@@ -346,8 +353,8 @@ columnas interactivas, synced block y ecuaciones.
 | Densidad de tabla | Filas ~32px, celdas 14px | ✅ | `py-1.5` (~32px de fila) en las celdas de `TableView.tsx` (`7db1359`) | — | — |
 | Ancho de contenido del editor | 708px centrado / full | ✅ | `max-w-3xl` centrado + toggle Ancho completo (`Editor.tsx:251`); la fila anterior estaba desfasada | — | — |
 | Sidebar redimensionable | Drag del borde | ✅ | 200–480px persistente en localStorage (`055cc86`) | — | — |
-| Sidebar peek al pasar el ratón (plegado) | Hover-reveal | ❌ | Plegado = solo botón (`AppShell.tsx:82-87`) | P2 | M |
-| Transiciones/micro-animaciones | Hover, apertura de popovers, colapsos suaves | ⚠️ | Solo `opacity .15s` en `.al-pasar` (`globals.css:199`) y el drawer móvil; popovers aparecen a saco | P2 | M |
+| Sidebar peek al pasar el ratón (plegado) | Hover-reveal | ✅ | Panel flotante al pasar por el borde o el botón, con 300ms de gracia (`AppShell.tsx`, tanda 23) | — | — |
+| Transiciones/micro-animaciones | Hover, apertura de popovers, colapsos suaves | ✅ | Menús con fundido de 120ms vía `[data-menu]` respetando reduced-motion (tanda 22) | — | — |
 | Skeletons de carga | Shimmer en tablas/páginas | ✅ | `.esqueleto` en `globals.css`; página, BD y BD embebida (tanda 13) | — | — |
 | Tooltips con atajo | Estilizados, kbd a la derecha | ⚠️ | Solo `title=""` nativo; kbd solo en la ventana Atajos (`Shortcuts.tsx:107-112`) | P2 | M |
 | Menús: separadores, altura de item | Dividers + ~28px + kbd hints | ⚠️ | `Popover.tsx:92` bien (radius/sombra); faltan dividers | P2 | S |
