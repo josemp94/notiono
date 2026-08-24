@@ -21,13 +21,18 @@ export function SearchPalette() {
   const [debounced, setDebounced] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOpen((o) => !o);
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" && openRef.current) {
+        // preventDefault síncrono (por eso la ref, no el estado): que este
+        // Escape no cierre además el panel de ficha que hubiera debajo.
+        e.preventDefault();
         setOpen(false);
       }
     };
