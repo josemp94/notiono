@@ -66,6 +66,7 @@ export function Editor({
   });
   const setCoverM = trpc.pages.setCover.useMutation();
   const createInlineDb = trpc.db.createInline.useMutation();
+  const createSubpage = trpc.pages.create.useMutation({ onSuccess: () => utils.pages.tree.invalidate() });
   const linkPreview = trpc.pages.linkPreview.useMutation();
 
   const initial = useMemo<NotionoPartialBlock[] | undefined>(() => {
@@ -314,6 +315,22 @@ export function Editor({
                     if (primero) editor.setTextCursorPosition(primero, "end");
                   },
                 })),
+                {
+                  title: "Subpágina",
+                  subtext: "Crea una página hija y la enlaza aquí",
+                  aliases: ["subpagina", "subpágina", "pagina", "página", "page"],
+                  group: "Bloques básicos",
+                  icon: <FileText size={18} />,
+                  onItemClick: async () => {
+                    // Como en Notion: la página nace colgando de esta y queda enlazada
+                    // en el sitio del cursor (la mención ya navega y sigue renombrados).
+                    const nueva = await createSubpage.mutateAsync({ parentId: pageId, title: "" });
+                    insertOrUpdateBlockForSlashMenu(editor, {
+                      type: "paragraph",
+                      content: [{ type: "mention", props: { pageId: nueva.id, title: "Sin título", icon: "" } }],
+                    });
+                  },
+                },
                 {
                   title: "Tabla de contenidos",
                   subtext: "Índice de los encabezados de la página",
