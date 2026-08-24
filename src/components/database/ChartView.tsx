@@ -122,8 +122,10 @@ export function ChartView({
           <Select
             label="Agrupar por"
             value={cfg.xFieldId ?? ""}
-            onChange={(v) => save({ xFieldId: v })}
-            options={fields.map((f) => [f.id, f.name] as [string, string])}
+            onChange={(v) => save({ xFieldId: v || undefined })}
+            // Con opción vacía: sin ella, con xFieldId null el navegador pintaba
+            // el primer campo como elegido aunque la gráfica no lo estaba usando.
+            options={[["", "Elegir campo…"], ...fields.map((f) => [f.id, f.name] as [string, string])]}
           />
         )}
         {chartType !== "number" && DATE_TYPES.includes(fields.find((f) => f.id === cfg.xFieldId)?.type ?? "") && (
@@ -158,7 +160,7 @@ export function ChartView({
             label="Campo"
             value={cfg.yFieldId ?? ""}
             onChange={(v) => save({ yFieldId: v || null })}
-            options={numberFields.map((f) => [f.id, f.name] as [string, string])}
+            options={[["", "Elegir campo…"], ...numberFields.map((f) => [f.id, f.name] as [string, string])]}
           />
         )}
         {["bar", "bar_h", "line"].includes(chartType) && (
