@@ -75,7 +75,7 @@ Hecho:
 - ✅ **Cronograma con tabla lateral fija** (los títulos no se van con el scroll horizontal; clic abre la ficha) y sección **«Sin fecha»** con «Planificar hoy».
 
 Falta:
-- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla. En el Kanban, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).
+- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla y en el Kanban (carriles horizontales plegables). En el Kanban, además, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).
 - ✅ **Duplicar vista** con todos sus ajustes.
 - ✅ **Panel de registro** también en Kanban; **modos side/center/página completa** (`view.config.openIn`, selector «Abrir filas en», defaults de Notion; página completa = `/p/<pageId>?r=<recordId>`); **peek redimensionable** arrastrando el borde (localStorage) y botón de expandir; **Escape** cierra menús y panel; **comentarios de fila** en la ficha (`Comment.recordId`, con aviso y push).
 - ✅ **Ancho de columna** ajustable arrastrando y persistente por vista (doble clic vuelve al automático).

@@ -98,6 +98,12 @@
 > se pintan formateados (tabla + títulos de Kanban/Lista/Galería/Calendario/Cronograma) y el clic edita el
 > crudo. El valor sigue siendo un string a propósito — filtros, fórmulas, CSV, búsqueda y API intactos —
 > y solo se enlazan http(s) (un `[x](javascript:…)` queda como texto). Deliberadamente sin anidar formatos.
+> **Decimoctava tanda 24-ago-2026 (servidor + Kanban):** **rate limit del formulario público** (30
+> envíos/IP/formulario cada 10 min, `src/server/ratelimit.ts` con asserts; documentado en `docs/api.md`),
+> **aviso a los miembros al llegar una respuesta pública** (Notification type "form" + push con enlace a la
+> fila; rama de la campana por cortesía de la sesión de fixes, `757d0ce`) y **subagrupar el Kanban en
+> carriles plegables** («Carriles por»; soltar en un carril adopta su valor; columnas y carriles comparten
+> `gruposDe`/`claveDe`/`valorDeGrupo`).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -214,7 +220,7 @@ columnas interactivas, synced block y ecuaciones.
 | **Kanban** — agrupar por select/status/person/checkbox | + fecha | ✅ | `KanbanView.tsx:51-83` | — | — |
 | Kanban — reordenar tarjetas DENTRO de una columna | Drag con orden manual | ✅ | Soltar sobre una tarjeta coloca encima/debajo (`moveRecord`); solo sin orden activo, como Notion (tanda 11) | — | — |
 | Kanban — añadir grupo/opción desde el tablero | «+ Añadir grupo» | ✅ | Crea la opción del select/estado in situ (`KanbanView.tsx`, `a00f570`) | — | — |
-| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ⚠️ | Agregados ✅ (`kanbanSum`, tanda 12) y ocultar columnas ✅ (`hiddenGroups`, ojo en cabecera + sección «Ocultas», tanda 15); falta subagrupar | P2 | M |
+| Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ✅ | Agregados (`kanbanSum`, tanda 12), ocultar columnas (`hiddenGroups`, tanda 15) y subagrupar en carriles plegables («Carriles por», `subGroupByFieldId`, tanda 18) | — | — |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
 | Timeline — arrastrar para mover/redimensionar/crear | Interacción directa con barras | ✅ | Mover arrastrando + tirador de duración + línea de hoy (`2ef0a92`); crear arrastrando no | — | — |
 | Timeline — dependencias (flechas) + tabla lateral | Ambas | ⚠️ | Tabla lateral ✅: columna de títulos fija (sticky) + sección «Sin fecha» con «Planificar hoy» (tanda 16); dependencias no (nicho familia) | P2 | L |
