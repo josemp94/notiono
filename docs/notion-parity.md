@@ -134,7 +134,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Comentarios** de página con resolver y borrar (`CommentsPanel.tsx`).
 - ✅ **Menciones** @página y @persona + **bandeja de notificaciones** con contador.
 - ✅ **Historial de versiones** con UI (snapshot con throttle de 2 min, últimas 50, restaurar). Solo páginas `doc`.
-- ✅ **Buscador global Ctrl+K**, que busca por título y **dentro del texto de los bloques**.
+- ✅ **Buscador global Ctrl+K**, que busca por título y **dentro del texto de los bloques**, con **filtros** de tipo (Páginas/Bases de datos) y de edición reciente (Hoy/7/30 días).
 - ✅ **Favoritos** (reordenables arrastrando) y **Recientes** en el sidebar.
 - ✅ **Papelera** con jerarquía, retención de 30 días con purga perezosa, vaciar, buscar y «borrado por».
 - ✅ **Publicar página en la web** (`/s/<token>`, solo lectura, resuelve también las BD embebidas).

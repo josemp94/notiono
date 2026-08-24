@@ -113,6 +113,9 @@
 > (`blockTypeSelectItems`) y **enlaces directos a un bloque**: «Copiar enlace al bloque» en el menú del
 > tirador (item propio con el patrón de los de serie: `useExtensionState(SideMenuExtension)`) + salto con
 > destello al abrir `/p/<id>#<bloque>`, con reintentos por la carga asíncrona.
+> **Vigesimoprimera tanda 24-ago-2026:** **filtros en Ctrl+K** — chips de tipo (Todo/Páginas/BDs) y de
+> edición reciente (Hoy/7/30 días) bajo el buscador, aplicados en servidor en ambas ramas de `pages.search`
+> (`Prisma.empty` para componer el SQL); los recientes no se filtran, como Notion.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -278,7 +281,7 @@ columnas interactivas, synced block y ecuaciones.
 |---|---|---|---|---|---|
 | Sidebar: secciones Favoritos/Recientes/árbol | + Compartido + Teamspaces | ⚠️ | `Sidebar.tsx:195-286`; sin sección «Compartido» separada ni teamspaces (workspaces cubren el caso familia) | P2 | M |
 | Árbol: drag&drop, + al pasar, menú contextual | Menú completo (Favorito, Copiar enlace, Renombrar, abrir en pestaña) | ✅ | Favorito y Copiar enlace añadidos (`055cc86`); renombrar se hace en la página (el título) | — | — |
-| Búsqueda Ctrl+K por título y contenido | + recientes al abrir + filtros (creador/fecha) | ⚠️ | Recientes al abrir ✅ (`3ff6c77`, y la sección del sidebar fuera, como Notion); faltan filtros | P2 | M |
+| Búsqueda Ctrl+K por título y contenido | + recientes al abrir + filtros (creador/fecha) | ✅ | Recientes al abrir (`3ff6c77`) + chips de tipo y fecha de edición (tanda 21); sin filtro de creador (Page no guarda creador) | — | — |
 | Breadcrumb clicable | Truncado con «…» si es largo | ✅ | `p/[pageId]/page.tsx:97-140` | — | — |
 | Favoritos/Recientes reordenables | Drag | ✅ | Favoritos con `Favorite.order` fraccional + drag en el sidebar (tanda 13); Recientes son cronológicos por definición | — | — |
 | Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK y diff visual ✅ («Ver los cambios», `lib/diff.ts`, tanda 12); sigue siendo solo de docs, no de BD | P2 | M |
