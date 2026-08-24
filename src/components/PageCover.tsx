@@ -148,9 +148,9 @@ export function CoverBand({
     <div className="group/cover relative h-40 w-full" style={coverStyle(cover)}>
       {editable && (
         <div
-          className={`absolute bottom-2 right-4 flex gap-1 transition-opacity group-hover/cover:opacity-100 ${
-            open ? "opacity-100" : "opacity-0"
-          }`}
+          // .al-pasar (salvo abierto): con opacity-0 a pelo, en táctil los
+          // botones de la portada eran invisibles.
+          className={`absolute bottom-2 right-4 flex gap-1 ${open ? "" : "al-pasar"}`}
         >
           <div className="relative">
             <button
@@ -189,8 +189,9 @@ export function AddCoverButton({ onChange }: { onChange: (cover: string) => void
     <div className="relative inline-block">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-[var(--muted)] transition-opacity hover:bg-[var(--hover)] hover:text-[var(--foreground)] group-hover/header:opacity-100 ${
-          open ? "opacity-100" : "opacity-0"
+        // .al-pasar (salvo abierto): en táctil no hay hover y no se veía.
+        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] ${
+          open ? "" : "al-pasar"
         }`}
       >
         <ImageIcon size={16} /> Añadir portada

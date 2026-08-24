@@ -43,7 +43,9 @@ export function PageIcon({
       ) : (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="rounded-md px-2 py-1 text-sm text-[var(--muted)] opacity-0 transition-opacity hover:bg-[var(--hover)] hover:text-[var(--foreground)] group-hover/header:opacity-100"
+          // .al-pasar y no opacity-0 a pelo: en táctil no hay hover y el botón
+          // quedaba invisible (aunque pulsable a ciegas).
+          className="al-pasar rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         >
           😀 Añadir icono
         </button>
