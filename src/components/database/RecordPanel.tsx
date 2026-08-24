@@ -113,9 +113,11 @@ export function RecordCard({
 
       <div className="space-y-2">
         {propFields.map((f) => (
-          <div key={f.id} className="grid grid-cols-[110px_1fr] items-center gap-3 md:grid-cols-[130px_1fr]">
+          // items-start: con texto envuelto la etiqueta va arriba, como en Notion
+          // (centrada quedaba flotando en medio de un valor de varias líneas).
+          <div key={f.id} className="grid grid-cols-[110px_1fr] items-start gap-3 md:grid-cols-[130px_1fr]">
             <span
-              className="truncate text-sm text-[var(--muted)]"
+              className="truncate py-0.5 text-sm text-[var(--muted)]"
               title={(f.config as { description?: string } | null)?.description || undefined}
             >
               {f.name}

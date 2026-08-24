@@ -356,7 +356,17 @@ function WrappedTextCell({ value, onCommit }: { value: unknown; onCommit: (v: un
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   };
-  useEffect(() => ajustar(ref.current), [value, editando]);
+  // El alto depende del ancho y este cambia después de montar (el panel de la
+  // ficha restaura su ancho de localStorage, se arrastra su borde, se ajusta una
+  // columna): sin re-medir quedaba el alto viejo, con hueco de sobra debajo.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    ajustar(el);
+    const ro = new ResizeObserver(() => ajustar(el));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [value, editando]);
 
   const texto = value == null ? "" : String(value);
 
