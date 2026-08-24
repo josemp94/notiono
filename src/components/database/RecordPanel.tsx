@@ -8,6 +8,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "@/components/editor/mention";
+import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
@@ -59,7 +60,9 @@ export function RecordCard({
   const invalidate = () => utils.db.get.invalidate({ pageId });
   const { data: computed } = trpc.db.computed.useQuery({ pageId });
   const updateCell = trpc.db.updateCell.useMutation({ onSuccess: invalidate });
-  const saveContent = trpc.db.updateRecordContent.useMutation();
+  // Sin invalidar, reabrir la ficha montaba el cuerpo viejo de la caché y el
+  // autosave siguiente machacaba en el servidor lo recién escrito.
+  const saveContent = trpc.db.updateRecordContent.useMutation({ onSuccess: invalidate });
   const deleteRecord = trpc.db.deleteRecord.useMutation({
     onSuccess: async () => {
       await invalidate();
@@ -213,6 +216,10 @@ export function RecordPanel({
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
+      // Escribiendo en un campo, Escape solo sale del campo: cerrar el panel
+      // desmontaría el input SIN blur (el navegador no lo dispara al quitar el
+      // nodo) y lo escrito se perdería sin commitear. Otro Escape ya cierra.
+      if (isTyping(e.target)) return (e.target as HTMLElement).blur();
       onClose();
     };
     window.addEventListener("keydown", h);
