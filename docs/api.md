@@ -287,3 +287,23 @@ El secreto se muestra **una sola vez** al crear el aviso.
 Si tu servicio no responde o falla por su lado (5xx), Notiono reintenta **tres veces**
 (1 s, 5 s y 25 s). Si el destino rechaza la petición (4xx) no insiste, porque reintentarlo
 daría el mismo resultado. En Ajustes se ve el código del último intento (`0` = no respondió).
+
+## Formulario público (sin token de API)
+
+`POST /api/form/<token>` recibe los envíos del formulario público (`/f/<token>`; el
+token se genera con «Compartir formulario» en la vista Formulario). No usa la
+autenticación de la API: el propio token del enlace ES la autorización.
+
+```bash
+curl -X POST https://tu-notiono/api/form/<token> \
+  -H 'Content-Type: application/json' \
+  -d '{ "cells": { "<fieldId>": "valor" } }'
+# → { "ok": true, "id": "<recordId>" }
+```
+
+- Solo acepta **campos visibles** de la vista y de tipos compatibles (texto, número,
+  selección, estado, fecha `AAAA-MM-DD`, casilla, URL, correo, teléfono); el resto se
+  ignora sin error. Cada valor se valida por tipo.
+- Los **campos obligatorios** de la vista devuelven `400 { "error": "required", "fields": [nombres] }` si faltan.
+- **Límite**: 30 envíos por IP y formulario cada 10 minutos → `429 { "error": "rate_limited" }`.
+- El alta dispara los webhooks (`record.created`) como cualquier otra.

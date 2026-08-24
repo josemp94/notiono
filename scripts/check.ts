@@ -536,6 +536,21 @@ import { tieneFormato, tokeniza } from "../src/lib/mdInline";
   assert.equal(tokeniza("[x](javascript:alert(1))").some((t) => t.t === "enlace"), false);
 }
 
+// --- Límite de peticiones del formulario público -------------------------------
+import { permitido } from "../src/server/ratelimit";
+{
+  const t0 = 1_000_000;
+  // 3 permitidas en la ventana; la 4ª no; pasada la ventana, vuelve a entrar.
+  assert.equal(permitido("k", 3, 1000, t0), true);
+  assert.equal(permitido("k", 3, 1000, t0 + 1), true);
+  assert.equal(permitido("k", 3, 1000, t0 + 2), true);
+  assert.equal(permitido("k", 3, 1000, t0 + 3), false);
+  assert.equal(permitido("k", 3, 1000, t0 + 1001), true);
+  // Claves independientes no se estorban.
+  assert.equal(permitido("otra", 1, 1000, t0), true);
+  assert.equal(permitido("otra", 1, 1000, t0 + 1), false);
+}
+
 // --- Formulario: campos obligatorios -----------------------------------------
 import { faltanObligatorios } from "../src/components/database/FormFields";
 {

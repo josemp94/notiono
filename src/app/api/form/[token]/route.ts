@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createRecord } from "@/server/services/db";
+import { ipDe, permitido } from "@/server/ratelimit";
 import { FORM_SUPPORTED } from "@/components/database/FormFields";
 import { optionsOf, type FieldLite } from "@/lib/cellText";
 
@@ -13,6 +14,12 @@ import { optionsOf, type FieldLite } from "@/lib/cellText";
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!token || token.length < 8) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  // Ruta pública: 30 envíos por IP y formulario cada 10 minutos, de sobra para
+  // una familia y un tapón para un bucle o un abuso.
+  if (!permitido(`form:${token}:${ipDe(req)}`, 30, 10 * 60_000)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   const view = await db.view.findFirst({
     where: { type: "form", config: { path: ["publicToken"], equals: token } },
