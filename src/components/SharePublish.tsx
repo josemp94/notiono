@@ -146,7 +146,8 @@ export function ShareButton({ pageId, publicToken }: { pageId: string; publicTok
         <Globe size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-80 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 shadow-xl">
+        <div data-menu=""
+          className="absolute right-0 top-full z-30 mt-1 w-80 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 shadow-xl">
           <AccesoSection pageId={pageId} />
           <div className="mb-2 flex items-center justify-between">
             <div>

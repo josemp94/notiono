@@ -79,6 +79,7 @@ function CoverPicker({
   return (
     <div
       ref={ref}
+      data-menu=""
       className={`absolute top-full z-30 mt-1 w-72 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 shadow-xl ${
         align === "right" ? "right-0" : "left-0"
       }`}

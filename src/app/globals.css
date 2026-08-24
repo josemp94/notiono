@@ -249,6 +249,20 @@ h1, h2, h3, .font-display {
   scrollbar-color: var(--muted) transparent;
 }
 
+/* Los menús colgantes asoman con un fundido corto, como en Notion: antes
+   aparecían a saco. Solo si el sistema no pide menos movimiento. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-menu] {
+    animation: menu-asoma 0.12s ease-out;
+  }
+  @keyframes menu-asoma {
+    from {
+      opacity: 0;
+      transform: translateY(-2px) scale(0.98);
+    }
+  }
+}
+
 /* Zona segura del móvil: la muesca arriba y la barra de gestos abajo, para cuando
    se usa como app instalada y la app ocupa la pantalla entera. */
 .zona-segura-arriba {

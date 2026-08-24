@@ -89,6 +89,7 @@ function Callout({
       {open && (
         <div
           contentEditable={false}
+          data-menu=""
           className="absolute left-0 top-full z-30 mt-1 w-56 rounded-lg border border-[var(--border)] bg-[var(--background)] p-2 shadow-xl"
         >
           <div className="mb-2 flex flex-wrap gap-1">

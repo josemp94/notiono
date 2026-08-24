@@ -52,7 +52,7 @@ export function PageIcon({
       )}
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-[var(--border)] bg-[var(--background)] p-2 shadow-xl">
+        <div data-menu="" className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-[var(--border)] bg-[var(--background)] p-2 shadow-xl">
           <div className="grid grid-cols-8 gap-0.5">
             {COMMON.map((e) => (
               <button

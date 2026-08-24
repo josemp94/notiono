@@ -1029,6 +1029,7 @@ function RowMenu({
   return createPortal(
     <div
       ref={ref}
+      data-menu=""
       className="fixed z-[100] min-w-44 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl"
       style={{ left: x, top: y + 4 }}
     >
