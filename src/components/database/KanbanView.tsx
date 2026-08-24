@@ -124,9 +124,19 @@ export function KanbanView({
   /** ¿A qué columna pertenece una fila? */
   function columnOf(r: Rec): string {
     const v = r.cells?.[groupField!.id];
-    if (groupField!.type === "person") return Array.isArray(v) && v.length ? String(v[0]) : "";
-    if (groupField!.type === "checkbox") return v ? "true" : "";
-    return String(v ?? "");
+    const id =
+      groupField!.type === "person"
+        ? Array.isArray(v) && v.length
+          ? String(v[0])
+          : ""
+        : groupField!.type === "checkbox"
+          ? v
+            ? "true"
+            : ""
+          : String(v ?? "");
+    // Valor huérfano (opción borrada, miembro que se fue): a «Sin asignar»;
+    // si no, la fila no caería en ninguna columna y desaparecería sin aviso.
+    return columns.some((c) => c.id === id) ? id : "";
   }
 
   function drop(colId: string) {
