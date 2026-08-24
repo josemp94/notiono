@@ -46,3 +46,6 @@ docker-compose.yml.bak
 
 # Compilado del módulo de edición simultánea (lo genera npm run build)
 collab/dist/
+
+# Artefactos de las sesiones de Playwright (banco de pruebas de UI)
+.playwright-mcp/
