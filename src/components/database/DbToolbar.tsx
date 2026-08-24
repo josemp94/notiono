@@ -121,7 +121,17 @@ export function DbToolbar({
   const filterOp: "and" | "or" = view.config?.filterOp === "or" ? "or" : "and";
   const sorts: Sort[] = Array.isArray(view.config?.sorts) ? view.config.sorts : [];
   const hidden: string[] = Array.isArray(view.config?.hiddenFields) ? view.config.hiddenFields : [];
-  const saveConfig = (patch: any) => update.mutate({ id: view.id, config: { ...view.config, ...patch } });
+  // El config se acumula en un ref: hacer spread de props pisaba el cambio
+  // anterior si llegaba un segundo antes del round-trip (p. ej. dos ajustes
+  // seguidos del menú, o dos teclas de un valor de filtro).
+  const cfgRef = useRef<any>(view.config ?? {});
+  useEffect(() => {
+    cfgRef.current = view.config ?? {};
+  }, [view.config]);
+  const saveConfig = (patch: any) => {
+    cfgRef.current = { ...cfgRef.current, ...patch };
+    update.mutate({ id: view.id, config: cfgRef.current });
+  };
   const toggleHidden = (id: string) =>
     saveConfig({ hiddenFields: hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id] });
 
@@ -734,10 +744,10 @@ function FilterValue({ field, op, value, onChange }: { field?: DbField; op: stri
           ))}
         </select>
         {!rel && (
-          <input
+          <TextFilterValue
             type="date"
             value={typeof value === "string" ? value : ""}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             className="min-w-[110px] flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-1 text-xs"
           />
         )}
@@ -745,12 +755,51 @@ function FilterValue({ field, op, value, onChange }: { field?: DbField; op: stri
     );
   }
   const inputType = field.type === "number" || field.type === "id" ? "number" : "text";
+  return <TextFilterValue type={inputType} value={value ?? ""} onChange={onChange} />;
+}
+
+/**
+ * Valor de filtro que se teclea (texto, número, fecha): buffer local con
+ * debounce. Controlado directo contra la config del servidor se comía teclas:
+ * cada una re-renderizaba al valor viejo hasta completar el round-trip.
+ */
+function TextFilterValue({
+  type,
+  value,
+  onChange,
+  className = "min-w-[90px] flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-1 text-xs",
+}: {
+  type: string;
+  value: any;
+  onChange: (v: any) => void;
+  className?: string;
+}) {
+  const [v, setV] = useState<string>(value == null ? "" : String(value));
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flush = (nv: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      onChange(nv);
+    }, 400);
+  };
   return (
     <input
-      type={inputType}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="min-w-[90px] flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-1 text-xs"
+      type={type}
+      value={v}
+      onChange={(e) => {
+        setV(e.target.value);
+        flush(e.target.value);
+      }}
+      onBlur={() => {
+        // Salir del campo manda lo pendiente sin esperar al debounce.
+        if (timer.current) {
+          clearTimeout(timer.current);
+          timer.current = null;
+          onChange(v);
+        }
+      }}
+      className={className}
     />
   );
 }
