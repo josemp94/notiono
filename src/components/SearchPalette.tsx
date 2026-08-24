@@ -20,6 +20,9 @@ export function SearchPalette() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [sel, setSel] = useState(0);
+  // Filtros de la búsqueda (solo actúan sobre los resultados, como en Notion).
+  const [tipo, setTipo] = useState<"all" | "doc" | "database">("all");
+  const [dias, setDias] = useState<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const openRef = useRef(open);
   openRef.current = open;
@@ -51,6 +54,8 @@ export function SearchPalette() {
     setQuery("");
     setDebounced("");
     setSel(0);
+    setTipo("all");
+    setDias(undefined);
     const t = setTimeout(() => inputRef.current?.focus(), 0);
     return () => clearTimeout(t);
   }, [open]);
@@ -62,7 +67,7 @@ export function SearchPalette() {
   }, [query]);
 
   const { data: results } = trpc.pages.search.useQuery(
-    { query: debounced, inContent: true },
+    { query: debounced, inContent: true, tipo, editadoDias: dias },
     { enabled: open && debounced.trim().length > 0 },
   );
   // Sin nada escrito, las últimas páginas visitadas — como Notion. Se cruzan con
@@ -113,6 +118,45 @@ export function SearchPalette() {
           placeholder="Buscar en títulos y contenido…"
           className="w-full border-b border-[var(--border)] bg-transparent px-4 py-3 text-sm outline-none placeholder:text-[var(--muted)]"
         />
+        {/* Filtros: tipo y editado recientemente. Solo tocan los resultados de búsqueda. */}
+        <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border)] px-3 py-1.5 text-xs">
+          {(
+            [
+              ["all", "Todo"],
+              ["doc", "Páginas"],
+              ["database", "Bases de datos"],
+            ] as const
+          ).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setTipo(v)}
+              className={`toque-estrecho rounded-full px-2 py-0.5 ${
+                tipo === v ? "bg-brand text-white" : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+          <span className="mx-1 h-4 border-l border-[var(--border)]" />
+          {(
+            [
+              [undefined, "Siempre"],
+              [1, "Hoy"],
+              [7, "7 días"],
+              [30, "30 días"],
+            ] as const
+          ).map(([v, l]) => (
+            <button
+              key={l}
+              onClick={() => setDias(v)}
+              className={`toque-estrecho rounded-full px-2 py-0.5 ${
+                dias === v ? "bg-brand text-white" : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
         <div className="max-h-80 overflow-y-auto p-1">
           {items.map((p, i) => (
             <button

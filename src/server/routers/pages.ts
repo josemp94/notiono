@@ -48,11 +48,20 @@ export const pagesRouter = router({
    * Las coincidencias de título van primero; `inContent: false` (el menú "@") solo mira títulos.
    */
   search: workspaceProcedure
-    .input(z.object({ query: z.string(), inContent: z.boolean().default(false) }))
+    .input(
+      z.object({
+        query: z.string(),
+        inContent: z.boolean().default(false),
+        // Filtros de la paleta: tipo de página y edición reciente (días hacia atrás).
+        tipo: z.enum(["all", "doc", "database"]).default("all"),
+        editadoDias: z.number().int().positive().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const q = input.query.trim();
       if (!q) return [];
       const like = `%${q}%`;
+      const desde = input.editadoDias ? new Date(Date.now() - input.editadoDias * 864e5) : null;
       const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
       if (!input.inContent) {
         const rows = await ctx.db.page.findMany({
@@ -61,6 +70,8 @@ export const pagesRouter = router({
             archivedAt: null,
             embedded: false,
             title: { contains: q, mode: "insensitive" },
+            ...(input.tipo !== "all" ? { type: input.tipo } : {}),
+            ...(desde ? { updatedAt: { gte: desde } } : {}),
           },
           select: { id: true, title: true, icon: true, type: true },
           orderBy: { updatedAt: "desc" },
@@ -71,6 +82,8 @@ export const pagesRouter = router({
       // jsonb_path_query_array saca solo los textos de los bloques: buscar sobre content::text
       // en crudo daría falsos positivos con las claves del JSON ("text", "table", "styles"…).
       // ponytail: escaneo secuencial por espacio; si algún día se nota, índice GIN sobre tsvector.
+      const filtroTipo = input.tipo === "all" ? Prisma.empty : Prisma.sql`AND type = ${input.tipo}`;
+      const filtroFecha = desde ? Prisma.sql`AND "updatedAt" >= ${desde}` : Prisma.empty;
       const rows = await ctx.db.$queryRaw<
         { id: string; title: string; icon: string | null; type: string; inTitle: boolean }[]
       >(Prisma.sql`
@@ -79,6 +92,8 @@ export const pagesRouter = router({
         WHERE "workspaceId" = ${ctx.workspace.id}
           AND "archivedAt" IS NULL
           AND embedded = false
+          ${filtroTipo}
+          ${filtroFecha}
           AND (
             title ILIKE ${like}
             OR jsonb_path_query_array(content, '$.**.text')::text ILIKE ${like}
