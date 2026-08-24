@@ -29,7 +29,7 @@ Lista real: `FIELD_TYPES` en `src/server/routers/db.ts` y `TYPES`/`FIELD_LABELS`
 
 | Tipo | Notion | Notiono |
 |---|---|---|
-| Título / Texto | ✅ | 🟡 no hay tipo "título": el título es el primer campo `text` |
+| Título / Texto | ✅ | 🟡 no hay tipo "título": el título es el primer campo `text`. Con **texto enriquecido** vía markdown inline (**negrita**, *cursiva*, `código`, ~~tachado~~, enlaces), pintado en todas las vistas; se edita el crudo |
 | Número | ✅ | ✅ formatos normal, euros, porcentaje y barra (con máximo configurable); falta anillo |
 | Selección / Selección múltiple | ✅ | ✅ `select`, `multiselect` — 10 colores, crear al vuelo y editar desde el desplegable (renombrar, color, borrar, reordenar arrastrando) |
 | Estado | ✅ | ✅ `status` con grupos Por hacer / En curso / Hecho y opciones movibles entre grupos |

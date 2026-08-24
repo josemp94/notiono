@@ -93,6 +93,11 @@
 > para abrir la ficha + sección «Sin fecha» con «Planificar hoy») y **tipo de campo Botón** (etiqueta +
 > acciones campo→valor sobre la fila: casilla, estado/selección, «@hoy», número, texto; configurado en el
 > menú de la columna; sin valor en celda → fuera de conversiones y vacío en CSV).
+> **Decimoséptima tanda 24-ago-2026:** **texto enriquecido en celdas de texto** vía markdown inline
+> (`lib/mdInline.tsx`): **negrita**, *cursiva*, ~~tachado~~, `código`, [enlaces](https://…) y URLs sueltas
+> se pintan formateados (tabla + títulos de Kanban/Lista/Galería/Calendario/Cronograma) y el clic edita el
+> crudo. El valor sigue siendo un string a propósito — filtros, fórmulas, CSV, búsqueda y API intactos —
+> y solo se enlazan http(s) (un `[x](javascript:…)` queda como texto). Deliberadamente sin anidar formatos.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -188,7 +193,7 @@ columnas interactivas, synced block y ecuaciones.
 | Fórmula | ~70 funciones, tipos fecha/lista | ✅ | ~55 funciones con fechas/listas/`current` (`formula.ts`, `4d2939b`) | — | — |
 | Botón (propiedad) | Acciones: editar props, abrir página, webhook | ⚠️ | Editar propiedades de la fila ✅ (etiqueta + acciones campo→valor, «@hoy» para fechas — tanda 16); sin abrir-página ni webhook (nicho) | P2 | M |
 | Lugar (mapa) | Dirección + mapa + vista Mapa | ❌ | No existe | P2 | L |
-| Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ❌ | Celdas = string plano (`Cell.tsx:144-176`) | P2 | L |
+| Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ⚠️ | Markdown inline (`lib/mdInline.tsx`, tanda 17): negrita/cursiva/tachado/código/enlaces pintados en tabla y títulos de las 5 vistas; se edita el crudo (el valor sigue siendo string: filtros/CSV/API intactos). Sin menciones ni edición WYSIWYG | P2 | L |
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
 | Descripción de propiedad (ℹ) | Texto de ayuda por campo | ✅ | `Field.config.description` (sin migración): textarea en el menú de la columna + ℹ/tooltip (tanda 11) | — | — |
 | Conversión de tipo | Convierte valores al cambiar tipo | ✅ | `services/db.ts:270-344`; multiselect divide por comas | — | — |
