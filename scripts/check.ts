@@ -46,6 +46,10 @@ assert.equal(wrapOf({ wrapText: true, wrapCols: { x: false } }, "x"), false);
 assert.equal(wrapOf({ wrapCols: { x: true } }, "x"), true);
 assert.equal(wrapOf({}, "x"), false);
 assert.equal(wrapOf(undefined, "x"), false);
+// …y sin ninguno de los dos, el default del llamante (el título de la Tabla lo pone a true).
+assert.equal(wrapOf({}, "x", true), true);
+assert.equal(wrapOf({ wrapText: false }, "x", true), false);
+assert.equal(wrapOf({ wrapCols: { x: false } }, "x", true), false);
 
 // Filtrar y ordenar por fórmula/rollup: los computados se funden en las celdas
 // (conComputados) y pasan por el MISMO motor que el resto de campos.

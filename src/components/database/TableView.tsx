@@ -361,6 +361,7 @@ export function TableView({
         </div>
       </td>
       {fields.map((f, i) => {
+        const envolver = wrapOf(cfg, f.id, i === 0 && f.type === "text");
         const cell =
           f.type === "relation" ? (
             <RelationCell
@@ -374,7 +375,7 @@ export function TableView({
             <Cell
               field={f}
               value={r.cells?.[f.id]}
-              wrap={wrapOf(cfg, f.id)}
+              wrap={envolver}
               createdAt={r.createdAt}
               updatedAt={r.updatedAt}
               createdById={r.createdById}
@@ -399,7 +400,7 @@ export function TableView({
               key={f.id}
               data-celda={`${r.id}:${f.id}`}
               onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-              className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+              className={`px-2 py-1.5 ${envolver ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
               style={style}
             >
               {cell}
@@ -411,10 +412,10 @@ export function TableView({
             key={f.id}
             data-celda={`${r.id}:${f.id}`}
             onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-            className={`px-2 py-1.5 ${wrapOf(cfg, f.id) ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+            className={`px-2 py-1.5 ${envolver ? "align-top" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
             style={style}
           >
-            <div className="flex items-center" style={{ paddingLeft: depth * 20 }}>
+            <div className="relative flex items-center" style={{ paddingLeft: depth * 20 }}>
               {hasChildren ? (
                 <button
                   onClick={() => toggle(r.id)}
@@ -427,10 +428,12 @@ export function TableView({
                 <span className="w-4 shrink-0" />
               )}
               <div className="min-w-0 flex-1">{cell}</div>
-              {/* ABRIR al pasar el ratón por la celda del título, como en Notion. */}
+              {/* ABRIR al pasar el ratón, como en Notion: superpuesto al borde derecho
+                  (fuera del flujo, no reserva hueco) y con z-20 para taparse a las
+                  acciones propias de la celda, que en el título sobran. */}
               <button
                 onClick={() => abrir(r)}
-                className="al-pasar ml-1 flex shrink-0 items-center gap-1 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)] shadow-sm hover:text-[var(--foreground)]"
+                className="al-pasar absolute right-0 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)] shadow-sm hover:text-[var(--foreground)]"
               >
                 <Maximize2 size={11} /> ABRIR
               </button>
@@ -560,7 +563,7 @@ export function TableView({
                     onRename={(name) => updateField.mutate({ id: f.id, name })}
                     frozen={i < frozen}
                     onFreeze={() => { setFrozen(i < frozen ? i : i + 1); setMenuField(null); }}
-                    wrap={wrapOf(cfg, f.id)}
+                    wrap={wrapOf(cfg, f.id, i === 0 && f.type === "text")}
                     onWrap={(v) => setWrapCol(f.id, v)}
                     onSort={(dir) => {
                       const sorts: Sort[] = Array.isArray(cfg.sorts) ? cfg.sorts : [];

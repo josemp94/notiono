@@ -25,11 +25,15 @@ export const isFilterGroup = (n: FilterNode): n is FilterGroup =>
 /**
  * ¿Se envuelve el texto de esta columna? Manda el ajuste por columna
  * (`wrapCols`, como Notion); si la columna no dice nada, hereda el «Envolver
- * texto» de la vista (`wrapText`, el ajuste antiguo, que queda como default).
+ * texto» de la vista (`wrapText`, el ajuste antiguo) y, sin ninguno de los dos,
+ * `porDefecto` (la Tabla lo pone a true en el título, que en Notion envuelve
+ * de fábrica).
  */
-export function wrapOf(config: any, fieldId: string): boolean {
+export function wrapOf(config: any, fieldId: string, porDefecto = false): boolean {
   const porColumna = config?.wrapCols?.[fieldId];
-  return typeof porColumna === "boolean" ? porColumna : Boolean(config?.wrapText);
+  if (typeof porColumna === "boolean") return porColumna;
+  const porVista = config?.wrapText;
+  return typeof porVista === "boolean" ? porVista : porDefecto;
 }
 
 export type OpenIn = "side" | "center" | "full";
