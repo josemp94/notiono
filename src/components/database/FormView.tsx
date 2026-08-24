@@ -143,6 +143,10 @@ export function FormView({
       <div className="mt-4">
         <label className="mb-1 block text-xs font-medium text-[var(--muted)]">Mensaje tras enviar (formulario público)</label>
         <input
+          // key: no controlado; sin remontarlo, un cambio de fuera (otra vista
+          // formulario u otra persona) dejaría el texto viejo y el blur lo
+          // guardaría encima.
+          key={cfg.thanksMessage ?? ""}
           defaultValue={cfg.thanksMessage ?? ""}
           placeholder="Tu respuesta se ha guardado."
           onBlur={(e) => {

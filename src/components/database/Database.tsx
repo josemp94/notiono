@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Maximize2, Search, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
@@ -58,6 +58,12 @@ export function Database({
   useDbLive(pageId);
   const [activeViewId, setActiveViewId] = useState<string | null>(viewId ?? null);
   const [title, setTitle] = useState(initialTitle);
+  // Si renombran la BD desde fuera (sidebar, otra persona), adoptar el nombre
+  // nuevo — salvo mientras se edita aquí, que teclear encima lo pisaría.
+  const titleRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (document.activeElement !== titleRef.current) setTitle(initialTitle);
+  }, [initialTitle]);
   const [icon, setIcon] = useState<string | null>(initialIcon ?? "🗃️");
   const [cover, setCover] = useState<string | null>(initialCover ?? null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,6 +190,7 @@ export function Database({
         <div className={`mb-1 flex items-center gap-3 ${cover ? "relative z-10 -mt-10" : ""}`}>
           <PageIcon icon={icon} onChange={onIconChange} editable={canEdit} />
           <input
+            ref={titleRef}
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             placeholder="Sin título"
@@ -376,7 +383,10 @@ export function Database({
           openFull={openFull}
         />
       ) : active?.type === "form" ? (
-        <FormView pageId={pageId} collectionId={col.id} fields={asAny(visibleFields)} view={active} />
+        // key: entre dos vistas Formulario de la misma BD React reutilizaría la
+        // instancia (misma posición y tipo) y el borrador/estado de una se
+        // colaría en la otra.
+        <FormView key={active.id} pageId={pageId} collectionId={col.id} fields={asAny(visibleFields)} view={active} />
       ) : (
         <TableView
           pageId={pageId}
