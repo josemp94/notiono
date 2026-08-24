@@ -138,6 +138,11 @@
 > clic pasa a los inputs nativos — asserts de los tres en check) y **descripción de la base de datos**
 > (`Collection.description` con migración + `setCollectionDescription` en la capa de servicio; editable
 > bajo el título, placeholder al pasar el ratón).
+> **Vigesimoquinta tanda 24-ago-2026:** **icono de página con imagen subida** («Subir una imagen» en el
+> selector; el icono guarda la URL del Asset y `IconoPagina` pinta emoji o imagen en árbol, favoritos,
+> migas, buscador, menciones, mover a, papelera y vistas enlazadas; `emojiIcono` la omite en textos planos).
+> Nota de infraestructura: origin/main pasa a ser el punto de sincronía entre sesiones (hubo un
+> `reset --hard origin/main` externo a media tanda; los commits se empujan al terminar cada función).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -308,7 +313,7 @@ columnas interactivas, synced block y ecuaciones.
 | Favoritos/Recientes reordenables | Drag | ✅ | Favoritos con `Favorite.order` fraccional + drag en el sidebar (tanda 13); Recientes son cronológicos por definición | — | — |
 | Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK y diff visual ✅ («Ver los cambios», `lib/diff.ts`, tanda 12); sigue siendo solo de docs, no de BD | P2 | M |
 | Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx`; «por X» con `Page.archivedById` (tanda 15) | — | — |
-| Icono de página | Emoji **o imagen subida** | ⚠️ | Solo emoji (`PageIcon.tsx:5-97`) | P2 | S |
+| Icono de página | Emoji **o imagen subida** | ✅ | «Subir una imagen» + `IconoPagina` en todos los sitios con icono (tanda 25) | — | — |
 | Portada: reposicionar + galería (Unsplash) | Crop/offset | ⚠️ | Gradientes/subir/URL OK (`PageCover.tsx:9-183`); sin reposicionar ni galería | P2 | M |
 | Home/Inicio con widgets | Recientes, tareas, eventos | ❌ | `(app)/page.tsx:7-23` redirige a la primera página; `/my-tasks` cubre parte | P2 | L |
 | Wiki (página verificada) | Verificación con caducidad | ❌ | No existe (nicho para familia) | P2 | L |
