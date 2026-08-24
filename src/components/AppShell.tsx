@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar/Sidebar";
@@ -17,6 +17,19 @@ const COLLAPSED_KEY = "notiono.sidebar-collapsed";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Con el panel plegado, pasar el ratón por el borde izquierdo (o el botón) lo
+  // asoma flotando, como en Notion. El cierre lleva 300ms de gracia para que el
+  // cursor pueda viajar del botón al panel sin que se esfume por el camino.
+  const [peek, setPeek] = useState(false);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const asomar = () => {
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    setPeek(true);
+  };
+  const esconder = () => {
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setPeek(false), 300);
+  };
   const pathname = usePathname();
 
   // El plegado del panel se recuerda entre sesiones (solo escritorio).
@@ -73,9 +86,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [toggleSidebar]);
 
-  // Cerrar el panel al navegar (en móvil).
+  // Cerrar el panel al navegar (en móvil; el asomo también se recoge).
   useEffect(() => {
     setOpen(false);
+    setPeek(false);
   }, [pathname]);
 
   return (
@@ -101,11 +115,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Sidebar />
       </div>
 
+      {/* Panel plegado: tira invisible en el borde + panel flotante al pasar el ratón. */}
+      {collapsed && (
+        <>
+          <div onMouseEnter={asomar} onMouseLeave={esconder} className="fixed inset-y-0 left-0 z-30 hidden w-2 md:block" />
+          <div
+            onMouseEnter={asomar}
+            onMouseLeave={esconder}
+            className={`fixed bottom-3 left-0 top-10 z-40 hidden overflow-hidden rounded-r-xl border border-[var(--border)] shadow-2xl transition-transform duration-200 md:block [&>aside]:h-full ${
+              peek ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <Sidebar />
+          </div>
+        </>
+      )}
+
       <div className="esquiva-muesca flex min-w-0 flex-1 flex-col">
         {/* Con el panel plegado (Ctrl+\\) queda este botón para recuperarlo. */}
         {collapsed && (
           <button
             onClick={toggleSidebar}
+            onMouseEnter={asomar}
+            onMouseLeave={esconder}
             className="absolute left-1.5 top-2 z-20 hidden rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] md:block"
             title="Mostrar el panel (Ctrl+\\)"
           >
