@@ -122,7 +122,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ❌ **Sync block**, **breadcrumb block**, **botón**, embeds de Maps/Figma/PDF, **ecuación**, **subpágina embebida** como bloque.
 - ✅ **Comentarios en línea** sobre una selección, con respuestas y resolver (`YjsThreadStore`: los hilos viajan dentro del documento compartido).
 - ❌ **@fecha** en el editor.
-- ❌ Menú contextual de bloque completo (Convertir en, Mover a, Copiar enlace al bloque, Color), selección multibloque con acciones masivas.
+- ✅ **«Convertir en → Llamada»** en la barra de formato y **«Copiar enlace al bloque»** en el menú del tirador: la URL `/p/<página>#<bloque>` abre la página, salta hasta el bloque y lo destaca. ❌ «Mover a» por bloque y selección multibloque con acciones masivas.
 - ❌ Estilo por página (tipografía Default/Serif/Mono, texto pequeño).
 - ✅ **Backlinks**: sección «N enlaces entrantes» al pie de la página (`pages.backlinks`).
 

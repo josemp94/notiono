@@ -109,6 +109,10 @@
 > suma), **«+» para añadir columna** a un layout ya creado (borde derecho, al pasar el ratón; ambos solo
 > ratón — en táctil las columnas se apilan) y **«/subpágina»** (crea la página hija colgando de la actual
 > y la enlaza con la mención en el sitio del cursor). Queda el drag-to-create-column (L).
+> **Vigésima tanda 24-ago-2026 (editor, cont.):** **«Convertir en → Llamada»** en la barra de formato
+> (`blockTypeSelectItems`) y **enlaces directos a un bloque**: «Copiar enlace al bloque» en el menú del
+> tirador (item propio con el patrón de los de serie: `useExtensionState(SideMenuExtension)`) + salto con
+> destello al abrir `/p/<id>#<bloque>`, con reintentos por la carga asíncrona.
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -166,7 +170,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Bloque botón | Ejecuta acciones / inserta plantilla | ❌ | No existe | P2 | L |
 | Bloque breadcrumb | Ruta de ancestros en el cuerpo | ❌ | No existe | P2 | M |
 | Mención de fecha `@hoy`/`@fecha` | Inline, con recordatorio opcional | ❌ | `mention.tsx` solo define `mention` (@página) y `personMention` | P2 | M |
-| Menú de bloque (drag handle): Convertir en, Color, Duplicar, Copiar enlace, Comentar | Menú contextual completo por bloque | ⚠️ | Se usa el side menu por defecto de BlockNote sin personalizar; los bloques custom (callout/toc/bookmark/database) NO aparecen en «Convertir en» | P1 | M |
+| Menú de bloque (drag handle): Convertir en, Color, Duplicar, Copiar enlace, Comentar | Menú contextual completo por bloque | ⚠️ | «Convertir en» ofrece la Llamada y el tirador tiene Eliminar/Colores/«Copiar enlace al bloque» (tanda 20); toc/bookmark/database se insertan, no se convierten (sin celda de texto) | P2 | S |
 | Colores de texto y fondo (9+9) | Desde el menú de formato y de bloque | ✅ | Verificado en BlockNote 0.53: `ColorStyleButton` en la toolbar y `BlockColorsItem` en el menú de bloque van de serie con `defaultStyleSpecs`; callout con 10 colores `--tag-*` (`calloutBlock.tsx:7-19`) | — | — |
 | Comentario anclado a un bloque | Además del comentario sobre selección | ❌ | Solo selección de texto (`Editor.tsx:88-89`, `FloatingComposerController`) | P2 | L |
 | Toggle heading / listas toggle / cita / divisor / tabla | Básicos | ✅ | `defaultBlockSpecs` de BlockNote 0.53 vía `mention.tsx:57-68` | — | — |
@@ -285,7 +289,7 @@ columnas interactivas, synced block y ecuaciones.
 | Wiki (página verificada) | Verificación con caducidad | ❌ | No existe (nicho para familia) | P2 | L |
 | Duplicar página con copia profunda | — | ✅ | `pages.ts:448-474,575-681` con remapeo de IDs | — | — |
 | Copiar enlace privado (botón) | En menú y cabecera | ⚠️ | Solo URL pública en `SharePublish.tsx:77-93` | P2 | S |
-| Deep-links a bloque/heading (#anchor) | Copiar enlace al bloque | ❌ | Sin anchors; la ToC hace scroll interno pero no hay URLs de bloque | P1 | M-L |
+| Deep-links a bloque/heading (#anchor) | Copiar enlace al bloque | ✅ | «Copiar enlace al bloque» en el tirador + salto con destello al abrir /p/<id>#<bloque> (tanda 20) | — | — |
 | Peek: abrir página en panel lateral | Ctrl+clic → peek | ❌ | Solo navegación completa (las filas de BD sí tienen `RecordPanel`) | P2 | M |
 | Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ✅ | Ctrl+K, Ctrl+\, Ctrl+Alt+N, ?, Ctrl+Mayús+L (tema) y Ctrl+[ ] atrás/adelante (tanda 15; Ctrl+P es Ctrl+K) | — | — |
 | Notificaciones por comentario/asignación | Además de menciones y vencimientos | ✅ | Tipos `comment` y `assign` con push y bandeja (`comments.ts`, `db.ts updateCell`, `598a9ee`) | — | — |
