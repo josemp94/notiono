@@ -85,9 +85,18 @@ export function RecordCard({
     saveTimer.current = setTimeout(() => saveContent.mutate({ id: record.id, content: editor.document }), 800);
   };
 
+  // Con debounce: una mutación por tecla podía pisarse a sí misma si las
+  // respuestas llegaban desordenadas (quedaba guardado un prefijo viejo).
+  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onTitleChange = (v: string) => {
     setTitle(v);
-    if (titleField) updateCell.mutate({ recordId: record.id, fieldId: titleField.id, value: v || null });
+    if (!titleField) return;
+    if (titleTimer.current) clearTimeout(titleTimer.current);
+    const fieldId = titleField.id;
+    titleTimer.current = setTimeout(
+      () => updateCell.mutate({ recordId: record.id, fieldId, value: v || null }),
+      500,
+    );
   };
 
   return (
@@ -119,6 +128,8 @@ export function RecordCard({
                 <Cell
                   field={f}
                   value={record.cells?.[f.id]}
+                  // En la ficha el texto largo envuelve siempre, como en Notion.
+                  wrap
                   rollupValue={computed?.rollups?.[record.id]?.[f.id]}
                   createdAt={record.createdAt}
                   updatedAt={record.updatedAt}
