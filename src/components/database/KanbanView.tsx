@@ -307,6 +307,7 @@ export function KanbanView({
           const fresh = records.find((r) => r.id === openRec.id) ?? openRec;
           return (
             <RecordPanel
+              key={fresh.id}
               pageId={pageId}
               collectionId={collectionId}
               record={fresh}

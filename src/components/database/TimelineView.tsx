@@ -327,16 +327,24 @@ export function TimelineView({
         );
       })()}
 
-      {openRec && (
-        <RecordPanel
-          pageId={pageId}
-          record={openRec}
-          fields={fields}
-          onClose={() => setOpenRec(null)}
-          mode={openIn === "center" ? "center" : "side"}
-          onExpand={openFull ? () => openFull(openRec.id) : undefined}
-        />
-      )}
+      {openRec &&
+        (() => {
+          // Ficha con la fila FRESCA: el snapshot del clic se queda viejo tras la
+          // primera edición y los campos multivalor machacarían lo ya guardado.
+          const fresh = records.find((r) => r.id === openRec.id) ?? openRec;
+          return (
+            <RecordPanel
+              key={fresh.id}
+              pageId={pageId}
+              collectionId={collectionId}
+              record={fresh}
+              fields={fields}
+              onClose={() => setOpenRec(null)}
+              mode={openIn === "center" ? "center" : "side"}
+              onExpand={openFull ? () => openFull(fresh.id) : undefined}
+            />
+          );
+        })()}
     </div>
   );
 }
