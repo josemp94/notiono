@@ -272,7 +272,7 @@ columnas interactivas, synced block y ecuaciones.
 | Búsqueda Ctrl+K por título y contenido | + recientes al abrir + filtros (creador/fecha) | ⚠️ | Recientes al abrir ✅ (`3ff6c77`, y la sección del sidebar fuera, como Notion); faltan filtros | P2 | M |
 | Breadcrumb clicable | Truncado con «…» si es largo | ✅ | `p/[pageId]/page.tsx:97-140` | — | — |
 | Favoritos/Recientes reordenables | Drag | ✅ | Favoritos con `Favorite.order` fraccional + drag en el sidebar (tanda 13); Recientes son cronológicos por definición | — | — |
-| Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK (`pages.ts:309-359`, `VersionHistory.tsx:40-121`); sin diff, solo docs | P1 | M |
+| Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK y diff visual ✅ («Ver los cambios», `lib/diff.ts`, tanda 12); sigue siendo solo de docs, no de BD | P2 | M |
 | Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx`; «por X» con `Page.archivedById` (tanda 15) | — | — |
 | Icono de página | Emoji **o imagen subida** | ⚠️ | Solo emoji (`PageIcon.tsx:5-97`) | P2 | S |
 | Portada: reposicionar + galería (Unsplash) | Crop/offset | ⚠️ | Gradientes/subir/URL OK (`PageCover.tsx:9-183`); sin reposicionar ni galería | P2 | M |
