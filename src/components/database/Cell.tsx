@@ -495,8 +495,8 @@ function Anillo({ pct }: { pct: number }) {
   );
 }
 
-const COLOR_NAMES = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "default"];
-const COLOR_LABELS: Record<string, string> = {
+export const COLOR_NAMES = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "default"];
+export const COLOR_LABELS: Record<string, string> = {
   gray: "Gris",
   brown: "Marrón",
   orange: "Naranja",

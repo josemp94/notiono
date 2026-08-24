@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
 import { confirmar } from "@/components/Confirmar";
-import { usePeople } from "./Cell";
+import { COLOR_LABELS, COLOR_NAMES, usePeople } from "./Cell";
 import { Popover } from "./Popover";
 import { RecordPanel } from "./RecordPanel";
 import { ScrollHorizontal } from "./ScrollHorizontal";
@@ -68,6 +68,9 @@ export function KanbanView({
   // columna se pinta en cada carril y el menú solo debe abrirse en uno).
   const [menuCol, setMenuCol] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  // Reordenar grupos arrastrando su cabecera, como en Notion.
+  const [dragGroup, setDragGroup] = useState<string | null>(null);
+  const [dropGroup, setDropGroup] = useState<string | null>(null);
   // Carriles del subagrupado plegados (solo estado de cliente, como en la Tabla).
   const [foldedLanes, setFoldedLanes] = useState<Set<string>>(new Set());
   const people = usePeople();
@@ -213,14 +216,22 @@ export function KanbanView({
     if (l) saveOpts(optionsOf(groupField).map((o) => (o.id === id ? { ...o, label: l } : o)));
     cerrarMenu();
   };
-  const moverGrupo = (id: string, dir: -1 | 1) => {
-    const opts = [...optionsOf(groupField)];
-    const i = opts.findIndex((o) => o.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= opts.length) return;
-    [opts[i], opts[j]] = [opts[j], opts[i]];
-    saveOpts(opts);
+  const colorearGrupo = (id: string, color: string) => {
+    saveOpts(optionsOf(groupField).map((o) => (o.id === id ? { ...o, color } : o)));
     cerrarMenu();
+  };
+  // Soltar la cabecera de un grupo sobre otra columna lo coloca delante; en
+  // Estado además adopta su grupo, como al reordenar opciones en la celda.
+  const soltarGrupo = (targetId: string) => {
+    if (!dragGroup || dragGroup === targetId) return;
+    const opts = optionsOf(groupField);
+    const src = opts.find((o) => o.id === dragGroup);
+    const target = opts.find((o) => o.id === targetId);
+    if (!src || !target) return;
+    const rest = opts.filter((o) => o.id !== dragGroup);
+    const moved = groupField.type === "status" ? { ...src, group: target.group ?? "todo" } : src;
+    rest.splice(rest.findIndex((o) => o.id === targetId), 0, moved);
+    saveOpts(rest);
   };
   const eliminarGrupo = async (col: { id: string; label: string }) => {
     cerrarMenu();
@@ -233,17 +244,49 @@ export function KanbanView({
     <div className="flex w-max min-w-full gap-3">
       {visibleColumns.map((col) => {
         const cards = recs.filter((r) => columnOf(r) === col.id);
+        // Solo los grupos que son opciones (select/estado) se renombran,
+        // recolorean, reordenan o eliminan; «Sin asignar», nunca.
+        const editable = conOpciones && col.id !== "";
         return (
           <div
             key={col.id || "none"}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => drop(col.id, laneId)}
-            className={`${size.col} shrink-0 rounded-lg p-2`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (dragGroup && dragGroup !== col.id) setDropGroup(col.id);
+            }}
+            onDragLeave={() => setDropGroup((d) => (d === col.id ? null : d))}
+            onDrop={() => {
+              setDropGroup(null);
+              if (dragGroup) {
+                if (col.id && conOpciones) soltarGrupo(col.id);
+                setDragGroup(null);
+              } else drop(col.id, laneId);
+            }}
+            className={`${size.col} shrink-0 rounded-lg p-2 ${
+              dropGroup === col.id && dragGroup ? "ring-2 ring-brand" : ""
+            }`}
             // Tinte suave: el color de la etiqueta rebajado con el fondo del tema.
             style={{ background: `color-mix(in srgb, ${OPTION_COLORS[col.color] ?? "var(--tag-default)"} 45%, var(--background))` }}
           >
-            <div className="mb-2 flex items-center justify-between gap-1 px-1 text-sm font-medium">
-              <span className="min-w-0 truncate">{col.label}</span>
+            <div
+              className="mb-2 flex items-center justify-between gap-1 px-1 text-sm font-medium"
+              draggable={editable}
+              onDragStart={(e) => {
+                if (!editable) return;
+                e.stopPropagation();
+                setDragGroup(col.id);
+              }}
+              onDragEnd={() => {
+                setDragGroup(null);
+                setDropGroup(null);
+              }}
+            >
+              <span
+                className="min-w-0 truncate rounded px-1.5 py-0.5 text-xs"
+                style={{ background: OPTION_COLORS[col.color] ?? "var(--tag-default)", color: "var(--tag-fg)" }}
+              >
+                {col.label}
+              </span>
               <span className="flex shrink-0 items-center gap-1">
                 {(() => {
                   const sumField = fields.find((f) => f.id === sumFieldId && f.type === "number");
@@ -258,9 +301,6 @@ export function KanbanView({
                 {(() => {
                   const clave = `${laneId ?? ""}|${col.id}`;
                   const abierto = menuCol === clave;
-                  const opts = optionsOf(groupField);
-                  const idx = opts.findIndex((o) => o.id === col.id);
-                  const editable = conOpciones && col.id !== "";
                   return (
                     <>
                       <button
@@ -269,6 +309,21 @@ export function KanbanView({
                         title="Opciones del grupo"
                       >
                         <MoreHorizontal size={14} />
+                      </button>
+                      <button
+                        onClick={() =>
+                          addRecord.mutate({
+                            collectionId,
+                            cells: {
+                              ...(col.id ? { [groupField.id]: valueForColumn(col.id) } : {}),
+                              ...(subField && laneId ? { [subField.id]: valorDeGrupo(subField, laneId) } : {}),
+                            },
+                          })
+                        }
+                        className="al-pasar toque-estrecho rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
+                        title="Nueva tarjeta"
+                      >
+                        <Plus size={14} />
                       </button>
                       {abierto && (
                         <Popover onClose={cerrarMenu} className="right-0 w-52 p-1">
@@ -286,28 +341,12 @@ export function KanbanView({
                           ) : (
                             <>
                               {editable && (
-                                <>
-                                  <button
-                                    onClick={() => setRenaming(col.label)}
-                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
-                                  >
-                                    <Pencil size={14} /> Renombrar
-                                  </button>
-                                  <button
-                                    onClick={() => moverGrupo(col.id, -1)}
-                                    disabled={idx <= 0}
-                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm enabled:hover:bg-[var(--hover)] disabled:opacity-40"
-                                  >
-                                    <ArrowLeft size={14} /> Mover a la izquierda
-                                  </button>
-                                  <button
-                                    onClick={() => moverGrupo(col.id, 1)}
-                                    disabled={idx < 0 || idx === opts.length - 1}
-                                    className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm enabled:hover:bg-[var(--hover)] disabled:opacity-40"
-                                  >
-                                    <ArrowRight size={14} /> Mover a la derecha
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => setRenaming(col.label)}
+                                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
+                                >
+                                  <Pencil size={14} /> Cambiar nombre
+                                </button>
                               )}
                               <button
                                 onClick={() => {
@@ -316,17 +355,32 @@ export function KanbanView({
                                 }}
                                 className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
                               >
-                                <EyeOff size={14} /> Ocultar
+                                <EyeOff size={14} /> Ocultar grupo
                               </button>
                               {editable && (
                                 <>
-                                  <div className="my-1 border-t border-[var(--border)]" />
                                   <button
                                     onClick={() => eliminarGrupo(col)}
                                     className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm text-red-500 hover:bg-[var(--hover)]"
                                   >
-                                    <Trash2 size={14} /> Eliminar grupo
+                                    <Trash2 size={14} /> Eliminar
                                   </button>
+                                  <div className="my-1 border-t border-[var(--border)]" />
+                                  <div className="px-2 py-1 text-xs text-[var(--muted)]">Colores</div>
+                                  {COLOR_NAMES.map((c) => (
+                                    <button
+                                      key={c}
+                                      onClick={() => colorearGrupo(col.id, c)}
+                                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
+                                    >
+                                      <span
+                                        className="size-4 shrink-0 rounded border border-[var(--border)]"
+                                        style={{ background: OPTION_COLORS[c] }}
+                                      />
+                                      {COLOR_LABELS[c]}
+                                      {col.color === c && <Check size={14} className="ml-auto text-brand" />}
+                                    </button>
+                                  ))}
                                 </>
                               )}
                             </>
