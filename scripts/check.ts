@@ -233,6 +233,13 @@ assert.equal(endDayOf({ start: "2026-08-05", end: "2026-08-08" }), "2026-08-08")
 assert.equal(endDayOf("2026-08-05"), "2026-08-05"); // sin rango, el fin es el inicio
 assert.equal(formatDate("2026-08-05"), "5 ago 2026");
 assert.equal(formatDate("2026-08-05T14:30"), "5 ago 2026 14:30");
+// Formatos por campo: corto (dd/mm/aaaa), reloj de 12 horas y relativo («hoy»).
+const campoFecha = (config: object) => ({ id: "f", name: "F", type: "date", config }) as never;
+assert.equal(formatDate("2026-08-05", campoFecha({ dateFormat: "corto" })), "05/08/2026");
+assert.equal(formatDate("2026-08-05T14:30", campoFecha({ time: true, hour12: true })), "5 ago 2026 2:30 p. m.");
+const hoyLocal = new Date();
+const hoyYmd = `${hoyLocal.getFullYear()}-${String(hoyLocal.getMonth() + 1).padStart(2, "0")}-${String(hoyLocal.getDate()).padStart(2, "0")}`;
+assert.equal(formatDate(hoyYmd, campoFecha({ dateFormat: "relativo" })), "hoy");
 assert.equal(formatDate({ start: "2026-08-05", end: "2026-08-08" }), "5 ago 2026 → 8 ago 2026");
 
 // Un filtro relativo debe coger la fila cuyo rango solapa el periodo, no solo la que empieza dentro.

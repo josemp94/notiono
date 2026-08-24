@@ -82,15 +82,42 @@ export function endDayOf(v: unknown): string | null {
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** "5 ago 2026", "5 ago 2026 14:30" o "5 ago 2026 → 8 ago 2026". */
-export function formatDate(v: unknown): string {
+/** «hoy», «ayer», «en 3 días»…; null si queda lejos (se usa el absoluto). */
+function fechaRelativa(ymd: string): string | null {
+  const hoy = new Date();
+  const cero = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dias = Math.round((new Date(y, m - 1, d).getTime() - cero) / 864e5);
+  if (dias === 0) return "hoy";
+  if (dias === -1) return "ayer";
+  if (dias === 1) return "mañana";
+  if (dias < 0 && dias >= -6) return `hace ${-dias} días`;
+  if (dias > 1 && dias <= 6) return `en ${dias} días`;
+  return null;
+}
+
+/** Texto de una fecha según el formato del campo: largo (24 ago 2026, el de
+ *  siempre), corto (24/08/2026) o relativo (hoy, ayer…), y hora 12/24. */
+export function formatDate(v: unknown, field?: FieldLite): string {
   const d = dateValue(v);
   if (!d) return "";
+  const cfg = (field?.config as { dateFormat?: string; hour12?: boolean } | null) ?? {};
+  const hora = (time: string) => {
+    const t = time.slice(0, 5);
+    if (!cfg.hour12) return t;
+    const [h, min] = t.split(":").map(Number);
+    return `${h % 12 || 12}:${String(min).padStart(2, "0")} ${h < 12 ? "a. m." : "p. m."}`;
+  };
   const one = (iso: string) => {
     const [date, time] = iso.split("T");
     const [y, m, day] = date.split("-");
     if (!y || !m || !day) return iso;
-    const txt = `${Number(day)} ${MONTHS[Number(m) - 1] ?? m} ${y}`;
-    return time ? `${txt} ${time.slice(0, 5)}` : txt;
+    const largo = `${Number(day)} ${MONTHS[Number(m) - 1] ?? m} ${y}`;
+    const txt =
+      cfg.dateFormat === "corto" ? `${day}/${m}/${y}`
+      : cfg.dateFormat === "relativo" ? (fechaRelativa(date) ?? largo)
+      : largo;
+    return time ? `${txt} ${hora(time)}` : txt;
   };
   return d.end ? `${one(d.start)} → ${one(d.end)}` : one(d.start);
 }
@@ -183,7 +210,7 @@ export function displayValue(field: FieldLite, value: unknown, people?: Map<stri
     return (Array.isArray(value) ? (value as Attachment[]) : []).map((a) => a.name || "archivo").join(", ");
   }
   if (field.type === "number") return formatNumber(value, field);
-  if (field.type === "date") return formatDate(value);
+  if (field.type === "date") return formatDate(value, field);
   if (field.type === "checkbox") return value ? "Sí" : "No";
   if (field.type === "relation") {
     const n = Array.isArray(value) ? value.length : 0;

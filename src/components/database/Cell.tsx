@@ -6,7 +6,7 @@ import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { confirmar } from "@/components/Confirmar";
 import { RichText, tieneFormato } from "@/lib/mdInline";
-import { dateValue, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
+import { dateValue, formatDate, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
 
 
 /** Mapa userId -> nombre de los miembros del espacio (para pintar campos "person"). */
@@ -980,6 +980,7 @@ function AuthorCell({ userId }: { userId?: string | null }) {
 function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown; onCommit: (v: unknown) => void }) {
   const cfg = (field.config as { time?: boolean; range?: boolean } | null) ?? {};
   const d = dateValue(value);
+  const [editando, setEditando] = useState(false);
   const type = cfg.time ? "datetime-local" : "date";
   // Sin hora, el input date no admite la parte "T…": se recorta.
   const cut = (iso?: string) => (iso ? (cfg.time ? iso.slice(0, 16) : iso.slice(0, 10)) : "");
@@ -990,10 +991,31 @@ function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown
     onCommit(end ? { start, end } : { start });
   };
 
+  // Con valor se pinta el texto según el formato del campo (24 ago 2026,
+  // 24/08/2026 o «hoy») y el clic pasa a los inputs; vacía, el input directo.
+  if (d && !editando) {
+    return (
+      <button
+        onClick={() => setEditando(true)}
+        className="block w-full px-1 py-0.5 text-left text-sm"
+        title="Pulsa para editar"
+      >
+        {formatDate(value, field)}
+      </button>
+    );
+  }
+
   return (
-    <div className="flex w-full items-center gap-1">
+    <div
+      className="flex w-full items-center gap-1"
+      // Volver al texto cuando el foco sale del grupo entero (no entre inputs del rango).
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setEditando(false);
+      }}
+    >
       <input
         type={type}
+        autoFocus={editando}
         value={cut(d?.start)}
         onChange={(e) => commit(e.target.value, cut(d?.end))}
         className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"

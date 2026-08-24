@@ -958,7 +958,7 @@ function FieldMenu({
   onType: (type: ConvertibleType) => void;
   onDelete: () => void;
 }) {
-  const cfg = (field.config as { prefix?: string; format?: string; max?: number; time?: boolean; range?: boolean; description?: string } | null) ?? {};
+  const cfg = (field.config as { prefix?: string; format?: string; max?: number; time?: boolean; range?: boolean; description?: string; dateFormat?: string; hour12?: boolean } | null) ?? {};
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   return (
     <Popover onClose={onClose} className="left-0 w-64 p-2 font-normal normal-case">
@@ -1059,6 +1059,29 @@ function FieldMenu({
 
       {field.type === "date" && (
         <>
+          <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
+            <span>Formato</span>
+            <select
+              value={cfg.dateFormat ?? "largo"}
+              onChange={(e) => onConfig({ dateFormat: e.target.value === "largo" ? undefined : e.target.value })}
+              className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+            >
+              <option value="largo">24 ago 2026</option>
+              <option value="corto">24/08/2026</option>
+              <option value="relativo">Relativo (hoy, ayer…)</option>
+            </select>
+          </label>
+          {cfg.time && (
+            <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
+              <span>Reloj de 12 horas</span>
+              <input
+                type="checkbox"
+                defaultChecked={Boolean(cfg.hour12)}
+                onChange={(e) => onConfig({ hour12: e.target.checked })}
+                className="size-4 accent-[var(--color-brand,#ff5c28)]"
+              />
+            </label>
+          )}
           <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
             <span>Incluir hora</span>
             <input
