@@ -53,9 +53,13 @@ export function Cell({
   if (field.type === "id") {
     const prefix = (field.config as { prefix?: string })?.prefix ?? "";
     return (
-      <span className="group/celda flex items-center gap-1 px-1 py-0.5 text-sm text-[var(--muted)]">
+      <span className="group/celda relative flex items-center gap-1 px-1 py-0.5 text-sm text-[var(--muted)]">
         <span className="min-w-0 truncate">{seq == null ? "—" : `${prefix}${seq}`}</span>
-        {rowUrl && seq != null && <CopiarBtn value={rowUrl} title="Copiar el enlace de la fila" />}
+        {rowUrl && seq != null && (
+          <AccionesCelda>
+            <CopiarBtn value={rowUrl} title="Copiar el enlace de la fila" />
+          </AccionesCelda>
+        )}
       </span>
     );
   }
@@ -155,7 +159,7 @@ function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) 
 
   if (tieneFormato(texto) && !editando) {
     return (
-      <div ref={wrapRef} className="group/celda flex w-full items-center">
+      <div ref={wrapRef} className="group/celda relative flex w-full items-center">
         <button
           onClick={() => setEditando(true)}
           className="min-w-0 flex-1 truncate px-1 py-0.5 text-left text-sm"
@@ -163,7 +167,9 @@ function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) 
         >
           <RichText texto={texto} />
         </button>
-        <CopiarBtn value={texto} />
+        <AccionesCelda>
+          <CopiarBtn value={texto} />
+        </AccionesCelda>
       </div>
     );
   }
@@ -171,26 +177,35 @@ function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) 
   return (
     <div
       ref={wrapRef}
-      className="group/celda flex w-full items-center"
+      className="group/celda relative flex w-full items-center"
       // Medir solo al entrar con el ratón: cero coste en el render normal.
       onMouseEnter={() => {
         const el = inputRef.current;
         setDesborda(!!el && el.scrollWidth > el.clientWidth + 1);
       }}
     >
+      {/* key: el input no es controlado (commit al salir) y sin remontarlo un valor
+          cambiado por fuera (Expandir, la ficha, otra persona) seguiría enseñando
+          —y recommitteando en el blur— el texto viejo. La guarda del commit evita
+          lo mismo en la ventana entre el commit y el refetch. */}
       <input
+        key={texto}
         ref={inputRef}
         type="text"
         defaultValue={texto}
         autoFocus={editando}
         onBlur={(e) => {
           setEditando(false);
-          onCommit(e.target.value === "" ? null : e.target.value);
+          if (e.target.value !== texto) onCommit(e.target.value === "" ? null : e.target.value);
         }}
         className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
-      {desborda && <ExpandirBtn onClick={() => setAbierto(true)} />}
-      {texto && <CopiarBtn value={texto} />}
+      {texto && (
+        <AccionesCelda>
+          {desborda && <ExpandirBtn onClick={() => setAbierto(true)} />}
+          <CopiarBtn value={texto} />
+        </AccionesCelda>
+      )}
       {abierto && (
         <ExpandePopover texto={texto} onCommit={onCommit} anchorRef={wrapRef} cerrar={() => setAbierto(false)} />
       )}
@@ -211,25 +226,29 @@ function LinkCell({ field, value, onCommit }: { field: FieldLite; value: unknown
   return (
     <div
       ref={wrapRef}
-      className="group/celda flex w-full items-center gap-1"
+      className="group/celda relative flex w-full items-center"
       onMouseEnter={() => {
         const el = inputRef.current;
         setDesborda(!!el && el.scrollWidth > el.clientWidth + 1);
       }}
     >
+      {/* key + guarda: mismo motivo que en TextCell (input no controlado). */}
       <input
+        key={raw}
         ref={inputRef}
         type={field.type === "email" ? "email" : field.type === "phone" ? "tel" : "url"}
         defaultValue={raw}
-        onBlur={(e) => onCommit(e.target.value === "" ? null : e.target.value)}
+        onBlur={(e) => e.target.value !== raw && onCommit(e.target.value === "" ? null : e.target.value)}
         className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
-      {desborda && <ExpandirBtn onClick={() => setAbierto(true)} />}
-      {raw && <CopiarBtn value={raw} />}
       {raw && (
-        <a href={href} target="_blank" rel="noreferrer" className="flex shrink-0 items-center px-1 text-brand hover:underline" title="Abrir">
-          <ArrowUpRight size={14} />
-        </a>
+        <AccionesCelda>
+          {desborda && <ExpandirBtn onClick={() => setAbierto(true)} />}
+          <CopiarBtn value={raw} />
+          <a href={href} target="_blank" rel="noreferrer" className="flex shrink-0 items-center rounded p-0.5 text-brand" title="Abrir">
+            <ArrowUpRight size={13} />
+          </a>
+        </AccionesCelda>
       )}
       {abierto && (
         <ExpandePopover texto={raw} onCommit={onCommit} anchorRef={wrapRef} cerrar={() => setAbierto(false)} />
@@ -238,12 +257,27 @@ function LinkCell({ field, value, onCommit }: { field: FieldLite; value: unknown
   );
 }
 
+/**
+ * Acciones de una celda (copiar, expandir, abrir…) superpuestas a su borde
+ * derecho, como en Notion: fuera del flujo para que la columna no reserve hueco
+ * cuando no se ven. Solo aparecen con el ratón encima (en táctil no hay hover y
+ * el valor completo ya se alcanza abriendo la ficha). Requiere `relative` y
+ * `group/celda` en el contenedor de la celda.
+ */
+function AccionesCelda({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="absolute right-0 top-1/2 z-10 hidden -translate-y-1/2 items-center rounded border border-[var(--border)] bg-[var(--background)] px-0.5 shadow-sm group-hover/celda:flex">
+      {children}
+    </span>
+  );
+}
+
 /** Botón «Expandir» (solo con hover, como el de copiar). */
 function ExpandirBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="shrink-0 rounded p-0.5 text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--foreground)] group-hover/celda:opacity-100"
+      className="shrink-0 rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
       title="Expandir"
     >
       <Expand size={13} />
@@ -290,11 +324,7 @@ function ExpandePopover({
   );
 }
 
-/**
- * Botón de copiar el valor de la celda, visible solo al pasar el ratón (Notion
- * hace lo mismo). Deliberadamente NO usa `.al-pasar`: en táctil sería un icono
- * permanente en cada celda, y ahí el valor ya se alcanza abriendo la ficha.
- */
+/** Botón de copiar el valor de la celda; su visibilidad la lleva AccionesCelda. */
 function CopiarBtn({ value, title = "Copiar" }: { value: string; title?: string }) {
   const [copiado, setCopiado] = useState(false);
   return (
@@ -306,7 +336,7 @@ function CopiarBtn({ value, title = "Copiar" }: { value: string; title?: string 
           setTimeout(() => setCopiado(false), 1000);
         })
       }
-      className="shrink-0 rounded p-0.5 text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--foreground)] group-hover/celda:opacity-100 group-focus-within/celda:opacity-100"
+      className="shrink-0 rounded p-0.5 text-[var(--muted)] hover:text-[var(--foreground)]"
       title={title}
     >
       {copiado ? <Check size={13} className="text-brand" /> : <Copy size={13} />}
@@ -332,7 +362,7 @@ function WrappedTextCell({ value, onCommit }: { value: unknown; onCommit: (v: un
 
   if (tieneFormato(texto) && !editando) {
     return (
-      <div className="group/celda flex w-full items-start">
+      <div className="group/celda relative flex w-full items-start">
         <button
           onClick={() => setEditando(true)}
           className="min-w-0 flex-1 whitespace-pre-wrap break-words px-1 py-0.5 text-left text-sm"
@@ -340,14 +370,18 @@ function WrappedTextCell({ value, onCommit }: { value: unknown; onCommit: (v: un
         >
           <RichText texto={texto} />
         </button>
-        <CopiarBtn value={texto} />
+        <AccionesCelda>
+          <CopiarBtn value={texto} />
+        </AccionesCelda>
       </div>
     );
   }
 
   return (
-    <div className="group/celda flex w-full items-start">
+    <div className="group/celda relative flex w-full items-start">
+      {/* key + guarda: mismo motivo que en TextCell (textarea no controlado). */}
       <textarea
+        key={texto}
         ref={ref}
         rows={1}
         defaultValue={texto}
@@ -355,11 +389,15 @@ function WrappedTextCell({ value, onCommit }: { value: unknown; onCommit: (v: un
         onInput={(e) => ajustar(e.currentTarget)}
         onBlur={(e) => {
           setEditando(false);
-          onCommit(e.target.value === "" ? null : e.target.value);
+          if (e.target.value !== texto) onCommit(e.target.value === "" ? null : e.target.value);
         }}
         className="min-w-0 flex-1 resize-none bg-transparent px-1 py-0.5 text-sm outline-none"
       />
-      {texto && <CopiarBtn value={texto} />}
+      {texto && (
+        <AccionesCelda>
+          <CopiarBtn value={texto} />
+        </AccionesCelda>
+      )}
     </div>
   );
 }
