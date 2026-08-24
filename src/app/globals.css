@@ -242,6 +242,13 @@ h1, h2, h3, .font-display {
   display: none;
 }
 
+/* La barra gemela de ScrollHorizontal (la que sustituye a la nativa escondida).
+   Con el gris del borde de las barras normales no se veía —contraste ~1.1:1
+   sobre el fondo—: el pulgar va en --muted, visible en claro y en oscuro. */
+.barra-scroll {
+  scrollbar-color: var(--muted) transparent;
+}
+
 /* Zona segura del móvil: la muesca arriba y la barra de gestos abajo, para cuando
    se usa como app instalada y la app ocupa la pantalla entera. */
 .zona-segura-arriba {

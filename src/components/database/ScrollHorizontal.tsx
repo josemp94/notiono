@@ -45,7 +45,7 @@ export function ScrollHorizontal({ className = "", children }: { className?: str
       {ancho > 0 && (
         <div
           ref={barra}
-          className="sticky bottom-0 z-30 overflow-x-auto"
+          className="barra-scroll sticky bottom-0 z-30 overflow-x-auto"
           onScroll={(e) => {
             if (cont.current) cont.current.scrollLeft = e.currentTarget.scrollLeft;
           }}
