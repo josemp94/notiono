@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/trpc/react";
+import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { usePeople } from "./Cell";
 import { displayValue, groupBy, rowColor, type Attachment, type FieldLite } from "@/lib/cellText";
@@ -85,7 +86,7 @@ export function GalleryView({
             style={{ background: colorOf(r) }}
             className={`flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] ${size.card} text-left shadow-sm transition hover:border-brand hover:shadow-md`}
           >
-            <div className={`font-display truncate font-semibold ${size.title}`}>{recTitle(r)}</div>
+            <div className={`font-display truncate font-semibold ${size.title}`}><RichText texto={recTitle(r)} /></div>
             {previewField && (() => {
               const v = r.cells?.[previewField.id];
               // Un campo de Archivos con imagen se enseña como imagen, no como su nombre.

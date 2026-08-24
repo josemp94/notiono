@@ -5,6 +5,7 @@ import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Trash2, X
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { confirmar } from "@/components/Confirmar";
+import { RichText, tieneFormato } from "@/lib/mdInline";
 import { dateValue, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
 
 
@@ -139,13 +140,33 @@ export function Cell({
   return <TextCell value={value} onCommit={onCommit} />;
 }
 
-/** Celda de texto de una línea, con copiar y «Expandir» si el contenido no cabe. */
+/**
+ * Celda de texto de una línea, con copiar y «Expandir» si el contenido no cabe.
+ * Si el texto lleva markdown inline (**negrita**, enlaces…), se pinta formateado
+ * y el clic pasa a editar el crudo; sin formato, el input de siempre.
+ */
 function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) => void }) {
   const texto = value == null ? "" : String(value);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [desborda, setDesborda] = useState(false);
   const [abierto, setAbierto] = useState(false);
+  const [editando, setEditando] = useState(false);
+
+  if (tieneFormato(texto) && !editando) {
+    return (
+      <div ref={wrapRef} className="group/celda flex w-full items-center">
+        <button
+          onClick={() => setEditando(true)}
+          className="min-w-0 flex-1 truncate px-1 py-0.5 text-left text-sm"
+          title="Pulsa para editar (formato: **negrita**, *cursiva*, `código`, ~~tachado~~, [enlace](https://…))"
+        >
+          <RichText texto={texto} />
+        </button>
+        <CopiarBtn value={texto} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -161,7 +182,11 @@ function TextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) 
         ref={inputRef}
         type="text"
         defaultValue={texto}
-        onBlur={(e) => onCommit(e.target.value === "" ? null : e.target.value)}
+        autoFocus={editando}
+        onBlur={(e) => {
+          setEditando(false);
+          onCommit(e.target.value === "" ? null : e.target.value);
+        }}
         className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
       {desborda && <ExpandirBtn onClick={() => setAbierto(true)} />}
@@ -295,22 +320,43 @@ function CopiarBtn({ value, title = "Copiar" }: { value: string; title?: string 
  */
 function WrappedTextCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [editando, setEditando] = useState(false);
   const ajustar = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   };
-  useEffect(() => ajustar(ref.current), [value]);
+  useEffect(() => ajustar(ref.current), [value, editando]);
 
   const texto = value == null ? "" : String(value);
+
+  if (tieneFormato(texto) && !editando) {
+    return (
+      <div className="group/celda flex w-full items-start">
+        <button
+          onClick={() => setEditando(true)}
+          className="min-w-0 flex-1 whitespace-pre-wrap break-words px-1 py-0.5 text-left text-sm"
+          title="Pulsa para editar (formato: **negrita**, *cursiva*, `código`, ~~tachado~~, [enlace](https://…))"
+        >
+          <RichText texto={texto} />
+        </button>
+        <CopiarBtn value={texto} />
+      </div>
+    );
+  }
+
   return (
     <div className="group/celda flex w-full items-start">
       <textarea
         ref={ref}
         rows={1}
         defaultValue={texto}
+        autoFocus={editando}
         onInput={(e) => ajustar(e.currentTarget)}
-        onBlur={(e) => onCommit(e.target.value === "" ? null : e.target.value)}
+        onBlur={(e) => {
+          setEditando(false);
+          onCommit(e.target.value === "" ? null : e.target.value);
+        }}
         className="min-w-0 flex-1 resize-none bg-transparent px-1 py-0.5 text-sm outline-none"
       />
       {texto && <CopiarBtn value={texto} />}

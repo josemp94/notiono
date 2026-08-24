@@ -503,6 +503,35 @@ import { evalFormula } from "../src/server/formula";
   assert.deepEqual(markdownABloques(""), []);
 }
 
+// --- Markdown inline en celdas ------------------------------------------------
+import { tieneFormato, tokeniza } from "../src/lib/mdInline";
+{
+  assert.equal(tieneFormato("texto normal"), false);
+  assert.equal(tieneFormato("3*4 = 12"), false); // un asterisco suelto no es cursiva
+  assert.equal(tieneFormato("a * b * c"), false); // pegado a espacios tampoco
+  assert.equal(tieneFormato("una **negrita**"), true);
+  assert.equal(tieneFormato("mira https://ej.com"), true);
+  assert.deepEqual(tokeniza("a **b** c"), [
+    { t: "texto", s: "a " },
+    { t: "negrita", s: "b" },
+    { t: "texto", s: " c" },
+  ]);
+  assert.deepEqual(tokeniza("*sí* y ~~no~~ y `cod`"), [
+    { t: "cursiva", s: "sí" },
+    { t: "texto", s: " y " },
+    { t: "tachado", s: "no" },
+    { t: "texto", s: " y " },
+    { t: "codigo", s: "cod" },
+  ]);
+  assert.deepEqual(tokeniza("[web](https://ej.com) y https://otro.com"), [
+    { t: "enlace", s: "web", href: "https://ej.com" },
+    { t: "texto", s: " y " },
+    { t: "enlace", s: "https://otro.com", href: "https://otro.com" },
+  ]);
+  // Un [enlace](javascript:...) NO se convierte en enlace: queda texto plano.
+  assert.equal(tokeniza("[x](javascript:alert(1))").some((t) => t.t === "enlace"), false);
+}
+
 // --- Formulario: campos obligatorios -----------------------------------------
 import { faltanObligatorios } from "../src/components/database/FormFields";
 {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FileText } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { usePeople } from "./Cell";
 import { displayValue, groupBy, type FieldLite } from "@/lib/cellText";
@@ -64,7 +65,7 @@ export function ListView({
               className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--border)]/30"
             >
               <FileText size={14} className="shrink-0 text-[var(--muted)]" />
-              <span className="min-w-0 flex-1 truncate font-medium">{recTitle(r)}</span>
+              <span className="min-w-0 flex-1 truncate font-medium"><RichText texto={recTitle(r)} /></span>
               <span className="hidden shrink-0 items-center gap-3 text-xs text-[var(--muted)] sm:flex">
                 {propFields.map((f) => {
                   const txt = displayValue(f, r.cells?.[f.id], people);

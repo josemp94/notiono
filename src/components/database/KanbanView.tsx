@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { RichText } from "@/lib/mdInline";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
 import { usePeople } from "./Cell";
 import { RecordPanel } from "./RecordPanel";
@@ -232,7 +233,7 @@ export function KanbanView({
                         : ""
                     }`}
                   >
-                    {cardTitle(r)}
+                    <RichText texto={cardTitle(r)} />
                     {preview && (
                       <div className="mt-1 line-clamp-3 break-words rounded bg-[var(--border)]/30 px-2 py-1 text-[0.9em] text-[var(--muted)]">
                         {preview}

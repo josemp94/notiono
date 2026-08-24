@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { dayOf, endDayOf, shiftDateValue, stretchDateValue } from "@/lib/cellText";
 import type { FieldLite } from "@/lib/cellText";
@@ -256,7 +257,7 @@ export function TimelineView({
                   className="sticky left-0 z-10 w-[180px] shrink-0 self-stretch truncate border-r border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-sm hover:text-brand"
                   title={recTitle(rec)}
                 >
-                  {recTitle(rec)}
+                  <RichText texto={recTitle(rec)} />
                 </button>
                 <div className="relative py-2" style={{ width: gridW }}>
                   {hoyOff !== null && (
@@ -276,7 +277,7 @@ export function TimelineView({
                     }}
                     title={`${recTitle(rec)} — arrastra para mover; el borde derecho, para cambiar la duración`}
                   >
-                    {recTitle(rec)}
+                    <RichText texto={recTitle(rec)} />
                     {/* Tirador de redimensionar (solo ratón, como el ancho de columna) */}
                     <span
                       onMouseDown={(e) => {
@@ -310,7 +311,7 @@ export function TimelineView({
                   onClick={() => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r))}
                   className="min-w-0 flex-1 truncate text-left text-sm"
                 >
-                  {recTitle(r)}
+                  <RichText texto={recTitle(r)} />
                 </button>
                 <button
                   onClick={() => updateCell.mutate({ recordId: r.id, fieldId: startFieldId, value: hoyYmd })}

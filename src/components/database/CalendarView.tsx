@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { dateValue, dayOf, endDayOf, shiftDateValue } from "@/lib/cellText";
 import type { FieldLite } from "@/lib/cellText";
@@ -259,7 +260,7 @@ export function CalendarView({
                           title={recTitle(r)}
                         >
                           {hora && <span className="mr-1 text-[var(--muted)]">{hora}</span>}
-                          {recTitle(r)}
+                          <RichText texto={recTitle(r)} />
                         </button>
                       );
                     })}
