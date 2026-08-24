@@ -133,6 +133,11 @@
 > menú de la vista + la BD a página completa honra `?v=`; y **candado «Bloquear página/BD»** (`Page.locked`
 > con migración, pill «Bloqueada» clicable en la barra, contenido a solo lectura; anti-accidentes, no
 > permiso — como en Notion).
+> **Vigesimocuarta tanda 24-ago-2026:** **formato de fecha por columna** (largo «24 ago 2026», corto
+> «24/08/2026» o relativo «hoy/ayer/en 3 días», y reloj 12/24h; la celda pinta el TEXTO formateado y el
+> clic pasa a los inputs nativos — asserts de los tres en check) y **descripción de la base de datos**
+> (`Collection.description` con migración + `setCollectionDescription` en la capa de servicio; editable
+> bajo el título, placeholder al pasar el ratón).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -215,7 +220,7 @@ columnas interactivas, synced block y ecuaciones.
 | Cobertura de tipos | 23 tipos | ⚠️ | 21 en `FIELD_TYPES` (`services/db.ts:24`, Botón incluido — tanda 16); faltan **Lugar** y un **Título** real | P2 | — |
 | Tipo Título | Tipo especial; abre la página, no se borra | ⚠️ | El título es "el primer campo `text`" (`routers/db.ts:207,337`); flexible pero implícito | P2 | M |
 | Número: formatos | ~30 monedas, decimales configurables, %, barra **y anillo**, «mostrar número» | ✅ | €/$/£, decimales 0-3 o automático y Anillo con «Máximo» (tanda 23); más monedas si algún día hacen falta | — | — |
-| Fecha: formato visible y hora 12/24 | Configurable (relativo, DD/MM/AAAA…) | ⚠️ | Formato fijo es-ES (`cellText.ts:51-62`); hora fija 24 h (`Cell.tsx:561-563`) | P2 | M |
+| Fecha: formato visible y hora 12/24 | Configurable (relativo, DD/MM/AAAA…) | ✅ | Largo/corto/relativo + reloj 12/24 por columna; la celda enseña el texto formateado y el clic edita (tanda 24) | — | — |
 | Fecha: recordatorio en la celda | «Recordar 1 día antes» al poner la fecha | ⚠️ | El aviso existe pero centralizado: `notifications.checkDue` al abrir la app (`notifications.ts:50-122`), no configurable por celda | P2 | M |
 | Fecha: zona horaria | Selector TZ | ❌ | Sin config en `Field.config` | P2 | M |
 | Select/Status: colores de opción | 10 colores | ✅ | 10 en `Cell.tsx:216` COLOR_NAMES + variante dark (`56740cb`) | — | — |
@@ -267,7 +272,7 @@ columnas interactivas, synced block y ecuaciones.
 | Comunes — reordenar vistas arrastrando; vista por defecto | Drag de pestañas + default | ✅ | `View.order` fraccional + pestañas arrastrables; la primera es la default (tanda 11) | — | — |
 | Comunes — límite de carga configurable (25/50/100) | Por vista | ⚠️ | 80 fijo + scroll infinito (`TableView.tsx:100-111`) — funcionalmente cubierto | P2 | S |
 | Comunes — «Abrir como página completa» una BD embebida | Expandir | ✅ | Icono junto a las pestañas (`0c49c01`) | — | — |
-| Comunes — copiar enlace a la vista; descripción de BD; bloquear BD | — | ⚠️ | Enlace por vista (`?v=`) y candado de página/BD hechos (tanda 23); falta la descripción de BD | P2 | S |
+| Comunes — copiar enlace a la vista; descripción de BD; bloquear BD | — | ✅ | Enlace por vista (`?v=`) y candado (tanda 23); descripción bajo el título (tanda 24) | — | — |
 
 ---
 
