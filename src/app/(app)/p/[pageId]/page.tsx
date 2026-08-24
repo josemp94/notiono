@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, FileArchive, FileText, Folder, FolderInput, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -12,6 +12,7 @@ import { CommentsButton, CommentsPanel } from "@/components/CommentsPanel";
 import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory";
 import { ShareButton } from "@/components/SharePublish";
 import { MovePageModal } from "@/components/MovePage";
+import { toast } from "@/components/Toast";
 import { usePeople } from "@/components/database/Cell";
 import { exportaZipConEditor } from "@/components/editor/exportarZip";
 import type { PaginaExport } from "@/lib/exportZip";
@@ -224,7 +225,18 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
         <MoreHorizontal size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+        <div data-menu="" className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${location.origin}/p/${page.id}`);
+              setOpen(false);
+              toast("Enlace copiado");
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+          >
+            <LinkIcon size={16} />
+            Copiar enlace
+          </button>
           {page.type !== "database" && (
             <button
               onClick={toggleFullWidth}
