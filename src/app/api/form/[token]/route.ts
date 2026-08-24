@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createRecord } from "@/server/services/db";
 import { ipDe, permitido } from "@/server/ratelimit";
+import { sendPush } from "@/server/push";
 import { FORM_SUPPORTED } from "@/components/database/FormFields";
 import { optionsOf, type FieldLite } from "@/lib/cellText";
 
@@ -27,7 +28,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       collection: {
         include: {
           fields: true,
-          page: { select: { workspaceId: true, archivedAt: true } },
+          page: { select: { id: true, workspaceId: true, archivedAt: true } },
         },
       },
     },
@@ -69,8 +70,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     );
   }
 
-  const scope = { db, workspaceId: view.collection.page.workspaceId, userId: null };
+  const { id: pageId, workspaceId } = view.collection.page;
+  const scope = { db, workspaceId, userId: null };
   const rec = await createRecord(scope, { collectionId: view.collectionId, cells });
+
+  // Aviso a los miembros del espacio: ha llegado una respuesta del formulario
+  // público (bandeja 🔔 + push). El título es el primer campo de texto con valor.
+  const titulo = [...visibles.values()]
+    .filter((f) => f.type === "text")
+    .map((f) => cells[f.id])
+    .find((v) => typeof v === "string") as string | undefined;
+  const resumen = titulo?.slice(0, 80) ?? null;
+  const miembros = await db.member.findMany({ where: { workspaceId }, select: { userId: true } });
+  await db.notification.createMany({
+    data: miembros.map((m) => ({ userId: m.userId, workspaceId, type: "form", title: resumen, pageId })),
+  });
+  for (const m of miembros) {
+    sendPush(m.userId, {
+      title: "Nueva respuesta del formulario",
+      body: resumen ?? "Abrir para verla",
+      url: `/p/${pageId}?r=${rec.id}`,
+    });
+  }
+
   return NextResponse.json({ ok: true, id: rec.id });
 }
 
