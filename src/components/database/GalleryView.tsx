@@ -138,16 +138,24 @@ export function GalleryView({
       </div>
       ))}
 
-      {openRec && (
-        <RecordPanel
-          pageId={pageId}
-          record={openRec}
-          fields={fields}
-          onClose={() => setOpenRec(null)}
-          mode={openIn === "center" ? "center" : "side"}
-          onExpand={openFull ? () => openFull(openRec.id) : undefined}
-        />
-      )}
+      {openRec &&
+        (() => {
+          // Refrescado desde records: el snapshot del clic se queda obsoleto tras
+          // cada edición y las celdas multivalor partirían de la base vieja.
+          const fresh = records.find((r) => r.id === openRec.id) ?? openRec;
+          return (
+            <RecordPanel
+              key={fresh.id}
+              pageId={pageId}
+              collectionId={collectionId}
+              record={fresh}
+              fields={fields}
+              onClose={() => setOpenRec(null)}
+              mode={openIn === "center" ? "center" : "side"}
+              onExpand={openFull ? () => openFull(fresh.id) : undefined}
+            />
+          );
+        })()}
     </div>
   );
 }
