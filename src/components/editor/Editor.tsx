@@ -160,11 +160,27 @@ export function Editor({
     setCoverM.mutate({ id: pageId, cover: next });
   }
 
+  // Últimos valores a mano para el flush del desmontaje (el cleanup de [] ve
+  // el primer render).
+  const ultimo = useRef({ title, icon });
+  ultimo.current = { title, icon };
+
   useEffect(() => {
     return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (titleTimer.current) clearTimeout(titleTimer.current);
+      // Flushear, no descartar: navegar a otra página antes del debounce (600 y
+      // 800 ms) perdía el último cambio de título/cuerpo. Las mutaciones de
+      // React Query sobreviven al desmontaje.
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveContent.mutate({ id: pageId, content: editor.document });
+      }
+      if (titleTimer.current) {
+        clearTimeout(titleTimer.current);
+        rename.mutate({ id: pageId, title: ultimo.current.title, icon: ultimo.current.icon });
+      }
     };
+    // Solo al desmontar; editor, pageId y los mutate son estables en el montaje.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
