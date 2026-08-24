@@ -347,10 +347,10 @@ export function DbToolbar({
                       ))}
                   </select>
                 </label>
-                {/* Segundo nivel, solo en la Tabla y solo si ya se agrupa por algo. */}
-                {view.type === "table" && view.config?.groupByFieldId && (
+                {/* Segundo nivel: secciones anidadas en la Tabla, carriles horizontales en el Kanban. */}
+                {((view.type === "table" && view.config?.groupByFieldId) || view.type === "kanban") && (
                   <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
-                    <span>Y después por</span>
+                    <span>{view.type === "kanban" ? "Carriles por" : "Y después por"}</span>
                     <select
                       value={view.config?.subGroupByFieldId ?? ""}
                       onChange={(e) => saveConfig({ subGroupByFieldId: e.target.value || null })}
@@ -358,12 +358,13 @@ export function DbToolbar({
                     >
                       <option value="">Sin subagrupar</option>
                       {fields
-                        .filter(
-                          (f) =>
-                            f.id !== view.config?.groupByFieldId &&
-                            !["rollup", "formula", "relation", "files", "created_by", "last_edited_by", "created_time", "last_edited_time"].includes(
-                              f.type,
-                            ),
+                        .filter((f) =>
+                          view.type === "kanban"
+                            ? ["select", "status", "person", "checkbox"].includes(f.type) && f.id !== view.config?.groupByFieldId
+                            : f.id !== view.config?.groupByFieldId &&
+                              !["rollup", "formula", "relation", "files", "created_by", "last_edited_by", "created_time", "last_edited_time"].includes(
+                                f.type,
+                              ),
                         )
                         .map((f) => (
                           <option key={f.id} value={f.id}>{f.name}</option>

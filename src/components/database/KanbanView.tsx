@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { formatNumber, OPTION_COLORS, optionsOf, type FieldLite, type Option } from "@/lib/cellText";
@@ -62,6 +62,8 @@ export function KanbanView({
   const abrir = (r: Rec) => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r));
   // «+ Añadir grupo»: crea una opción nueva del campo select/estado desde el tablero.
   const [groupName, setGroupName] = useState<string | null>(null);
+  // Carriles del subagrupado plegados (solo estado de cliente, como en la Tabla).
+  const [foldedLanes, setFoldedLanes] = useState<Set<string>>(new Set());
   const people = usePeople();
 
   // Además de Selección y Estado, el tablero puede repartirse por responsable
@@ -83,22 +85,25 @@ export function KanbanView({
     );
   }
 
-  // Cada tipo arma sus columnas de forma distinta, pero todas son { id, label, color }.
-  const columns =
-    groupField.type === "person"
+  // Cada tipo arma sus grupos de forma distinta, pero todos son { id, label, color }.
+  // Sirve para las columnas y para los carriles del subagrupado.
+  const gruposDe = (f: FieldLite) =>
+    f.type === "person"
       ? [
           ...[...people.entries()].map(([id, name]) => ({ id, label: name, color: "blue" })),
           { id: "", label: "Sin asignar", color: "gray" },
         ]
-      : groupField.type === "checkbox"
+      : f.type === "checkbox"
         ? [
             { id: "true", label: "Hecho", color: "green" },
             { id: "", label: "Sin hacer", color: "gray" },
           ]
         : [
-            ...optionsOf(groupField).map((o) => ({ id: o.id, label: o.label, color: o.color ?? "gray" })),
+            ...optionsOf(f).map((o) => ({ id: o.id, label: o.label, color: o.color ?? "gray" })),
             { id: "", label: "Sin asignar", color: "gray" },
           ];
+
+  const columns = gruposDe(groupField);
 
   // Columnas escondidas (view.config.hiddenGroups): sus tarjetas no se ven,
   // como en Notion; se recuperan desde «Ocultas» al final del tablero.
@@ -113,35 +118,56 @@ export function KanbanView({
     return (typeof v === "string" && v) || "Sin título";
   };
 
-  /** Valor que hay que guardar al soltar una tarjeta en una columna, según el tipo. */
-  function valueForColumn(colId: string): unknown {
-    if (!colId) return null;
-    if (groupField!.type === "person") return [colId]; // el campo Persona guarda una lista
-    if (groupField!.type === "checkbox") return true;
-    return colId;
+  /** Valor que hay que guardar al soltar una tarjeta en un grupo, según el tipo del campo. */
+  function valorDeGrupo(f: FieldLite, id: string): unknown {
+    if (!id) return null;
+    if (f.type === "person") return [id]; // el campo Persona guarda una lista
+    if (f.type === "checkbox") return true;
+    return id;
   }
+  const valueForColumn = (colId: string) => valorDeGrupo(groupField!, colId);
 
-  /** ¿A qué columna pertenece una fila? */
-  function columnOf(r: Rec): string {
-    const v = r.cells?.[groupField!.id];
+  /** ¿A qué grupo de `grupos` pertenece una fila según el campo `f`? */
+  function claveDe(f: FieldLite, grupos: { id: string }[], r: Rec): string {
+    const v = r.cells?.[f.id];
     const id =
-      groupField!.type === "person"
+      f.type === "person"
         ? Array.isArray(v) && v.length
           ? String(v[0])
           : ""
-        : groupField!.type === "checkbox"
+        : f.type === "checkbox"
           ? v
             ? "true"
             : ""
           : String(v ?? "");
     // Valor huérfano (opción borrada, miembro que se fue): a «Sin asignar»;
-    // si no, la fila no caería en ninguna columna y desaparecería sin aviso.
-    return columns.some((c) => c.id === id) ? id : "";
+    // si no, la fila no caería en ningún grupo y desaparecería sin aviso.
+    return grupos.some((c) => c.id === id) ? id : "";
   }
+  const columnOf = (r: Rec) => claveDe(groupField!, columns, r);
 
-  function drop(colId: string) {
+  // Subagrupar: carriles horizontales por un segundo campo agrupable, como Notion.
+  const subField = fields.find(
+    (f) => f.id === cfgV.subGroupByFieldId && groupable(f) && f.id !== groupField.id,
+  );
+  const lanes = subField ? gruposDe(subField) : null;
+  const toggleLane = (id: string) =>
+    setFoldedLanes((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  function drop(colId: string, laneId: string | null) {
     if (!dragId) return;
     updateCell.mutate({ recordId: dragId, fieldId: groupField!.id, value: valueForColumn(colId) });
+    // Soltar dentro de un carril también adopta su valor de subgrupo.
+    if (subField && lanes && laneId !== null) {
+      const dragged = records.find((r) => r.id === dragId);
+      if (dragged && claveDe(subField, lanes, dragged) !== laneId)
+        updateCell.mutate({ recordId: dragId, fieldId: subField.id, value: valorDeGrupo(subField, laneId) });
+    }
     setDragId(null);
   }
 
@@ -164,15 +190,16 @@ export function KanbanView({
     updateField.mutate({ id: groupField!.id, config: { ...cfg, options: [...opts, option] } });
   }
 
-  return (
-    <ScrollHorizontal className="flex gap-3 pb-4">
+  /** Una fila de columnas (el tablero); con subagrupado, una por carril. */
+  const filaColumnas = (recs: Rec[], laneId: string | null, conExtras: boolean) => (
+    <div className="flex w-max min-w-full gap-3">
       {visibleColumns.map((col) => {
-        const cards = records.filter((r) => columnOf(r) === col.id);
+        const cards = recs.filter((r) => columnOf(r) === col.id);
         return (
           <div
             key={col.id || "none"}
             onDragOver={(e) => e.preventDefault()}
-            onDrop={() => drop(col.id)}
+            onDrop={() => drop(col.id, laneId)}
             className={`${size.col} shrink-0 rounded-lg p-2`}
             // Tinte suave: el color de la etiqueta rebajado con el fondo del tema.
             style={{ background: `color-mix(in srgb, ${OPTION_COLORS[col.color] ?? "var(--tag-default)"} 45%, var(--background))` }}
@@ -258,7 +285,11 @@ export function KanbanView({
               onClick={() =>
                 addRecord.mutate({
                   collectionId,
-                  cells: col.id ? { [groupField.id]: valueForColumn(col.id) } : {},
+                  // La fila nueva nace en su columna y, con carriles, también en su carril.
+                  cells: {
+                    ...(col.id ? { [groupField.id]: valueForColumn(col.id) } : {}),
+                    ...(subField && laneId ? { [subField.id]: valorDeGrupo(subField, laneId) } : {}),
+                  },
                 })
               }
               className="mt-2 w-full rounded px-2 py-1 text-left text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -268,7 +299,7 @@ export function KanbanView({
           </div>
         );
       })}
-      {hiddenColumns.length > 0 && (
+      {conExtras && hiddenColumns.length > 0 && (
         <div className={`${size.col} shrink-0 rounded-lg border border-dashed border-[var(--border)] p-2`}>
           <div className="mb-2 px-1 text-sm font-medium text-[var(--muted)]">Ocultas</div>
           <div className="flex flex-col gap-1">
@@ -286,7 +317,7 @@ export function KanbanView({
           </div>
         </div>
       )}
-      {(groupField.type === "select" || groupField.type === "status") && (
+      {conExtras && (groupField.type === "select" || groupField.type === "status") && (
         <div className={`${size.col} shrink-0`}>
           {groupName === null ? (
             <button
@@ -310,6 +341,47 @@ export function KanbanView({
             />
           )}
         </div>
+      )}
+    </div>
+  );
+
+  // Carriles no vacíos del subagrupado (uno vacío no ocupa sitio).
+  const carriles =
+    subField && lanes
+      ? lanes
+          .map((l) => ({ ...l, recs: records.filter((r) => claveDe(subField, lanes, r) === l.id) }))
+          .filter((l) => l.recs.length)
+      : null;
+
+  return (
+    <ScrollHorizontal className="pb-4">
+      {carriles ? (
+        <div className="w-max min-w-full space-y-5">
+          {carriles.map((l, i) => {
+            const plegado = foldedLanes.has(l.id);
+            return (
+              <div key={l.id || "none"}>
+                <button
+                  onClick={() => toggleLane(l.id)}
+                  className="toque-estrecho mb-1.5 flex items-center gap-1.5 text-sm font-medium"
+                  title={plegado ? "Desplegar el carril" : "Plegar el carril"}
+                >
+                  {plegado ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  <span
+                    className="rounded px-1.5 py-0.5 text-xs"
+                    style={{ background: OPTION_COLORS[l.color] ?? "var(--tag-default)", color: "var(--tag-fg)" }}
+                  >
+                    {l.label}
+                  </span>
+                  <span className="text-xs font-normal text-[var(--muted)]">{l.recs.length}</span>
+                </button>
+                {!plegado && filaColumnas(l.recs, l.id, i === 0)}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        filaColumnas(records, null, true)
       )}
 
       {openRec &&
