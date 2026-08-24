@@ -373,3 +373,18 @@ td input[type="tel"] {
     background-position: -200% 0;
   }
 }
+
+/* Destello del bloque al llegar por su enlace directo (#ancla). */
+.bloque-enlazado {
+  border-radius: 4px;
+  animation: destello-bloque 2.5s ease;
+}
+@keyframes destello-bloque {
+  0%,
+  60% {
+    background: color-mix(in srgb, var(--color-brand, #ff5c28) 14%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}

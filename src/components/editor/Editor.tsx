@@ -5,13 +5,26 @@ import Link from "next/link";
 import { Check, Columns2, Columns3, Database, Download, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquare, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
+  BlockColorsItem,
+  blockTypeSelectItems,
+  DragHandleMenu,
   FloatingComposerController,
   FloatingThreadController,
+  FormattingToolbar,
+  FormattingToolbarController,
+  RemoveBlockItem,
+  SideMenu,
+  SideMenuController,
   ThreadsSidebar,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
+  useBlockNoteEditor,
+  useComponentsContext,
   useCreateBlockNote,
+  useExtensionState,
+  type BlockTypeSelectItem,
 } from "@blocknote/react";
+import { SideMenuExtension } from "@blocknote/core/extensions";
 import { es } from "@blocknote/core/locales";
 import { CommentsExtension } from "@blocknote/core/comments";
 import { withCollaboration } from "@blocknote/core/yjs";
@@ -24,12 +37,40 @@ import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "./mention";
 import { emptyColumn } from "./columnBlock";
 import { trpc } from "@/trpc/react";
+import { toast } from "@/components/Toast";
 import { downloadText } from "@/lib/download";
 import { useTheme } from "@/lib/theme";
 import { PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
 
 type SaveState = "saved" | "saving" | "idle";
+
+/**
+ * Item del menú del tirador: copia /p/<página>#<bloque>. Mismo patrón que los
+ * items de serie de BlockNote (el bloque llega por el estado del SideMenu).
+ */
+function CopiarEnlaceBloqueItem({ pageId }: { pageId: string }) {
+  const Components = useComponentsContext()!;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bnEditor = useBlockNoteEditor<any, any, any>();
+  const block = useExtensionState(SideMenuExtension, {
+    editor: bnEditor,
+    selector: (state) => state?.block,
+  });
+  if (!block) return null;
+  return (
+    <Components.Generic.Menu.Item
+      className="bn-menu-item"
+      onClick={() =>
+        navigator.clipboard
+          .writeText(`${location.origin}/p/${pageId}#${block.id}`)
+          .then(() => toast("Enlace del bloque copiado"))
+      }
+    >
+      Copiar enlace al bloque
+    </Components.Generic.Menu.Item>
+  );
+}
 
 export function Editor({
   pageId,
@@ -77,6 +118,26 @@ export function Editor({
   // Edición simultánea: si la instalación tiene servidor de colaboración, el
   // documento se sincroniza en vivo; si no, el editor funciona como siempre.
   const { data: me } = trpc.auth.me.useQuery();
+
+  // Enlace profundo a un bloque (/p/<id>#<bloque>): al abrir, desplazarse hasta él
+  // y destacarlo. Con reintentos: el contenido puede tardar (colaboración, carga).
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    let intentos = 0;
+    const timer = setInterval(() => {
+      const el = document.querySelector<HTMLElement>(`.bn-block-outer[data-id="${CSS.escape(id)}"]`);
+      if (el) {
+        clearInterval(timer);
+        el.scrollIntoView({ block: "center" });
+        el.classList.add("bloque-enlazado");
+        setTimeout(() => el.classList.remove("bloque-enlazado"), 2500);
+      } else if (++intentos > 20) {
+        clearInterval(timer);
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, []);
   // Sin permiso de edición no se entra en la sala Yjs (el servidor tampoco daría
   // el token): se enseña la instantánea de content en solo lectura.
   const { collab, fallo: collabFallo } = useCollaboration(pageId, canEdit ? me : null);
@@ -244,7 +305,41 @@ export function Editor({
         />
       </div>
 
-      <BlockNoteView editor={editor} editable={canEdit} onChange={scheduleSave} slashMenu={false} theme={theme}>
+      <BlockNoteView
+        editor={editor}
+        editable={canEdit}
+        onChange={scheduleSave}
+        slashMenu={false}
+        formattingToolbar={false}
+        sideMenu={false}
+        theme={theme}
+      >
+        {/* Barra de formato con la Llamada en «Convertir en» (los bloques propios no salen solos). */}
+        <FormattingToolbarController
+          formattingToolbar={() => (
+            <FormattingToolbar
+              blockTypeSelectItems={[
+                ...blockTypeSelectItems(editor.dictionary),
+                { name: "Llamada", type: "callout", icon: Lightbulb } satisfies BlockTypeSelectItem,
+              ]}
+            />
+          )}
+        />
+        {/* Menú del tirador: lo de siempre + copiar el enlace directo al bloque (#ancla). */}
+        <SideMenuController
+          sideMenu={(props) => (
+            <SideMenu
+              {...props}
+              dragHandleMenu={() => (
+                <DragHandleMenu>
+                  <RemoveBlockItem>Eliminar</RemoveBlockItem>
+                  <BlockColorsItem>Colores</BlockColorsItem>
+                  <CopiarEnlaceBloqueItem pageId={pageId} />
+                </DragHandleMenu>
+              )}
+            />
+          )}
+        />
         {/* Comentar una selección: el compositor y el hilo flotante solo existen
             con la edición simultánea activa, que es donde viven los hilos. */}
         {collab && (
