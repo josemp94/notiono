@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
@@ -15,8 +15,14 @@ export default function SettingsPage() {
   const utils = trpc.useUtils();
 
   const [name, setName] = useState("");
+  // Sembrar una sola vez: re-sembrar en cada refetch (foco, poll) machacaba
+  // lo que se estuviera tecleando.
+  const sembrado = useRef(false);
   useEffect(() => {
-    if (me?.name) setName(me.name);
+    if (me?.name && !sembrado.current) {
+      sembrado.current = true;
+      setName(me.name);
+    }
   }, [me?.name]);
 
   const [nameMsg, setNameMsg] = useState<string | null>(null);
