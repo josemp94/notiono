@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { Popover } from "./Popover";
 import type { FieldLite } from "@/lib/cellText";
 
 /** Editor de un campo de relación: chips de registros vinculados + selector multi. */
@@ -20,6 +21,7 @@ export function RelationCell({
   // Límite 1: elegir un vínculo sustituye al anterior, como en Notion.
   const single = Boolean(cfg?.single);
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const { data: options } = trpc.db.relationOptions.useQuery(
     { collectionId: targetCollectionId ?? "" },
     { enabled: !!targetCollectionId },
@@ -39,7 +41,7 @@ export function RelationCell({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-[24px] w-full flex-wrap items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-[var(--border)]/30"
@@ -54,8 +56,10 @@ export function RelationCell({
           ))
         )}
       </button>
+      {/* En portal (Popover): colgado con absolute dentro del td, el overflow-hidden
+          de la celda lo recortaba a unas pocas px y no se podía vincular nada. */}
       {open && (
-        <div className="absolute z-20 mt-1 max-h-60 w-56 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-lg">
+        <Popover onClose={() => setOpen(false)} className="left-0 w-56 p-1" anchorRef={ref}>
           {(options ?? []).length === 0 && (
             <div className="px-2 py-1 text-xs text-[var(--muted)]">La BD destino no tiene registros.</div>
           )}
@@ -75,7 +79,7 @@ export function RelationCell({
           >
             Cerrar
           </button>
-        </div>
+        </Popover>
       )}
     </div>
   );
