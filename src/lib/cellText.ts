@@ -99,18 +99,29 @@ export function formatDate(v: unknown): string {
 export const NUMBER_FORMATS: [string, string][] = [
   ["plain", "Normal"],
   ["euro", "Euros (€)"],
+  ["dolar", "Dólares ($)"],
+  ["libra", "Libras (£)"],
   ["percent", "Porcentaje (%)"],
   ["bar", "Barra"],
+  ["ring", "Anillo"],
 ];
 
-/** Texto de un número según el formato del campo (es-ES: 1.234,5). */
+/** Texto de un número según el formato del campo (es-ES: 1.234,5).
+ *  `decimals` fija los decimales; sin él, hasta 2 (los que traiga el número). */
 export function formatNumber(value: unknown, field: FieldLite): string {
   if (value === null || value === undefined || value === "") return "";
   const n = Number(value);
   if (!Number.isFinite(n)) return String(value);
-  const format = (field.config as { format?: string } | null)?.format ?? "plain";
-  const es = (x: number) => x.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+  const cfg = (field.config as { format?: string; decimals?: number } | null) ?? {};
+  const format = cfg.format ?? "plain";
+  const dec = typeof cfg.decimals === "number" ? cfg.decimals : undefined;
+  const es = (x: number) =>
+    x.toLocaleString("es-ES", dec === undefined
+      ? { maximumFractionDigits: 2 }
+      : { minimumFractionDigits: dec, maximumFractionDigits: dec });
   if (format === "euro") return `${es(n)} €`;
+  if (format === "dolar") return `${es(n)} $`;
+  if (format === "libra") return `${es(n)} £`;
   if (format === "percent") return `${es(n)} %`;
   return es(n);
 }

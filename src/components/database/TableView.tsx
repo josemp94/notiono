@@ -1094,9 +1094,22 @@ function FieldMenu({
               ))}
             </select>
           </label>
-          {cfg.format === "bar" && (
+          <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
+            <span>Decimales</span>
+            <select
+              value={typeof (cfg as { decimals?: number }).decimals === "number" ? String((cfg as { decimals?: number }).decimals) : "auto"}
+              onChange={(e) => onConfig({ decimals: e.target.value === "auto" ? undefined : Number(e.target.value) })}
+              className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+            >
+              <option value="auto">Automático</option>
+              {[0, 1, 2, 3].map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </label>
+          {(cfg.format === "bar" || cfg.format === "ring") && (
             <label className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
-              <span>Máximo de la barra</span>
+              <span>Máximo</span>
               <input
                 type="number"
                 defaultValue={cfg.max ?? 100}

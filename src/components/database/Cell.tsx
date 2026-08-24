@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Trash2, X } from "lucide-react";
+import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Pencil, Trash2, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { confirmar } from "@/components/Confirmar";
@@ -448,9 +448,12 @@ function NumberCell({ field, value, onCommit }: { field: FieldLite; value: unkno
   const raw = value == null ? "" : String(value);
   const n = Number(value);
   const max = Number(cfg.max) > 0 ? Number(cfg.max) : 100;
+  const pct = Math.max(0, Math.min(1, n / max));
 
   return (
-    <div className="w-full">
+    <div className={cfg.format === "ring" ? "flex w-full items-center" : "w-full"}>
+      {/* Anillo de progreso junto al número, como en Notion. */}
+      {cfg.format === "ring" && Number.isFinite(n) && <Anillo pct={pct} />}
       <input
         type="text"
         inputMode="decimal"
@@ -458,22 +461,37 @@ function NumberCell({ field, value, onCommit }: { field: FieldLite; value: unkno
         defaultValue={formatNumber(value, field)}
         onFocus={(e) => (e.target.value = raw)}
         onBlur={(e) => {
-          const text = e.target.value.trim().replace(/[€%\s.]/g, "").replace(",", ".");
+          const text = e.target.value.trim().replace(/[€%$£\s.]/g, "").replace(",", ".");
           const next = text === "" ? null : Number(text);
           e.target.value = formatNumber(next, field);
           onCommit(next === null || Number.isNaN(next) ? null : next);
         }}
-        className="w-full bg-transparent px-1 py-0.5 text-sm outline-none"
+        className="w-full min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
       {cfg.format === "bar" && Number.isFinite(n) && (
         <div className="mx-1 mb-0.5 h-1 rounded-full bg-[var(--border)]">
           <div
             className="h-1 rounded-full bg-brand"
-            style={{ width: `${Math.max(0, Math.min(100, (n / max) * 100))}%` }}
+            style={{ width: `${pct * 100}%` }}
           />
         </div>
       )}
     </div>
+  );
+}
+
+/** Anillo de progreso del formato de número (pct entre 0 y 1). */
+function Anillo({ pct }: { pct: number }) {
+  const C = 2 * Math.PI * 5.5;
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" className="ml-1 shrink-0">
+      <circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--border)" strokeWidth="2.5" />
+      <circle
+        cx="7" cy="7" r="5.5" fill="none"
+        stroke="var(--color-brand,#ff5c28)" strokeWidth="2.5" strokeLinecap="round"
+        strokeDasharray={`${C * pct} ${C}`} transform="rotate(-90 7 7)"
+      />
+    </svg>
   );
 }
 
@@ -850,6 +868,8 @@ const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 MB (mismo límite que /api/upload
 function FilesCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Adjunto cuyo nombre se está editando (lápiz → input inline).
+  const [renombrando, setRenombrando] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const files: Attachment[] = Array.isArray(value) ? (value as Attachment[]) : [];
 
@@ -884,6 +904,13 @@ function FilesCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown)
   // Quitar solo desengancha el adjunto de la celda: el Asset puede quedar huérfano, como las portadas.
   const remove = (id: string) => onCommit(files.filter((f) => f.id !== id));
 
+  // Renombrar solo cambia el nombre visible en la celda (el Asset guarda el original).
+  const rename = (id: string, name: string) => {
+    setRenombrando(null);
+    const n = name.trim();
+    if (n) onCommit(files.map((f) => (f.id === id ? { ...f, name: n } : f)));
+  };
+
   return (
     <div className="flex min-h-[26px] w-full flex-wrap items-center gap-1 px-1 py-0.5">
       {files.map((f) => (
@@ -894,9 +921,22 @@ function FilesCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown)
           ) : (
             <Paperclip size={12} className="shrink-0" />
           )}
-          <a href={f.url} target="_blank" rel="noreferrer" className="truncate hover:underline" title={f.name ?? "archivo"}>
-            {f.name || "archivo"}
-          </a>
+          {renombrando === f.id ? (
+            <input
+              defaultValue={f.name ?? ""}
+              autoFocus
+              onBlur={(e) => rename(f.id, e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              className="w-28 bg-transparent text-xs outline-none"
+            />
+          ) : (
+            <a href={f.url} target="_blank" rel="noreferrer" className="truncate hover:underline" title={f.name ?? "archivo"}>
+              {f.name || "archivo"}
+            </a>
+          )}
+          <button onClick={() => setRenombrando(f.id)} className="shrink-0 opacity-60 hover:opacity-100" title="Renombrar">
+            <Pencil size={11} />
+          </button>
           <button onClick={() => remove(f.id)} className="shrink-0 opacity-60 hover:opacity-100" title="Quitar">
             <X size={12} />
           </button>
