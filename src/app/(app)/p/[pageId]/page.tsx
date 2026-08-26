@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Bell, Check, FileArchive, FileCode, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -16,6 +16,7 @@ import { toast } from "@/components/Toast";
 import { usePeople } from "@/components/database/Cell";
 import { IconoPagina } from "@/components/PageIcon";
 import { exportaZipConEditor } from "@/components/editor/exportarZip";
+import { exportaHtml } from "@/components/editor/exportarHtml";
 import type { PaginaExport } from "@/lib/exportZip";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
@@ -199,7 +200,7 @@ function LockedPill({ pageId, canEdit }: { pageId: string; canEdit: boolean }) {
 }
 
 /** Menú "⋯" de la cabecera: Ancho completo, Estilo (solo docs) y Mover a…. */
-function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string } }) {
+function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string; icon?: string | null; content?: unknown } }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -320,6 +321,20 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
             <FileArchive size={16} />
             {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
           </button>
+          {/* Solo docs: una BD ya exporta a CSV desde su barra. */}
+          {page.type !== "database" && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                exportaHtml({ titulo: page.title, icon: page.icon, content: page.content });
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+              title="Un .html que se abre en cualquier navegador; para PDF, imprime la página (Ctrl+P)"
+            >
+              <FileCode size={16} />
+              Exportar HTML
+            </button>
+          )}
           <button
             onClick={() => {
               setOpen(false);
