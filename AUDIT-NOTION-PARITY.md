@@ -396,7 +396,7 @@ columnas interactivas, synced block y ecuaciones.
 | PWA: manifest + SW + push | — | ✅ | `manifest.ts`, `public/sw.js:38-108` | — | — |
 | PWA: datos de BD offline | Notion cachea lo visitado | ⚠️ | Solo app-shell; docs offline vía y-indexeddb, BD no | P2 | L |
 | Atajos: cobertura | ~15+ (turn-into Ctrl+Shift+0-9, nav Ctrl+[ ], tema) | ⚠️ | 4 globales + los de BlockNote (`AppShell.tsx:36-61`) | P2 | S |
-| Markdown al escribir + `:emoji:` + `@fecha` | En vivo | ⚠️ | BlockNote cubre los básicos (#, -, [], >, ```); sin `:emoji:` ni `@fecha` | P2 | M |
+| Markdown al escribir + `:emoji:` + `@fecha` | En vivo | ⚠️ | BlockNote cubre los básicos (#, -, [], >, ```) y el `:emoji:` YA viene de serie (el default UI monta el emoji picker con «:»; la auditoría lo daba por ausente — corregido tanda 22); sin `@fecha` | P2 | M |
 
 \* P0 relativo al objetivo declarado («paridad 1:1 y migrar desde Notion»); si nadie migra datos ni usa la API con BD grandes, tratar como P1.
 
