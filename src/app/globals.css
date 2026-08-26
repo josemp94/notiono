@@ -483,3 +483,37 @@ td input[type="tel"] {
     transform: none;
   }
 }
+
+/* --- Impresión (la mitad PDF del export: Ctrl+P → guardar como PDF) ----------
+   Fuera el chrome (panel, barras, menús) y que el contenido fluya por el papel:
+   sin esto, el alto a pantalla (h-dvh) y los overflow recortaban todo a una hoja. */
+@media print {
+  .no-imprimir,
+  aside,
+  [data-menu] {
+    display: none !important;
+  }
+  [data-pista]::before,
+  [data-pista]::after {
+    display: none !important;
+  }
+  .h-dvh {
+    height: auto !important;
+  }
+  main,
+  .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .esquiva-muesca {
+    padding-left: 0 !important;
+  }
+  body {
+    background: #fff;
+  }
+  /* Etiquetas, llamadas y portadas conservan su color sobre el papel. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

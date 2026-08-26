@@ -72,7 +72,7 @@ export default function PageView() {
   return (
     <div className="relative flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-10 shrink-0 items-center gap-1 px-3">
+        <div className="no-imprimir flex h-10 shrink-0 items-center gap-1 px-3">
           <Breadcrumbs pageId={page.id} />
           {!comments && (
             <div className="ml-auto flex shrink-0 items-center gap-1">

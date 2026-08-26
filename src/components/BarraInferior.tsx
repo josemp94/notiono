@@ -27,7 +27,7 @@ export function BarraInferior({ onMenu }: { onMenu: () => void }) {
   const enPaginas = ruta === "/" || ruta.startsWith("/p/");
 
   return (
-    <nav className="zona-segura-abajo flex shrink-0 items-stretch border-t border-[var(--border)] bg-[var(--surface)] pt-1 md:hidden">
+    <nav className="no-imprimir zona-segura-abajo flex shrink-0 items-stretch border-t border-[var(--border)] bg-[var(--surface)] pt-1 md:hidden">
       <Boton href="/" icono={<House size={20} />} etiqueta="Inicio" activo={enPaginas} />
       <Boton onClick={openSearchPalette} icono={<Search size={20} />} etiqueta="Buscar" />
       <button

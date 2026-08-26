@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Barra lateral: cajón deslizante en móvil, fija en escritorio */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        className={`no-imprimir fixed inset-y-0 left-0 z-40 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:hidden" : ""}`}
       >
@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={toggleSidebar}
             onMouseEnter={asomar}
             onMouseLeave={esconder}
-            className="absolute left-1.5 top-2 z-20 hidden rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] md:block"
+            className="no-imprimir absolute left-1.5 top-2 z-20 hidden rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] md:block"
             data-pista="Mostrar el panel"
             data-atajo="Ctrl+\"
             data-pista-izq=""
