@@ -212,7 +212,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Toggle heading / listas toggle / cita / divisor / tabla | Básicos | ✅ | `defaultBlockSpecs` de BlockNote 0.53 vía `mention.tsx:57-68` | — | — |
 | Tabla simple: merge de celdas, colores | Extras de la tabla | ⚠️ | La tabla de BlockNote; merge sin verificar, sin personalización | P2 | M |
 | Subpágina como bloque / enlace a página como bloque | `/page` crea subpágina en el sitio; link-to-page | ✅ | «/subpágina» crea la hija y la enlaza con la mención (tanda 19); enlace-a-página = mención @ | — | — |
-| Export Markdown fiel | Callout/columnas/BD sobreviven al export | ⚠️ | `blocksToMarkdownLossy` (`Editor.tsx:197`); callout→blockquote y toc→ul OK (`calloutBlock.tsx:41-49`, `tocBlock.tsx:42-49`), pero `database` desaparece y `column` exporta `<div>` vacío (`columnBlock.tsx:22-31`) | P2 | M |
+| Export Markdown fiel | Callout/columnas/BD sobreviven al export | ✅ | `aplanarParaExport` (`lib/exportBloques.ts`, tanda 32): columnas en secuencia y BD embebida como enlace, aplicado a MD, ZIP y HTML vía `editorParaExport`; callout→blockquote, toc→ul y ecuación→`$$…$$` ya iban | — | — |
 | Estilo por página (Serif/Mono, texto pequeño) | Menú ⋯ de página | ✅ | Selector «Estilo» con muestras Ag (`Page.font` + data-font → --bn-font-family, tanda 24); «texto pequeño» descartado (nicho del nicho) | — | — |
 | Ancho completo | Toggle por página | ✅ | `Editor.tsx:34-49,170` | — | — |
 | Menú `/` en español + placeholder | Localizado | ✅ | Diccionario `es` + items custom (`Editor.tsx:250-337`) | — | — |
