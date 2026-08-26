@@ -157,9 +157,10 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide.
 - ✅ **API REST v1** con tokens por espacio (`docs/api.md`).
 - 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página), Ctrl+Mayús+L (modo oscuro) y Ctrl+[ / Ctrl+] (atrás/adelante). Faltan favorito, cambiar de vista y mover bloque.
+- ✅ **Tooltips estilo Notion** en los botones del panel: pastilla propia con el atajo en la segunda línea (`data-pista`/`data-atajo` en CSS puro, solo con ratón).
 - ✅ **Mis tareas** (`/my-tasks`): lo que tengo asignado por un campo Persona en cualquier base de datos.
 - ❌ **Home/Inicio** personalizable.
-- ❌ Reposicionar la portada; galería de imágenes de portada.
+- ✅ Reposicionar la portada arrastrando. ❌ Galería de imágenes de portada (Unsplash: llamadas a terceros, fuera a propósito).
 
 ---
 

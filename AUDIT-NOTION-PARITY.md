@@ -372,7 +372,7 @@ columnas interactivas, synced block y ecuaciones.
 | Sidebar peek al pasar el ratón (plegado) | Hover-reveal | ✅ | Panel flotante al pasar por el borde o el botón, con 300ms de gracia (`AppShell.tsx`, tanda 23) | — | — |
 | Transiciones/micro-animaciones | Hover, apertura de popovers, colapsos suaves | ✅ | Menús con fundido de 120ms vía `[data-menu]` respetando reduced-motion (tanda 22) | — | — |
 | Skeletons de carga | Shimmer en tablas/páginas | ✅ | `.esqueleto` en `globals.css`; página, BD y BD embebida (tanda 13) | — | — |
-| Tooltips con atajo | Estilizados, kbd a la derecha | ⚠️ | Solo `title=""` nativo; kbd solo en la ventana Atajos (`Shortcuts.tsx:107-112`) | P2 | M |
+| Tooltips con atajo | Estilizados, kbd a la derecha | ✅ | Pastilla CSS `data-pista`/`data-atajo` (atajo en 2ª línea) en los botones del panel; solo ratón, retardo 0,35 s (tanda 27) | — | — |
 | Menús: separadores, altura de item | Dividers + ~28px + kbd hints | ⚠️ | `Popover.tsx:92` bien (radius/sombra); faltan dividers | P2 | S |
 | Toast genérico con Deshacer | Sistema de toasts | ✅ | `Toast.tsx` (host en AppShell); borrar fila suelta/lote/ficha con «Deshacer» y sin confirmación (tanda 13) | — | — |
 | Modo oscuro base, scrollbars, focus, z-index, iconos lucide, headings responsive, táctil 40px | — | ✅ | `globals.css:20-77,232-260`; z-index ordenado | — | — |
