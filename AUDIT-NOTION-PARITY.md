@@ -324,7 +324,7 @@ columnas interactivas, synced block y ecuaciones.
 | Home/Inicio con widgets | Recientes, tareas, eventos | ❌ | `(app)/page.tsx:7-23` redirige a la primera página; `/my-tasks` cubre parte | P2 | L |
 | Wiki (página verificada) | Verificación con caducidad | ❌ | No existe (nicho para familia) | P2 | L |
 | Duplicar página con copia profunda | — | ✅ | `pages.ts:448-474,575-681` con remapeo de IDs | — | — |
-| Copiar enlace privado (botón) | En menú y cabecera | ⚠️ | Solo URL pública en `SharePublish.tsx:77-93` | P2 | S |
+| Copiar enlace privado (botón) | En menú y cabecera | ✅ | «Copiar enlace» en el menú ⋯ de la página (tanda 23) | — | — |
 | Deep-links a bloque/heading (#anchor) | Copiar enlace al bloque | ✅ | «Copiar enlace al bloque» en el tirador + salto con destello al abrir /p/<id>#<bloque> (tanda 20) | — | — |
 | Peek: abrir página en panel lateral | Ctrl+clic → peek | ❌ | Solo navegación completa (las filas de BD sí tienen `RecordPanel`) | P2 | M |
 | Atajos de navegación | Ctrl+P, Ctrl+[ ], Ctrl+Shift+L | ✅ | Ctrl+K, Ctrl+\, Ctrl+Alt+N, ?, Ctrl+Mayús+L (tema) y Ctrl+[ ] atrás/adelante (tanda 15; Ctrl+P es Ctrl+K) | — | — |
@@ -351,7 +351,7 @@ columnas interactivas, synced block y ecuaciones.
 | Grupos de miembros | Permisos por grupo | ❌ | Sin modelo | P2 | M |
 | Publicar: duplicar-como-plantilla, SEO, caducidad, contraseña | Opciones del share público | ⚠️ | Caducidad + contraseña ✅ (cookie HMAC atada al hash, rate limit; tanda 26); duplicar-como-plantilla y SEO no (nicho autoalojado) | P2 | M |
 | Subpáginas públicas navegables | El share incluye hijos | ✅ | /s/<token>/<pageId> para descendientes vivas, con la puerta/caducidad de la raíz; las menciones enlazan en público vía PublicBaseContext (tanda 26) | — | — |
-| Feed «Actualizaciones» por página + Editado por X hace Y | Actividad visible | ❌ | Solo versiones; sin `lastEditedBy` visible en cabecera | P2 | M |
+| Feed «Actualizaciones» por página + Editado por X hace Y | Actividad visible | ⚠️ | «Editado por X hace Y» ✅ en la cabecera (`page.tsx:84`, `pages.get.editadoPor`); falta el feed de actividad | P2 | M |
 | Seguir página (watch) | Aviso de cambios | ✅ | Campana en la cabecera + PageFollow; aviso y push al editar otro, anti-duplicados por sin-leer (tanda 26) | — | — |
 | Push reales + diagnóstico | — | ✅ | `push.ts:39-71`, `api/health`, Ajustes→Estado (`settings/page.tsx:220-246`) | — | — |
 
@@ -392,7 +392,7 @@ columnas interactivas, synced block y ecuaciones.
 | Importar MD / CSV | + frontmatter, tipos autodetectados, a BD existente | ✅ | MD y CSV con tipos autodetectados (`3af6270`) + **CSV a BD existente** (botón de subir en la barra de la BD, `importCsvInto` en el servicio: cabeceras por nombre, columnas y opciones nuevas al vuelo — tanda 25) | — | — |
 | Importar HTML / Word / Evernote / Trello | Soportados | ❌ | No existen | P2 | L |
 | Exportar página con subpáginas (ZIP) | Árbol completo + imágenes | ✅ | `pages.exportTree` + `lib/exportZip.ts` (MD+CSV+adjuntos, tanda 12) | — | — |
-| Exportar PDF / HTML | Por página o árbol | ⚠️ | HTML ✅ («Exportar HTML» en el menú ⋯: .html autocontenido con blocksToHTMLLossy — tanda 26); PDF = imprimir la página, pendiente hoja @media print | P2 | S |
+| Exportar PDF / HTML | Por página o árbol | ✅ | HTML: «Exportar HTML» (.html autocontenido, tanda 26); PDF: Ctrl+P con hoja @media print que quita el chrome y deja fluir el contenido (tanda 26). Por árbol ya lo cubre el ZIP | — | — |
 | Backup del workspace completo | Export total | ✅ | Ajustes → Copia de seguridad (mismo export con pageId null, tanda 12) | — | — |
 | API: CRUD de páginas/BD/campos/vistas/registros | — | ✅ | `src/app/api/v1/**`, `docs/api.md` al día | — | — |
 | **API: paginación** | Cursor + `page_size` | ✅ | `GET /databases/:id/records?limit&cursor` con `next_cursor`/`has_more` (`5d01eb3`, probado en check-api) | — | — |
