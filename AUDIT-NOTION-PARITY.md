@@ -242,7 +242,7 @@ columnas interactivas, synced block y ecuaciones.
 | Relación: límite 1/∞, limpieza al borrar fila | Configurable y con cascada | ⚠️ | Limpieza al PURGAR hecha (`limpiaReferencias`); falta el límite 1/∞ | P2 | S |
 | Rollup: agregaciones | ~24 (median, range, earliest/latest, % vacío, checked…) | ✅ | ~20 en `lib/rollup.ts` (`9287c3d`), probadas en check | — | — |
 | Fórmula | ~70 funciones, tipos fecha/lista | ✅ | ~55 funciones con fechas/listas/`current` (`formula.ts`, `4d2939b`) | — | — |
-| Botón (propiedad) | Acciones: editar props, abrir página, webhook | ⚠️ | Editar propiedades de la fila ✅ (etiqueta + acciones campo→valor, «@hoy» para fechas — tanda 16); sin abrir-página ni webhook (nicho) | P2 | M |
+| Botón (propiedad) | Acciones: editar props, abrir página, webhook | ✅ | Editar propiedades (tanda 16) + «Al terminar, abrir» página (`config.abrePageId`, tanda 22); webhook descartado (los webhooks salientes ya disparan con record.updated) | — | — |
 | Lugar (mapa) | Dirección + mapa + vista Mapa | ❌ | No existe | P2 | L |
 | Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ⚠️ | Markdown inline (`lib/mdInline.tsx`, tanda 17): negrita/cursiva/tachado/código/enlaces pintados en tabla y títulos de las 5 vistas; se edita el crudo (el valor sigue siendo string: filtros/CSV/API intactos). Sin menciones ni edición WYSIWYG | P2 | L |
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
