@@ -31,6 +31,20 @@ function parseDay(day: string | null): Date | null {
 
 const díasEntre = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 864e5);
 
+/** Alto real de cada fila (barra h-5 + py-2 + borde): las flechas cuelgan de esto. */
+const ROW_H = 37;
+
+/** Codo de una flecha de dependencia: sale del fin de A y entra al inicio de B. */
+function caminoDep(f: { x1: number; y1: number; x2: number; y2: number }) {
+  const mx = f.x1 + 6;
+  if (f.x2 >= mx + 6) {
+    return `M ${f.x1} ${f.y1} L ${mx} ${f.y1} L ${mx} ${f.y2} L ${f.x2 - 4} ${f.y2}`;
+  }
+  // El destino empieza antes de que acabe el origen: se rodea por el borde de la fila.
+  const ym = f.y2 > f.y1 ? f.y2 - ROW_H / 2 : f.y2 + ROW_H / 2;
+  return `M ${f.x1} ${f.y1} L ${mx} ${f.y1} L ${mx} ${ym} L ${f.x2 - 8} ${ym} L ${f.x2 - 8} ${f.y2} L ${f.x2 - 4} ${f.y2}`;
+}
+
 export function TimelineView({
   pageId,
   collectionId,
@@ -53,11 +67,19 @@ export function TimelineView({
   const invalidate = () => utils.db.get.invalidate({ pageId });
   const updateView = trpc.db.updateView.useMutation({ onSuccess: invalidate });
   const updateCell = trpc.db.updateCell.useMutation({ onSuccess: invalidate });
+  const addRelation = trpc.db.addRelation.useMutation({ onSuccess: invalidate });
 
   const dateFields = fields.filter((f) => f.type === "date");
-  const cfg = (view.config ?? {}) as { dateFieldId?: string; endFieldId?: string; zoom?: string };
+  const cfg = (view.config ?? {}) as { dateFieldId?: string; endFieldId?: string; zoom?: string; depFieldId?: string };
   const startFieldId = cfg.dateFieldId ?? dateFields[0]?.id ?? null;
   const endFieldId = cfg.endFieldId ?? null;
+  // Dependencias: una relación de la BD consigo misma («Bloqueada por»).
+  const relSelf = fields.filter(
+    (f) => f.type === "relation" && (f.config as { targetCollectionId?: string })?.targetCollectionId === collectionId,
+  );
+  // ponytail: mover una barra no arrastra a sus dependientes; si se echa en
+  // falta, se hace tras el updateCell del arrastre desplazando la cadena.
+  const depFieldId = cfg.depFieldId && relSelf.some((f) => f.id === cfg.depFieldId) ? cfg.depFieldId : null;
   const titleField = fields.find((f) => f.type === "text") ?? fields[0];
   const zoom = ZOOMS[cfg.zoom ?? "mes"] ?? ZOOMS.mes;
   const DAY_W = zoom.diaW;
@@ -69,6 +91,11 @@ export function TimelineView({
   const [drag, setDrag] = useState<{ recId: string; mode: "move" | "resize"; x0: number; dx: number } | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
+  // Enlazar dependencias arrastrando: del puntito del fin de una barra a otra barra.
+  const [link, setLink] = useState<{ fromId: string; x: number; y: number } | null>(null);
+  const linkRef = useRef(link);
+  linkRef.current = link;
+  const rowsRef = useRef<HTMLDivElement>(null);
 
   // Ventana visible: desde el 1 del mes del cursor, tantos meses como diga el zoom.
   const winStart = new Date(cursor.y, cursor.m, 1);
@@ -135,6 +162,24 @@ export function TimelineView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!drag, DAY_W, startFieldId, endFieldId, records]);
+
+  // La goma elástica del enlace sigue al ratón; soltar en una barra commitea
+  // (su onMouseUp corre antes que este de window) y soltar en el vacío cancela.
+  useEffect(() => {
+    if (!link) return;
+    const move = (e: MouseEvent) => {
+      const rc = rowsRef.current?.getBoundingClientRect();
+      if (rc) setLink((l) => (l ? { ...l, x: e.clientX - rc.left, y: e.clientY - rc.top } : l));
+    };
+    const up = () => setTimeout(() => setLink(null), 0);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!link]);
 
   if (!startFieldId) {
     return (
@@ -206,6 +251,28 @@ export function TimelineView({
               {dateFields.filter((f) => f.id !== startFieldId).map((f) => <option key={f.id} value={f.id}>Fin: {f.name}</option>)}
             </select>
           )}
+          <select
+            value={depFieldId ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "__crear__") {
+                addRelation.mutate(
+                  { collectionId, name: "Bloqueada por", targetCollectionId: collectionId },
+                  { onSuccess: (campo) => updateView.mutate({ id: view.id, config: { ...cfg, depFieldId: campo.id } }) },
+                );
+              } else {
+                updateView.mutate({ id: view.id, config: { ...cfg, depFieldId: v || undefined } });
+              }
+            }}
+            className="rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs outline-none"
+            title="Flechas entre tareas que dependen unas de otras"
+          >
+            <option value="">Dependencias: no</option>
+            {relSelf.map((f) => (
+              <option key={f.id} value={f.id}>Dependencias: {f.name}</option>
+            ))}
+            <option value="__crear__">+ Crear campo «Bloqueada por»</option>
+          </select>
         </div>
       </div>
 
@@ -248,11 +315,12 @@ export function TimelineView({
           {bars.length === 0 && (
             <div className="px-3 py-6 text-sm text-[var(--muted)]">Sin registros con fecha en este periodo.</div>
           )}
+          <div ref={rowsRef} className="relative">
           {bars.map(({ rec, off, span }) => {
             const esta = drag?.recId === rec.id;
             const dx = esta ? drag!.dx : 0;
             return (
-              <div key={rec.id} className="flex items-center border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/15">
+              <div key={rec.id} className="group/fila flex h-[37px] items-center border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/15">
                 <button
                   onClick={() => (openIn === "full" ? openFull?.(rec.id) : setOpenRec(rec))}
                   className="sticky left-0 z-10 w-[180px] shrink-0 self-stretch truncate border-r border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-sm hover:text-brand"
@@ -268,6 +336,17 @@ export function TimelineView({
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setDrag({ recId: rec.id, mode: "move", x0: e.clientX, dx: 0 });
+                    }}
+                    onMouseUp={() => {
+                      // Soltar aquí una goma de dependencia: esta fila queda «bloqueada por» la de origen.
+                      const l = linkRef.current;
+                      if (!l || !depFieldId || l.fromId === rec.id) return;
+                      const actual = rec.cells?.[depFieldId];
+                      const lista = Array.isArray(actual) ? actual.map(String) : [];
+                      if (!lista.includes(l.fromId)) {
+                        updateCell.mutate({ recordId: rec.id, fieldId: depFieldId, value: [...lista, l.fromId] });
+                      }
+                      setLink(null);
                     }}
                     className={`absolute top-1/2 h-5 -translate-y-1/2 cursor-grab truncate rounded bg-brand/85 px-2 text-left text-[11px] leading-5 text-white hover:bg-brand active:cursor-grabbing ${
                       esta ? "opacity-80" : ""
@@ -289,10 +368,83 @@ export function TimelineView({
                       className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize rounded-r bg-white/25"
                     />
                   </div>
+                  {/* Puntito de enlazar: arrastra hasta otra barra para crear la dependencia (de ratón). */}
+                  {depFieldId && !drag && (
+                    <span
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const rc = rowsRef.current?.getBoundingClientRect();
+                        if (rc) setLink({ fromId: rec.id, x: e.clientX - rc.left, y: e.clientY - rc.top });
+                      }}
+                      className="absolute top-1/2 hidden size-3 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-brand bg-[var(--background)] group-hover/fila:block"
+                      style={{ left: off * DAY_W + Math.max(DAY_W - 4, span * DAY_W - 4) + 5 }}
+                      title="Arrastra hasta otra barra: esa tarea quedará bloqueada por esta"
+                    />
+                  )}
                 </div>
               </div>
             );
           })}
+          {/* Flechas de dependencia por encima de las barras (la columna de títulos, con su z-10, las tapa al pasar). */}
+          {depFieldId &&
+            bars.length > 0 &&
+            (() => {
+              const idx = new Map(bars.map((b, i) => [b.rec.id, i]));
+              const flechas: { x1: number; y1: number; x2: number; y2: number }[] = [];
+              bars.forEach((b, bi) => {
+                const deps = b.rec.cells?.[depFieldId];
+                for (const depId of Array.isArray(deps) ? deps : []) {
+                  const ai = idx.get(String(depId));
+                  if (ai === undefined || ai === bi) continue;
+                  const a = bars[ai];
+                  flechas.push({
+                    x1: 180 + (a.off + a.span) * DAY_W - 2,
+                    y1: ai * ROW_H + ROW_H / 2,
+                    x2: 180 + b.off * DAY_W + 2,
+                    y2: bi * ROW_H + ROW_H / 2,
+                  });
+                }
+              });
+              const srcIdx = link ? idx.get(link.fromId) : undefined;
+              const src = srcIdx !== undefined ? bars[srcIdx] : null;
+              if (!flechas.length && !src) return null;
+              return (
+                <svg
+                  className="pointer-events-none absolute left-0 top-0"
+                  width={180 + gridW}
+                  height={bars.length * ROW_H}
+                >
+                  <defs>
+                    <marker id="flecha-dep" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                      <path d="M0,0 L6,3 L0,6 z" fill="var(--muted)" />
+                    </marker>
+                  </defs>
+                  {flechas.map((f, i) => (
+                    <path
+                      key={i}
+                      d={caminoDep(f)}
+                      fill="none"
+                      stroke="var(--muted)"
+                      strokeWidth="1.5"
+                      markerEnd="url(#flecha-dep)"
+                    />
+                  ))}
+                  {link && src && srcIdx !== undefined && (
+                    <line
+                      x1={180 + (src.off + src.span) * DAY_W}
+                      y1={srcIdx * ROW_H + ROW_H / 2}
+                      x2={link.x}
+                      y2={link.y}
+                      stroke="var(--color-brand, #ff5c28)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 3"
+                    />
+                  )}
+                </svg>
+              );
+            })()}
+          </div>
         </div>
       </ScrollHorizontal>
 
