@@ -13,6 +13,7 @@
 import { randomBytes } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { db as defaultDb } from "@/lib/db";
+import { infiereColumnas } from "@/lib/csvTipos";
 import { rankAtEnd, rankBetween } from "@/lib/fractional";
 import { dispatchWebhooks } from "@/server/webhooks";
 import { cellToText } from "./cells";
@@ -589,4 +590,133 @@ export async function createRecord(
     cells: created.cells,
   });
   return created;
+}
+
+/**
+ * Vuelca filas de un CSV en una BD que YA existe (el «Merge with CSV» de Notion).
+ * Cada cabecera casa con un campo por nombre (sin mayúsculas); las que no casan
+ * crean una columna nueva con el tipo inferido de sus valores. En los campos de
+ * etiquetas, los valores desconocidos crean opciones sobre la marcha.
+ * ponytail: sin webhooks por fila en el volcado masivo, igual que importCsv.
+ */
+export async function importCsvInto(
+  scope: Scope,
+  input: { collectionId: string; headers: string[]; rows: string[][] },
+) {
+  await assertCollection(scope, input.collectionId);
+  const fields = await scope.db.field.findMany({
+    where: { collectionId: input.collectionId },
+    orderBy: { order: "asc" },
+  });
+  const porNombre = new Map(fields.map((f) => [f.name.trim().toLowerCase(), f]));
+  const inferidas = infiereColumnas(input.headers, input.rows);
+  const COLORES = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "default"];
+
+  // Opciones creadas al vuelo, para persistirlas UNA vez por campo al final.
+  const opcionesNuevas = new Map<string, { id: string; label: string; color: string }[]>();
+  const conversorPara = (f: (typeof fields)[number]) => {
+    const cfg = (f.config ?? {}) as { options?: { id: string; label: string; color?: string }[] };
+    const opciones = [...(cfg.options ?? [])];
+    const optionFor = (label: string): string | null => {
+      const l = label.trim();
+      if (!l) return null;
+      const found = opciones.find((o) => o.label.toLowerCase() === l.toLowerCase());
+      if (found) return found.id;
+      const nueva = { id: "opt_" + Math.random().toString(36).slice(2, 9), label: l, color: COLORES[opciones.length % COLORES.length] };
+      opciones.push(nueva);
+      opcionesNuevas.set(f.id, [...(opcionesNuevas.get(f.id) ?? []), nueva]);
+      return nueva.id;
+    };
+    return (text: string): unknown => {
+      switch (f.type) {
+        case "text":
+        case "url":
+        case "email":
+        case "phone":
+          return text;
+        case "number": {
+          const n = Number(text.replace(/[^\d,.-]/g, "").replace(",", "."));
+          return Number.isFinite(n) ? n : null;
+        }
+        case "checkbox":
+          return !["", "false", "no", "0"].includes(text.trim().toLowerCase());
+        case "date": {
+          const iso = /\d{4}-\d{2}-\d{2}/.exec(text);
+          return iso ? iso[0] : null;
+        }
+        case "select":
+        case "status":
+          return optionFor(text);
+        case "multiselect":
+          return text.split(",").map((p) => optionFor(p)).filter(Boolean);
+        default:
+          // person, files, relation, computados, autos: no se importan de CSV.
+          return null;
+      }
+    };
+  };
+
+  const destinos: { fieldId: string; convertir: (v: string) => unknown }[] = [];
+  let columnasNuevas = 0;
+  let fOrd = fields.at(-1)?.order ?? null;
+  for (const [i, h] of input.headers.entries()) {
+    const existente = porNombre.get(h.trim().toLowerCase());
+    if (existente) {
+      destinos.push({ fieldId: existente.id, convertir: conversorPara(existente) });
+    } else {
+      fOrd = rankAtEnd(fOrd);
+      const f = await scope.db.field.create({
+        data: {
+          collectionId: input.collectionId,
+          name: h.trim() || `Columna ${i + 1}`,
+          type: inferidas[i].type,
+          order: fOrd,
+          config: inferidas[i].config as Prisma.InputJsonValue,
+        },
+      });
+      columnasNuevas++;
+      destinos.push({ fieldId: f.id, convertir: inferidas[i].convertir });
+    }
+  }
+
+  const [ultimo, maxSeq] = await Promise.all([
+    scope.db.record.findFirst({
+      where: { collectionId: input.collectionId },
+      orderBy: { order: "desc" },
+      select: { order: true },
+    }),
+    scope.db.record.aggregate({ where: { collectionId: input.collectionId }, _max: { seq: true } }),
+  ]);
+  let rOrd = ultimo?.order ?? null;
+  let seq = maxSeq._max.seq ?? 0;
+  const records = input.rows.map((row) => {
+    rOrd = rankAtEnd(rOrd);
+    seq += 1;
+    const cells: Record<string, unknown> = {};
+    destinos.forEach((d, j) => {
+      if (!row[j]) return;
+      const v = d.convertir(row[j]);
+      if (v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) cells[d.fieldId] = v;
+    });
+    return {
+      collectionId: input.collectionId,
+      order: rOrd as string,
+      seq,
+      cells: cells as Prisma.InputJsonValue,
+      createdById: scope.userId ?? null,
+      updatedById: scope.userId ?? null,
+    };
+  });
+  if (records.length) await scope.db.record.createMany({ data: records });
+
+  for (const [fieldId, nuevas] of opcionesNuevas) {
+    const f = fields.find((x) => x.id === fieldId)!;
+    const cfg = (f.config ?? {}) as { options?: unknown[] };
+    await scope.db.field.update({
+      where: { id: fieldId },
+      data: { config: { ...(f.config as object), options: [...(cfg.options ?? []), ...nuevas] } as Prisma.InputJsonValue },
+    });
+  }
+
+  return { filas: records.length, columnasNuevas };
 }

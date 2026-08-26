@@ -356,6 +356,20 @@ export const dbRouter = router({
       return conTRPC(dbService.createRecord(scopeOf(ctx), input));
     }),
 
+  /** Vuelca un CSV como filas de esta BD (el «Merge with CSV» de Notion). */
+  importCsvInto: workspaceProcedure
+    .input(
+      z.object({
+        collectionId: z.string(),
+        headers: z.array(z.string()).min(1),
+        rows: z.array(z.array(z.string())),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCollection(ctx, input.collectionId);
+      return conTRPC(dbService.importCsvInto(scopeOf(ctx), input));
+    }),
+
   /** Crea un sub-elemento: registro hijo del indicado, en la misma colección. */
   addSubRecord: workspaceProcedure
     .input(z.object({ parentRecordId: z.string() }))

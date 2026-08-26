@@ -2,13 +2,14 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, Pencil, Plus, Table, Trash2, X } from "lucide-react";
+import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, Pencil, Plus, Table, Trash2, Upload, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { usePeople } from "./Cell";
 import { downloadText } from "@/lib/download";
+import { parseCsv } from "@/lib/csv";
 import { FILTER_MENU_EVENT, VIEW_MENU_EVENT, type FilterMenuDetail, type ViewMenuDetail } from "@/lib/shortcuts";
 import {
   countFilters,
@@ -513,7 +514,59 @@ export function DbToolbar({
         <Download size={15} />
       </button>
 
+      <ImportarCsvButton pageId={pageId} collectionId={collectionId} />
+
     </div>
+  );
+}
+
+/**
+ * Importa un CSV como filas de ESTA base de datos (el «Merge with CSV» de
+ * Notion): las cabeceras casan con las columnas por nombre y las desconocidas
+ * crean columna nueva.
+ */
+function ImportarCsvButton({ pageId, collectionId }: { pageId: string; collectionId: string }) {
+  const utils = trpc.useUtils();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importar = trpc.db.importCsvInto.useMutation({
+    onSuccess: (r) => {
+      utils.db.get.invalidate({ pageId });
+      toast(
+        `${r.filas} fila${r.filas === 1 ? "" : "s"} importada${r.filas === 1 ? "" : "s"}` +
+          (r.columnasNuevas ? ` (${r.columnasNuevas} columna${r.columnasNuevas === 1 ? "" : "s"} nueva${r.columnasNuevas === 1 ? "" : "s"})` : ""),
+      );
+    },
+  });
+  return (
+    <>
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={importar.isPending}
+        className="toque flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:opacity-50"
+        title="Importar CSV a esta base de datos (las cabeceras casan con las columnas por nombre)"
+        aria-label="Importar CSV"
+      >
+        <Upload size={15} />
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = ""; // permite reelegir el mismo archivo
+          if (!f) return;
+          const filas = parseCsv(await f.text());
+          const [headers, ...rows] = filas;
+          if (!headers?.length) {
+            toast("El CSV está vacío o no tiene cabeceras.");
+            return;
+          }
+          importar.mutate({ collectionId, headers, rows });
+        }}
+      />
+    </>
   );
 }
 
