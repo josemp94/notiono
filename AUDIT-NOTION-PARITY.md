@@ -199,7 +199,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Ecuaciones LaTeX (bloque e inline) | KaTeX en `$$` y `/math` | ⚠️ | Bloque ✅ (tanda 31): «/ecuación» con KaTeX, clic para editar con vista previa, exporta como `$$…$$`; inline no (BlockNote no deja editar props de un inline content desde su render) | P2 | M |
 | Embeds: Figma / X / Maps / PDF / iframe | Bloque Embed genérico + previews específicas | ❌ | `src/lib/embed.ts:1-20` solo reconoce YouTube/Vimeo; el resto cae a tarjeta OpenGraph (`bookmarkBlock.tsx:48-60`) | P2 | M |
 | Bookmark con OpenGraph | Tarjeta con imagen/título/dominio | ✅ | `bookmarkBlock.tsx:33-84` + `linkPreview` con anti-SSRF | — | — |
-| Columnas: crear 2/3 desde `/` | También arrastrando un bloque al lado de otro | ⚠️ | `Editor.tsx:281-297` crea `columnList`; **no** hay drag-to-create-column | P1 | L |
+| Columnas: crear 2/3 desde `/` | También arrastrando un bloque al lado de otro | ✅ | `/` crea `columnList`, y **drag-to-create** (tanda 33): soltar un bloque en la franja lateral (48px) de otro los pone lado a lado (`columnDrop.ts`, interceptor capture contenido — fuera de la franja no toca el evento); la reestructuración (`aplicarDrop`) probada con editor falso en check; falta un clic real en producción | — | — |
 | Columnas: ancho ajustable arrastrando | Tirador entre columnas | ✅ | Prop `ancho` (flex-grow) + tirador que reparte con la columna vecina conservando la suma (`columnBlock.tsx`, tanda 19) | — | — |
 | Columnas: añadir columna a un layout ya creado | Botón + en el borde | ✅ | «+» en el borde derecho del layout al pasar el ratón (tanda 19) | — | — |
 | Bloque sincronizado | Contenido espejado en varias páginas | ❌ | No existe en `editorSchema` (`mention.tsx:57-68`) | P2 | L |
