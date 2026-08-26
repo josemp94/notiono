@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Columns2, Columns3, Database, Download, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquare, X } from "lucide-react";
+import { Check, Columns2, Columns3, Database, Download, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquare, Sigma, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
   BlockColorsItem,
@@ -425,6 +425,14 @@ export function Editor({
                       content: [{ type: "mention", props: { pageId: nueva.id, title: "Sin título", icon: "" } }],
                     });
                   },
+                },
+                {
+                  title: "Ecuación",
+                  subtext: "Fórmula matemática en TeX (KaTeX)",
+                  aliases: ["ecuacion", "ecuación", "formula", "fórmula", "matematicas", "matemáticas", "latex", "katex", "math"],
+                  group: "Bloques básicos",
+                  icon: <Sigma size={18} />,
+                  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "equation" }),
                 },
                 {
                   title: "Tabla de contenidos",

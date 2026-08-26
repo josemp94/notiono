@@ -10,6 +10,7 @@ import { IconoPagina } from "@/components/PageIcon";
 import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
 import { CalloutBlock } from "./calloutBlock";
+import { EquationBlock } from "./equationBlock";
 import { DatabaseBlock, PublicBaseContext } from "./databaseBlock";
 import { TocBlock } from "./tocBlock";
 
@@ -118,6 +119,7 @@ export const editorSchema = BlockNoteSchema.create({
     codeBlock: createCodeBlockSpec(codeBlockOptions),
     database: DatabaseBlock(),
     callout: CalloutBlock(),
+    equation: EquationBlock(),
     toc: TocBlock(),
     bookmark: BookmarkBlock(),
     columnList: ColumnListBlock(),
