@@ -228,7 +228,7 @@ columnas interactivas, synced block y ecuaciones.
 
 | Área | Qué hace Notion | Estado | Evidencia | Sev. | Esf. |
 |---|---|---|---|---|---|
-| Cobertura de tipos | 23 tipos | ⚠️ | 21 en `FIELD_TYPES` (`services/db.ts:24`, Botón incluido — tanda 16); faltan **Lugar** y un **Título** real | P2 | — |
+| Cobertura de tipos | 23 tipos | ⚠️ | 22 en `FIELD_TYPES` (`services/db.ts:24`, Botón y Lugar incluidos); falta un **Título** real | P2 | — |
 | Tipo Título | Tipo especial; abre la página, no se borra | ⚠️ | El título es "el primer campo `text`" (`routers/db.ts:207,337`); flexible pero implícito | P2 | M |
 | Número: formatos | ~30 monedas, decimales configurables, %, barra **y anillo**, «mostrar número» | ✅ | €/$/£, decimales 0-3 o automático y Anillo con «Máximo» (tanda 23); más monedas si algún día hacen falta | — | — |
 | Fecha: formato visible y hora 12/24 | Configurable (relativo, DD/MM/AAAA…) | ✅ | Largo/corto/relativo + reloj 12/24 por columna; la celda enseña el texto formateado y el clic edita (tanda 24) | — | — |
@@ -243,7 +243,7 @@ columnas interactivas, synced block y ecuaciones.
 | Rollup: agregaciones | ~24 (median, range, earliest/latest, % vacío, checked…) | ✅ | ~20 en `lib/rollup.ts` (`9287c3d`), probadas en check | — | — |
 | Fórmula | ~70 funciones, tipos fecha/lista | ✅ | ~55 funciones con fechas/listas/`current` (`formula.ts`, `4d2939b`) | — | — |
 | Botón (propiedad) | Acciones: editar props, abrir página, webhook | ✅ | Editar propiedades (tanda 16) + «Al terminar, abrir» página (`config.abrePageId`, tanda 22); webhook descartado (los webhooks salientes ya disparan con record.updated) | — | — |
-| Lugar (mapa) | Dirección + mapa + vista Mapa | ❌ | No existe | P2 | L |
+| Lugar (mapa) | Dirección + mapa + vista Mapa | ✅ | Campo `location` (tanda 28, con el sí de Jose a Leaflet): buscador Nominatim vía `/api/geo` (rate limit + User-Agent), celda con chincheta y mini-mapa OSM/Leaflet (`LugarCell.tsx`, circleMarker: sin PNGs), «Cómo llegar»; la vista Mapa queda fuera (Notion tampoco la tiene) | — | — |
 | Texto enriquecido en celdas | Negrita/enlaces/menciones dentro de una celda | ⚠️ | Markdown inline (`lib/mdInline.tsx`, tanda 17): negrita/cursiva/tachado/código/enlaces pintados en tabla y títulos de las 5 vistas; se edita el crudo (el valor sigue siendo string: filtros/CSV/API intactos). Sin menciones ni edición WYSIWYG | P2 | L |
 | Menú de columna: duplicar propiedad, insertar izq/dcha, ocultar | Menú completo | ✅ | Clic en la cabecera abre el menú completo: nombre, ordenar, filtrar, ocultar, wrap, congelar, tipo, duplicar (con valores, jsonb), insertar izq/dcha, borrar (`TableView.tsx` FieldMenu, tanda 10) | — | — |
 | Descripción de propiedad (ℹ) | Texto de ayuda por campo | ✅ | `Field.config.description` (sin migración): textarea en el menú de la columna + ℹ/tooltip (tanda 11) | — | — |

@@ -76,8 +76,9 @@ piden el resto de rutas; `pageId` es el de su página, para enlazarla.
 - Guarda los `id` de las columnas: son la clave de `cells` al crear registros.
 
 Tipos de columna: `text`, `number`, `select`, `multiselect`, `status`, `person`,
-`files`, `checkbox`, `date`, `url`, `email`, `phone`, `created_time`,
+`files`, `checkbox`, `date`, `url`, `email`, `phone`, `location`, `created_time`,
 `last_edited_time`, `created_by`, `last_edited_by`, `id`.
+El valor de una celda `location` es `{ "nombre": "…", "lat": 40.4, "lng": -3.7 }`.
 Tipos de vista: `table`, `kanban`, `calendar`, `timeline`, `gallery`, `chart`,
 `list`, `form`.
 

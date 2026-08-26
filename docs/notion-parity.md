@@ -13,7 +13,7 @@
 ## 0. Retrato del estado actual
 
 Notiono es hoy un Notion self-hosted funcional para una familia: páginas de bloques con
-autosave, árbol de páginas, 8 tipos de vista de base de datos, 20 tipos de campo, comentarios,
+autosave, árbol de páginas, 8 tipos de vista de base de datos, 21 tipos de campo, comentarios,
 menciones, notificaciones, historial de versiones, publicación web, plantillas, import/export,
 API REST y PWA instalable. Lo que falta es, sobre todo, **colaboración simultánea**, **bloques
 avanzados** (columnas, embeds) y **permisos por página**.
@@ -45,10 +45,10 @@ Lista real: `FIELD_TYPES` en `src/server/routers/db.ts` y `TYPES`/`FIELD_LABELS`
 | Rollup | ✅ | 🟡 `count, sum, avg, min, max, values` |
 | Fórmula | ✅ | 🟡 evaluador propio, 13 funciones (ver 1.4) |
 | **Botón** (acciones) | ✅ | ❌ |
-| **Lugar** (mapa) | ✅ | ❌ |
+| **Lugar** (mapa) | ✅ | ✅ `location` — buscador de direcciones (Nominatim/OSM vía `/api/geo`), mini-mapa Leaflet en la celda y «Cómo llegar» |
 
-**Siguiente en prioridad:** Lugar (mapa) y Botón son los dos tipos que faltan de verdad;
-del resto solo quedan detalles (formato anillo en Número, recordatorios en Fecha).
+**Siguiente en prioridad:** del catálogo de tipos solo queda el matiz del Botón
+(abrir páginas/webhooks) y un tipo Título explícito; el resto está.
 
 ### 1.2 Tipos de vista
 
