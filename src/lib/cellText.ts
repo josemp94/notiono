@@ -212,6 +212,10 @@ export function displayValue(field: FieldLite, value: unknown, people?: Map<stri
   if (field.type === "number") return formatNumber(value, field);
   if (field.type === "date") return formatDate(value, field);
   if (field.type === "checkbox") return value ? "Sí" : "No";
+  if (field.type === "location") {
+    const l = value as { nombre?: string; lat?: number; lng?: number };
+    return l?.nombre || (l?.lat != null && l?.lng != null ? `${l.lat}, ${l.lng}` : "");
+  }
   if (field.type === "relation") {
     const n = Array.isArray(value) ? value.length : 0;
     return n ? `${n} vinculado${n > 1 ? "s" : ""}` : "";

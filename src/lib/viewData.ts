@@ -334,6 +334,11 @@ const statusGroup = (field: DbField, cell: unknown): string | null => {
 };
 
 function matchFilter(cell: unknown, field: DbField, op: string, value: any, me?: string): boolean {
+  // Un lugar filtra por su texto (nombre o coordenadas), no por el objeto.
+  if (field.type === "location") {
+    const l = cell as { nombre?: string; lat?: number; lng?: number } | null;
+    cell = l ? l.nombre || (l.lat != null ? `${l.lat}, ${l.lng}` : "") : null;
+  }
   const range = relativeRange(op);
   if (range) {
     // Con rango de fechas basta con que solape el periodo.
@@ -430,6 +435,10 @@ function compareCells(a: unknown, b: unknown, field?: DbField): number {
     return x - y;
   }
   if (field.type === "checkbox") return Number(Boolean(a)) - Number(Boolean(b));
+  if (field.type === "location") {
+    const nom = (v: unknown) => (v as { nombre?: string })?.nombre ?? "";
+    return nom(a).localeCompare(nom(b));
+  }
   if (field.type === "select" || field.type === "status") {
     // ordena por el orden de las opciones definidas
     const opts: any[] = field.config?.options ?? [];

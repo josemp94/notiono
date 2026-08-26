@@ -38,6 +38,10 @@ export function cellToText(
     return d ? (d.end ? `${d.start} → ${d.end}` : d.start) : "";
   }
   if (f.type === "checkbox") return v ? "true" : "false";
+  if (f.type === "location") {
+    const l = v as { nombre?: string; lat?: number; lng?: number };
+    return l?.nombre || (l?.lat != null && l?.lng != null ? `${l.lat}, ${l.lng}` : "");
+  }
   if (Array.isArray(v)) return v.map(String).join(", ");
   return String(v);
 }

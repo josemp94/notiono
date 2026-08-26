@@ -21,6 +21,7 @@ export const FIELD_LABELS: Record<string, string> = {
   url: "URL",
   email: "Correo",
   phone: "Teléfono",
+  location: "Lugar",
   created_time: "Fecha de creación",
   last_edited_time: "Última edición",
   created_by: "Creado por",
@@ -32,7 +33,7 @@ export const FIELD_LABELS: Record<string, string> = {
   formula: "Fórmula",
 };
 
-const TYPES = ["text", "number", "select", "multiselect", "status", "person", "files", "checkbox", "date", "url", "email", "phone", "created_time", "last_edited_time", "created_by", "last_edited_by", "id", "button"] as const;
+const TYPES = ["text", "number", "select", "multiselect", "status", "person", "files", "checkbox", "date", "url", "email", "phone", "location", "created_time", "last_edited_time", "created_by", "last_edited_by", "id", "button"] as const;
 
 const AGGS: [string, string][] = [...ROLLUP_AGG_LABELS];
 

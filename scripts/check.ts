@@ -199,6 +199,9 @@ const gente = new Map([["u1", "Jose"], ["u2", "Ana"]]);
 assert.equal(displayValue(fields[0], ["u1", "u2"], gente), "Jose, Ana");
 assert.equal(displayValue(fields[3], "done"), "Hecho"); // estado -> etiqueta, no el id
 assert.equal(displayValue(f("adj", "files"), [{ id: "a", url: "/x", name: "acta.pdf" }]), "acta.pdf");
+// Lugar: nombre si lo hay; si no, las coordenadas; nunca "[object Object]"
+assert.equal(displayValue(f("sitio", "location"), { nombre: "Casa", lat: 40.4, lng: -3.7 }), "Casa");
+assert.equal(displayValue(f("sitio", "location"), { lat: 40.4, lng: -3.7 }), "40.4, -3.7");
 
 // --- Agrupación de la tabla ---
 const grupos = groupBy(records, fields[3], gente); // por Estado

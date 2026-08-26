@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Pencil, Trash2, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
+import { LugarCell } from "./LugarCell";
 import { confirmar } from "@/components/Confirmar";
 import { RichText, tieneFormato } from "@/lib/mdInline";
 import { dateValue, formatDate, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
@@ -129,6 +130,10 @@ export function Cell({
 
   if (field.type === "date") {
     return <DateCell field={field} value={value} onCommit={onCommit} />;
+  }
+
+  if (field.type === "location") {
+    return <LugarCell value={value} onCommit={onCommit} />;
   }
 
   // url / email / phone: input con tipo adecuado + enlace clicable si hay valor

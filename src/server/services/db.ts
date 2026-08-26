@@ -25,7 +25,7 @@ export type Scope = { db: DB; workspaceId: string; userId?: string | null };
 
 export const FIELD_TYPES = [
   "text", "number", "select", "multiselect", "status", "person", "files", "checkbox",
-  "date", "url", "email", "phone", "created_time", "last_edited_time", "created_by",
+  "date", "url", "email", "phone", "location", "created_time", "last_edited_time", "created_by",
   "last_edited_by", "id", "button",
 ] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
