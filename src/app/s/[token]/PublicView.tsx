@@ -21,6 +21,7 @@ export function PublicView({
   table,
   dbTables,
   token,
+  font,
   back,
 }: {
   title: string;
@@ -31,11 +32,13 @@ export function PublicView({
   dbTables: Record<string, PublicDbTable>;
   /** Token público: las menciones de página enlazan a /s/<token>/<id>. */
   token: string;
+  /** Estilo tipográfico de la página (Page.font); null en BD. */
+  font?: string | null;
   /** En una subpágina, el enlace de vuelta a la raíz publicada. */
   back?: { href: string; title: string };
 }) {
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh" data-font={font ?? undefined}>
       {cover && <div className="h-40 w-full" style={coverStyle(cover)} />}
       <div className={`mx-auto max-w-3xl px-4 pb-10 md:px-12 ${cover ? "pt-3" : "pt-10 md:pt-16"}`}>
         {back && (

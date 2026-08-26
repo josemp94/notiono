@@ -38,6 +38,7 @@ export default async function PublicSubpage({
       table={table}
       dbTables={dbTables}
       token={token}
+      font={page.type === "database" ? null : page.font}
       back={page.id === root.id ? undefined : { href: `/s/${token}`, title: root.title || "Sin título" }}
     />
   );

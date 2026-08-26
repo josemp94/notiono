@@ -20,6 +20,7 @@ export default async function PublicShare({ params }: { params: Promise<{ token:
       table={table}
       dbTables={dbTables}
       token={token}
+      font={page.type === "database" ? null : page.font}
     />
   );
 }
