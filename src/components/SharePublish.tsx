@@ -121,6 +121,9 @@ export function ShareButton({ pageId, publicToken }: { pageId: string; publicTok
   const invalidate = () => utils.pages.get.invalidate({ id: pageId });
   const publish = trpc.pages.publish.useMutation({ onSuccess: invalidate });
   const unpublish = trpc.pages.unpublish.useMutation({ onSuccess: invalidate });
+  const setOptions = trpc.pages.setPublicOptions.useMutation({ onSuccess: invalidate });
+  // Caducidad y contraseña actuales (pages.get ya está en caché por la propia página).
+  const { data: pagina } = trpc.pages.get.useQuery({ id: pageId }, { enabled: open && !!publicToken });
 
   useEffect(() => {
     if (!open) return;
@@ -199,6 +202,51 @@ export function ShareButton({ pageId, publicToken }: { pageId: string; publicTok
                   "Copiar"
                 )}
               </button>
+            </div>
+          )}
+          {/* Opciones del enlace público, como en Notion: caducidad y contraseña. */}
+          {url && (
+            <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-3">
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-[var(--muted)]">Caduca al acabar el día</span>
+                <input
+                  type="date"
+                  key={String(pagina?.publicExpiresAt ?? "")}
+                  defaultValue={
+                    pagina?.publicExpiresAt ? new Date(pagina.publicExpiresAt).toISOString().slice(0, 10) : ""
+                  }
+                  onChange={(e) => setOptions.mutate({ id: pageId, expiresAt: e.target.value || null })}
+                  className="rounded border border-[var(--border)] bg-transparent px-1.5 py-1 text-xs outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="shrink-0 text-[var(--muted)]">Contraseña</span>
+                <span className="flex min-w-0 items-center gap-1">
+                  <input
+                    type="text"
+                    placeholder={pagina?.hasPublicPassword ? "guardada — escribe para cambiarla" : "sin contraseña"}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      const v = (e.target as HTMLInputElement).value.trim();
+                      if (v) {
+                        setOptions.mutate({ id: pageId, password: v });
+                        (e.target as HTMLInputElement).value = "";
+                      }
+                    }}
+                    className="w-40 min-w-0 rounded border border-[var(--border)] bg-transparent px-1.5 py-1 text-xs outline-none placeholder:text-[var(--muted)] focus:border-brand"
+                    title="Escribe la contraseña y pulsa Enter"
+                  />
+                  {pagina?.hasPublicPassword && (
+                    <button
+                      onClick={() => setOptions.mutate({ id: pageId, password: null })}
+                      className="shrink-0 text-xs text-[var(--muted)] hover:text-red-500"
+                      title="Quitar la contraseña"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </span>
+              </label>
             </div>
           )}
         </div>

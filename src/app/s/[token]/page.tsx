@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+import { publicCookieName, publicCookieValue } from "@/server/publicAuth";
+import { PasswordGate } from "./PasswordGate";
 import { cellToText, peopleOf } from "@/server/services/cells";
 import type { PublicDbTable } from "@/components/editor/databaseBlock";
 import { PublicView } from "./PublicView";
@@ -44,6 +47,14 @@ export default async function PublicShare({ params }: { params: Promise<{ token:
   const { token } = await params;
   const page = await db.page.findUnique({ where: { publicToken: token } });
   if (!page || page.archivedAt) notFound();
+  // Enlace caducado = enlace muerto, indistinguible de no publicado.
+  if (page.publicExpiresAt && page.publicExpiresAt < new Date()) notFound();
+  // Con contraseña: sin la cookie firmada (atada al hash), la puerta.
+  if (page.publicPassword) {
+    const jar = await cookies();
+    const valida = jar.get(publicCookieName(token))?.value === publicCookieValue(token, page.publicPassword);
+    if (!valida) return <PasswordGate token={token} />;
+  }
 
   let table: PublicDbTable | null = null;
   if (page.type === "database") {

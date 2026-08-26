@@ -97,6 +97,8 @@ model Page {
   content     Json?     // documento de bloques (BlockNote) si type=doc
   ydoc        Bytes? // estado Yjs para la edición simultánea (el contenido legible sigue en content)
   publicToken String?   @unique // si no es null, la página está publicada en la web (/s/<token>)
+  publicExpiresAt DateTime? // caducidad del enlace público (null = no caduca)
+  publicPassword  String?   // hash bcrypt; el enlace público pide esta contraseña
   restricted  Boolean   @default(false) // corta la herencia: solo entra quien esté en PagePermission (y owner/admin)
   archivedAt  DateTime?
   archivedById String? // quién la envió a la papelera (se limpia al restaurar)

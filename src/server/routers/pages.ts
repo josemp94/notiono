@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { hash } from "bcryptjs";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
@@ -200,7 +201,9 @@ export const pagesRouter = router({
       const autor = ultima?.authorId
         ? await ctx.db.user.findUnique({ where: { id: ultima.authorId }, select: { name: true, email: true } })
         : null;
-      return { ...page, nivel, editadoPor: autor ? autor.name || autor.email : null };
+      // El hash de la contraseña pública no viaja al cliente; solo si existe.
+      const { publicPassword, ...resto } = page;
+      return { ...resto, hasPublicPassword: !!publicPassword, nivel, editadoPor: autor ? autor.name || autor.email : null };
     }),
 
   /**
@@ -480,6 +483,31 @@ export const pagesRouter = router({
         url: `/s/${publicada.publicToken}`,
       });
       return publicada;
+    }),
+
+  /** Opciones del enlace público: caducidad y contraseña, como Notion. Solo se
+   *  tocan los campos presentes en el input; null los quita. */
+  setPublicOptions: workspaceProcedure
+    .input(z.object({
+      id: z.string(),
+      expiresAt: z.string().nullable().optional(), // "2026-09-01" (caduca al ACABAR ese día) o null
+      password: z.string().max(100).nullable().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id, "full");
+      const data: { publicExpiresAt?: Date | null; publicPassword?: string | null } = {};
+      if (input.expiresAt !== undefined) {
+        data.publicExpiresAt = input.expiresAt ? new Date(`${input.expiresAt}T23:59:59`) : null;
+      }
+      if (input.password !== undefined) {
+        data.publicPassword = input.password ? await hash(input.password, 10) : null;
+      }
+      const p = await ctx.db.page.update({
+        where: { id: input.id },
+        data,
+        select: { id: true, publicExpiresAt: true, publicPassword: true },
+      });
+      return { id: p.id, publicExpiresAt: p.publicExpiresAt, hasPublicPassword: !!p.publicPassword };
     }),
 
   /** Retira la página de la web (invalida la URL pública). */
