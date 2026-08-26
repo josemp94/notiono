@@ -321,7 +321,7 @@ columnas interactivas, synced block y ecuaciones.
 | Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx`; «por X» con `Page.archivedById` (tanda 15) | — | — |
 | Icono de página | Emoji **o imagen subida** | ✅ | «Subir una imagen» + `IconoPagina` en todos los sitios con icono (tanda 25) | — | — |
 | Portada: reposicionar + galería (Unsplash) | Crop/offset | ✅ | «Reposicionar» arrastrando (`url:…|y=`, tanda 26); la galería Unsplash queda fuera (autoalojado sin llamadas a terceros) | — | — |
-| Home/Inicio con widgets | Recientes, tareas, eventos | ❌ | `(app)/page.tsx:7-23` redirige a la primera página; `/my-tasks` cubre parte | P2 | L |
+| Home/Inicio con widgets | Recientes, tareas, eventos | ✅ | `/` es el Inicio (tanda 30): saludo por hora, Recientes (localStorage) y Mis tareas (top 6 + «Ver todas»); enlace «Inicio» en el panel. Sin ocultar/reordenar widgets (cuando se eche en falta) | — | — |
 | Wiki (página verificada) | Verificación con caducidad | ❌ | No existe (nicho para familia) | P2 | L |
 | Duplicar página con copia profunda | — | ✅ | `pages.ts:448-474,575-681` con remapeo de IDs | — | — |
 | Copiar enlace privado (botón) | En menú y cabecera | ✅ | «Copiar enlace» en el menú ⋯ de la página (tanda 23) | — | — |
