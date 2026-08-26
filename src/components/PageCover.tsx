@@ -17,12 +17,21 @@ const GRADIENTS: Record<string, string> = {
   lavender: "linear-gradient(135deg, #a18cd1, #fbc2eb)",
 };
 
+/** Separa una portada "url:<src>|y=<0-100>" en imagen y desplazamiento vertical. */
+export function coverParts(cover: string): { src: string; y: number } | null {
+  if (!cover.startsWith("url:")) return null;
+  const raw = cover.slice(4);
+  const m = raw.match(/^(.*)\|y=(\d{1,3})$/);
+  return m ? { src: m[1], y: Math.min(100, Number(m[2])) } : { src: raw, y: 50 };
+}
+
 export function coverStyle(cover: string): React.CSSProperties {
-  if (cover.startsWith("url:")) {
+  const img = coverParts(cover);
+  if (img) {
     return {
-      backgroundImage: `url(${cover.slice(4)})`,
+      backgroundImage: `url(${img.src})`,
       backgroundSize: "cover",
-      backgroundPosition: "center",
+      backgroundPosition: `center ${img.y}%`,
     };
   }
   return { background: GRADIENTS[cover.replace(/^gradient:/, "")] ?? GRADIENTS.sunset };
@@ -145,38 +154,100 @@ export function CoverBand({
   editable: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const img = coverParts(cover);
+  // Modo «Reposicionar» (solo imágenes): null = normal; número = y provisional.
+  const [reponiendo, setReponiendo] = useState<number | null>(null);
+  const y = reponiendo ?? img?.y ?? 50;
+
+  // Arrastre vertical: la imagen sigue al cursor (como Notion). El listener va
+  // en window para no perder el arrastre al salir de la banda.
+  const arrastrar = (e: React.PointerEvent) => {
+    if (reponiendo === null) return;
+    e.preventDefault();
+    const alto = (e.currentTarget as HTMLElement).clientHeight || 160;
+    const y0 = y;
+    const py0 = e.clientY;
+    const move = (ev: PointerEvent) =>
+      setReponiendo(Math.max(0, Math.min(100, Math.round(y0 - ((ev.clientY - py0) / alto) * 100))));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
-    <div className="group/cover relative h-40 w-full" style={coverStyle(cover)}>
+    <div
+      className={`group/cover relative h-40 w-full ${reponiendo !== null ? "cursor-grab touch-none select-none" : ""}`}
+      style={coverStyle(reponiendo !== null && img ? `url:${img.src}|y=${y}` : cover)}
+      onPointerDown={arrastrar}
+    >
+      {reponiendo !== null && (
+        <span className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
+          Arrastra la imagen para recolocarla
+        </span>
+      )}
       {editable && (
         <div
           // .al-pasar (salvo abierto): con opacity-0 a pelo, en táctil los
           // botones de la portada eran invisibles.
-          className={`absolute bottom-2 right-4 flex gap-1 ${open ? "" : "al-pasar"}`}
+          className={`absolute bottom-2 right-4 flex gap-1 ${open || reponiendo !== null ? "" : "al-pasar"}`}
         >
-          <div className="relative">
-            <button
-              onClick={() => setOpen((o) => !o)}
-              className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
-            >
-              Cambiar portada
-            </button>
-            {open && (
-              <CoverPicker
-                align="right"
-                onPick={(c) => {
-                  onChange(c);
-                  setOpen(false);
+          {reponiendo !== null ? (
+            <>
+              <button
+                onClick={() => {
+                  onChange(`url:${img!.src}|y=${y}`);
+                  setReponiendo(null);
                 }}
-                onClose={() => setOpen(false)}
-              />
-            )}
-          </div>
-          <button
-            onClick={() => onChange(null)}
-            className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
-          >
-            Quitar
-          </button>
+                className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
+              >
+                Guardar posición
+              </button>
+              <button
+                onClick={() => setReponiendo(null)}
+                className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
+              >
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <>
+              {img && (
+                <button
+                  onClick={() => setReponiendo(img.y)}
+                  className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
+                >
+                  Reposicionar
+                </button>
+              )}
+              <div className="relative">
+                <button
+                  onClick={() => setOpen((o) => !o)}
+                  className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
+                >
+                  Cambiar portada
+                </button>
+                {open && (
+                  <CoverPicker
+                    align="right"
+                    onPick={(c) => {
+                      onChange(c);
+                      setOpen(false);
+                    }}
+                    onClose={() => setOpen(false)}
+                  />
+                )}
+              </div>
+              <button
+                onClick={() => onChange(null)}
+                className="rounded-md bg-black/40 px-2 py-1 text-xs text-white hover:bg-black/60"
+              >
+                Quitar
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
