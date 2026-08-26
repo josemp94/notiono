@@ -69,6 +69,7 @@ assert.ok(opsFor("rollup").some((o) => o.value === "contains"));
 
 // Diff del historial: aplanar bloques a líneas y LCS por líneas.
 import { diffLineas, lineasDe } from "../src/lib/diff";
+import { aplanarParaExport } from "../src/lib/exportBloques";
 {
   const bloques = [
     { type: "paragraph", content: [{ text: "Hola" }] },
@@ -199,6 +200,28 @@ const gente = new Map([["u1", "Jose"], ["u2", "Ana"]]);
 assert.equal(displayValue(fields[0], ["u1", "u2"], gente), "Jose, Ana");
 assert.equal(displayValue(fields[3], "done"), "Hecho"); // estado -> etiqueta, no el id
 assert.equal(displayValue(f("adj", "files"), [{ id: "a", url: "/x", name: "acta.pdf" }]), "acta.pdf");
+// Aplanador del export: columnas en secuencia y BD embebida como enlace
+{
+  const doc = [
+    { type: "paragraph", content: "hola" },
+    {
+      type: "columnList",
+      children: [
+        { type: "column", children: [{ type: "paragraph", content: "izquierda" }] },
+        { type: "column", children: [{ type: "paragraph", content: "derecha" }] },
+      ],
+    },
+    { type: "database", props: { pageId: "p7", collectionId: "c7" } },
+  ];
+  const plano = aplanarParaExport(doc) as { type: string; content?: unknown }[];
+  assert.deepEqual(plano.map((b) => b.type), ["paragraph", "paragraph", "paragraph", "paragraph"]);
+  assert.equal((plano[1] as { content?: string }).content, "izquierda");
+  assert.equal((plano[2] as { content?: string }).content, "derecha");
+  const enlace = (plano[3].content as { type: string; href: string }[])[0];
+  assert.equal(enlace.type, "link");
+  assert.ok(enlace.href.endsWith("/p/p7"));
+}
+
 // Lugar: nombre si lo hay; si no, las coordenadas; nunca "[object Object]"
 assert.equal(displayValue(f("sitio", "location"), { nombre: "Casa", lat: 40.4, lng: -3.7 }), "Casa");
 assert.equal(displayValue(f("sitio", "location"), { lat: 40.4, lng: -3.7 }), "40.4, -3.7");

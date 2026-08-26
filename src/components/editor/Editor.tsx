@@ -39,6 +39,7 @@ import { emptyColumn } from "./columnBlock";
 import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
 import { downloadText } from "@/lib/download";
+import { editorParaExport } from "./bloquesExport";
 import { useTheme } from "@/lib/theme";
 import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
@@ -275,7 +276,11 @@ export function Editor({
         )}
         <button
           onClick={() =>
-            downloadText(`${title.trim() || "Sin título"}.md`, editor.blocksToMarkdownLossy(editor.document), "text/markdown")
+            (() => {
+              // Por el aplanador: columnas en secuencia y BD embebidas como enlace.
+              const ed = editorParaExport(editor.document);
+              downloadText(`${title.trim() || "Sin título"}.md`, ed.blocksToMarkdownLossy(ed.document), "text/markdown");
+            })()
           }
           className="flex items-center gap-1 rounded px-1.5 hover:bg-[var(--hover)]"
           title="Exportar a Markdown"
