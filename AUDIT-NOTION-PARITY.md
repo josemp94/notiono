@@ -392,7 +392,7 @@ columnas interactivas, synced block y ecuaciones.
 | Importar MD / CSV | + frontmatter, tipos autodetectados, a BD existente | ✅ | MD y CSV con tipos autodetectados (`3af6270`) + **CSV a BD existente** (botón de subir en la barra de la BD, `importCsvInto` en el servicio: cabeceras por nombre, columnas y opciones nuevas al vuelo — tanda 25) | — | — |
 | Importar HTML / Word / Evernote / Trello | Soportados | ❌ | No existen | P2 | L |
 | Exportar página con subpáginas (ZIP) | Árbol completo + imágenes | ✅ | `pages.exportTree` + `lib/exportZip.ts` (MD+CSV+adjuntos, tanda 12) | — | — |
-| Exportar PDF / HTML | Por página o árbol | ❌ | No existe | P2 | M |
+| Exportar PDF / HTML | Por página o árbol | ⚠️ | HTML ✅ («Exportar HTML» en el menú ⋯: .html autocontenido con blocksToHTMLLossy — tanda 26); PDF = imprimir la página, pendiente hoja @media print | P2 | S |
 | Backup del workspace completo | Export total | ✅ | Ajustes → Copia de seguridad (mismo export con pageId null, tanda 12) | — | — |
 | API: CRUD de páginas/BD/campos/vistas/registros | — | ✅ | `src/app/api/v1/**`, `docs/api.md` al día | — | — |
 | **API: paginación** | Cursor + `page_size` | ✅ | `GET /databases/:id/records?limit&cursor` con `next_cursor`/`has_more` (`5d01eb3`, probado en check-api) | — | — |
