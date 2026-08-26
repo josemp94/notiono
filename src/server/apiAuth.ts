@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { ZodError } from "zod";
 import { hashApiToken } from "./routers/apiTokens";
+import { ipDe, permitido } from "./ratelimit";
 import { DbError } from "./services/db";
 
 export const jsonError = (status: number, error: string) =>
@@ -19,11 +20,20 @@ export async function authApiRequest(
   if (token) {
     const t = await db.apiToken.findUnique({ where: { tokenHash: hashApiToken(token) } });
     if (t) {
+      // Freno a scripts desbocados: 240 peticiones por minuto y token, de sobra
+      // para cualquier integración casera y un tapón para un bucle sin control.
+      if (!permitido(`api:${t.id}`, 240, 60_000)) {
+        return jsonError(429, "Demasiadas peticiones con este token; espera un momento.");
+      }
       await db.apiToken.update({ where: { id: t.id }, data: { lastUsed: new Date() } });
       // Quien creó el token responde de lo que se haga con él: así lo hecho por API
       // queda firmado con un nombre y no aparece como salido de la nada.
       return { workspaceId: t.workspaceId, userId: t.createdById };
     }
+  }
+  // Fuerza bruta de tokens: 30 fallos de autenticación por IP cada 10 minutos.
+  if (!permitido(`api-fallo:${ipDe(req)}`, 30, 10 * 60_000)) {
+    return jsonError(429, "Demasiados intentos fallidos; espera un momento.");
   }
   return jsonError(401, "Token inválido o ausente. Usa 'Authorization: Bearer <token>'.");
 }

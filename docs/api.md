@@ -11,6 +11,9 @@ Ojo: el token es de **espacio completo** — los permisos por página (páginas
 restringidas) no se aplican a la API v1. No des un token a quien no deba ver todo el
 espacio.
 
+Límites: **240 peticiones/minuto por token** y **30 fallos de autenticación por IP
+cada 10 minutos** → `429`. En memoria por proceso (la app corre en un contenedor).
+
 Todas las llamadas llevan la cabecera:
 
 ```
