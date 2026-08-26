@@ -352,7 +352,7 @@ columnas interactivas, synced block y ecuaciones.
 | Publicar: duplicar-como-plantilla, SEO, caducidad, contraseña | Opciones del share público | ⚠️ | Caducidad + contraseña ✅ (cookie HMAC atada al hash, rate limit; tanda 26); duplicar-como-plantilla y SEO no (nicho autoalojado) | P2 | M |
 | Subpáginas públicas navegables | El share incluye hijos | ✅ | /s/<token>/<pageId> para descendientes vivas, con la puerta/caducidad de la raíz; las menciones enlazan en público vía PublicBaseContext (tanda 26) | — | — |
 | Feed «Actualizaciones» por página + Editado por X hace Y | Actividad visible | ❌ | Solo versiones; sin `lastEditedBy` visible en cabecera | P2 | M |
-| Seguir página (watch) | Aviso de cambios | ❌ | Sin modelo de suscripción | P2 | M |
+| Seguir página (watch) | Aviso de cambios | ✅ | Campana en la cabecera + PageFollow; aviso y push al editar otro, anti-duplicados por sin-leer (tanda 26) | — | — |
 | Push reales + diagnóstico | — | ✅ | `push.ts:39-71`, `api/health`, Ajustes→Estado (`settings/page.tsx:220-246`) | — | — |
 
 ---
