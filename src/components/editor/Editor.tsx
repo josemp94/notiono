@@ -40,6 +40,7 @@ import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
 import { downloadText } from "@/lib/download";
 import { editorParaExport } from "./bloquesExport";
+import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
 import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
@@ -167,6 +168,14 @@ export function Editor({
       : { dictionary: es, schema: editorSchema, initialContent: initial, uploadFile: subirArchivo },
     [collab],
   );
+
+  // Soltar un bloque en la franja lateral de otro crea columnas (ver columnDrop.ts).
+  const zonaDropColumnas = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = zonaDropColumnas.current;
+    if (!el || !canEdit) return;
+    return instalarDropDeColumnas(editor as never, el);
+  }, [editor, canEdit]);
 
   // Estrenar el documento compartido con lo que ya tenía la página. Lo hace el
   // navegador porque la conversión necesita el esquema del editor, y solo la
@@ -310,6 +319,7 @@ export function Editor({
         />
       </div>
 
+      <div ref={zonaDropColumnas}>
       <BlockNoteView
         editor={editor}
         editable={canEdit}
@@ -480,6 +490,7 @@ export function Editor({
           }
         />
       </BlockNoteView>
+      </div>
       <Backlinks pageId={pageId} />
       </div>
     </div>

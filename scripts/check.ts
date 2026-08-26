@@ -70,6 +70,7 @@ assert.ok(opsFor("rollup").some((o) => o.value === "contains"));
 // Diff del historial: aplanar bloques a líneas y LCS por líneas.
 import { diffLineas, lineasDe } from "../src/lib/diff";
 import { aplanarParaExport } from "../src/lib/exportBloques";
+import { aplicarDrop } from "../src/components/editor/columnDrop";
 {
   const bloques = [
     { type: "paragraph", content: [{ text: "Hola" }] },
@@ -200,6 +201,86 @@ const gente = new Map([["u1", "Jose"], ["u2", "Ana"]]);
 assert.equal(displayValue(fields[0], ["u1", "u2"], gente), "Jose, Ana");
 assert.equal(displayValue(fields[3], "done"), "Hecho"); // estado -> etiqueta, no el id
 assert.equal(displayValue(f("adj", "files"), [{ id: "a", url: "/x", name: "acta.pdf" }]), "acta.pdf");
+// Crear columnas soltando un bloque al lado de otro (drag del tirador)
+{
+  type Blq = { id: string; type: string; children: Blq[]; content?: string };
+  const p = (id: string, content: string): Blq => ({ id, type: "paragraph", content, children: [] });
+  // Editor falso: los cinco métodos que usa aplicarDrop, sobre un array llano.
+  const editorFalso = (doc: Blq[]) => {
+    let n = 0;
+    const conIds = (bs: Partial<Blq>[]): Blq[] =>
+      bs.map((b) => ({ content: undefined, ...b, id: b.id ?? `x${++n}`, children: conIds(b.children ?? []) }) as Blq);
+    const buscar = (id: string, list: Blq[] = doc): Blq | undefined => {
+      for (const b of list) {
+        if (b.id === id) return b;
+        const h = buscar(id, b.children);
+        if (h) return h;
+      }
+      return undefined;
+    };
+    const listaDe = (id: string, list: Blq[] = doc): Blq[] | null => {
+      if (list.some((b) => b.id === id)) return list;
+      for (const b of list) {
+        const s = listaDe(id, b.children);
+        if (s) return s;
+      }
+      return null;
+    };
+    const quitar = (id: string) => {
+      const l = listaDe(id);
+      if (l) l.splice(l.findIndex((b) => b.id === id), 1);
+    };
+    return {
+      get document() { return doc; },
+      getBlock: (id: string) => buscar(id),
+      removeBlocks: (ids: string[]) => ids.forEach(quitar),
+      replaceBlocks: (ids: string[], blocks: Partial<Blq>[]) => {
+        const l = listaDe(ids[0]);
+        if (!l) return;
+        l.splice(l.findIndex((b) => b.id === ids[0]), 1, ...conIds(blocks));
+        ids.slice(1).forEach(quitar);
+      },
+      insertBlocks: (blocks: Partial<Blq>[], refId: string, pos: "before" | "after") => {
+        const l = listaDe(refId);
+        if (!l) return;
+        const i = l.findIndex((b) => b.id === refId);
+        l.splice(pos === "before" ? i : i + 1, 0, ...conIds(blocks));
+      },
+    };
+  };
+  const forma = (doc: Blq[]): string[] =>
+    doc.map((b) => (b.type === "columnList" ? `lista(${b.children.map((c) => c.children.map((h) => h.content).join("+")).join("|")})` : String(b.content)));
+
+  // Soltar b1 a la derecha de b2: columnList con el objetivo a la izquierda.
+  const d1 = [p("b1", "uno"), p("b2", "dos"), p("b3", "tres")];
+  assert.equal(aplicarDrop(editorFalso(d1) as never, "b1", "b2", "der"), true);
+  assert.deepEqual(forma(d1), ["lista(dos|uno)", "tres"]);
+  // Y las copias re-anidadas estrenan id (reinsertar el mismo id confunde a BlockNote).
+  const ids1 = d1[0].children.flatMap((c) => c.children.map((h) => h.id));
+  assert.ok(!ids1.includes("b1") && !ids1.includes("b2"));
+
+  // Soltar en la franja de un columnList añade columna en ese borde.
+  assert.equal(aplicarDrop(editorFalso(d1) as never, "b3", d1[0].id, "izq"), true);
+  assert.deepEqual(forma(d1), ["lista(tres|dos|uno)"]);
+
+  // Guardas: sobre sí mismo o con ids desconocidos, ni tocar.
+  const d2 = [p("b1", "uno"), p("b2", "dos")];
+  assert.equal(aplicarDrop(editorFalso(d2) as never, "b1", "b1", "der"), false);
+  assert.equal(aplicarDrop(editorFalso(d2) as never, "nadie", "b2", "der"), false);
+  assert.deepEqual(forma(d2), ["uno", "dos"]);
+
+  // Vaciar una columna desenvuelve el columnList que se queda con una sola.
+  const d3: Blq[] = [
+    { id: "L", type: "columnList", children: [
+      { id: "c1", type: "column", children: [p("p1", "izquierda")] },
+      { id: "c2", type: "column", children: [p("p2", "derecha")] },
+    ] },
+    p("b3", "suelto"),
+  ];
+  assert.equal(aplicarDrop(editorFalso(d3) as never, "p1", "b3", "der"), true);
+  assert.deepEqual(forma(d3), ["derecha", "lista(suelto|izquierda)"]);
+}
+
 // Aplanador del export: columnas en secuencia y BD embebida como enlace
 {
   const doc = [
