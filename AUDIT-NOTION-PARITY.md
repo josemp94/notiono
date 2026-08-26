@@ -344,7 +344,7 @@ columnas interactivas, synced block y ecuaciones.
 | Comentarios de página + inline con resolver | — | ✅ | `CommentsPanel.tsx`, `YjsThreadStore` (`useCollaboration.ts:111-116`) | — | — |
 | Respuestas anidadas + reacciones emoji | En cualquier comentario | ⚠️ | Reacciones ✅ (`Comment.reactions` + pills con toggle, tanda 26); respuestas anidadas no (el hilo plano cubre a una familia) | P2 | M |
 | Editar comentario propio | Editar además de borrar | ✅ | `comments.edit` + lápiz inline (`7eb2fee`) | — | — |
-| @mención dentro de un comentario | Notifica | ❌ | El body del comentario es texto plano | P2 | M |
+| @mención dentro de un comentario | Notifica | ✅ | «@Nombre» casa contra los miembros (sin mayúsculas/acentos) y avisa con push al hilo (tanda 26); sin autocompletar (texto plano a propósito) | — | — |
 | Comentarios en filas/celdas de BD | Discusión por registro | ✅ | `Comment.recordId` + sección Comentarios en la ficha (`CommentThread`, tanda 11); por celda/propiedad no (nicho) | — | — |
 | **Permisos por página** | Total/editar/comentar/ver + herencia + restaurar | ✅ | `Page.restricted` + `PagePermission`, `services/perms.ts`, impuesto en pages/db/comments/colaboración (`16350aa`); API v1 exenta (token de espacio) | — | — |
 | Invitados externos por página | Email con acceso a UNA página | ❌ | Solo invitación al workspace | P1 | L |
