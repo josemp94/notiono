@@ -268,7 +268,7 @@ columnas interactivas, synced block y ecuaciones.
 | Kanban — ocultar columnas de grupo, agregados por columna, subagrupar | — | ✅ | Agregados (`kanbanSum`, tanda 12), ocultar columnas (`hiddenGroups`, tanda 15) y subagrupar en carriles plegables («Carriles por», `subGroupByFieldId`, tanda 18) | — | — |
 | **Timeline** — zoom (día/semana/mes/trimestre/año) | Selector de escala | ✅ | Mes/Trimestre/Año con bandas de mes (`2ef0a92`) | — | — |
 | Timeline — arrastrar para mover/redimensionar/crear | Interacción directa con barras | ✅ | Mover arrastrando + tirador de duración + línea de hoy (`2ef0a92`); crear arrastrando no | — | — |
-| Timeline — dependencias (flechas) + tabla lateral | Ambas | ⚠️ | Tabla lateral ✅: columna de títulos fija (sticky) + sección «Sin fecha» con «Planificar hoy» (tanda 16); dependencias no (nicho familia) | P2 | L |
+| Timeline — dependencias (flechas) + tabla lateral | Ambas | ✅ | Tabla lateral (tanda 16) + dependencias (tanda 29): relación de la BD consigo misma («Dependencias» en la barra, con «+ Crear campo Bloqueada por»), flechas SVG con codo/rodeo y crear arrastrando del puntito a otra barra; mover no desplaza dependientes (como Notion por defecto) | — | — |
 | Timeline — hoy marcado + botón Hoy | — | ✅ | `TimelineView.tsx:91-93,138` | — | — |
 | **Calendario** — vista semana | Toggle mes/semana | ✅ | Toggle guardado en la vista (`bab6708`) | — | — |
 | Calendario — arrastrar evento para cambiar fecha; crear arrastrando | Drag&drop | ✅ | Arrastrar a otro día conserva hora y duración (`2ef0a92`); crear sigue con el + | — | — |

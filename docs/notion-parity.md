@@ -73,6 +73,7 @@ Hecho:
 - ✅ **Panel de registro** lateral (`RecordPanel.tsx`) con propiedades editables + cuerpo de bloques, en Tabla, Calendario, Cronograma, Galería y Lista.
 - ✅ Renombrar/borrar vista, «Mostrar como», exportar CSV, campo de fecha del Calendario, inicio/fin del Cronograma, config de Gráfica (barras/líneas/tarta/donut × contar/sumar/media).
 - ✅ **Cronograma con tabla lateral fija** (los títulos no se van con el scroll horizontal; clic abre la ficha) y sección **«Sin fecha»** con «Planificar hoy».
+- ✅ **Dependencias en el Cronograma**: flechas entre tareas vía una relación de la BD consigo misma (selector «Dependencias» con «+ Crear campo Bloqueada por»); se crean arrastrando del puntito del fin de una barra a otra barra y se quitan desde la ficha.
 
 Falta:
 - ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla y en el Kanban (carriles horizontales plegables). En el Kanban, además, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).
@@ -105,7 +106,7 @@ Falta:
 - ✅ **Bases de datos embebidas** en una página (bloque `database`, `db.createInline`).
 - ✅ Fila como página (`Record.content` con editor de bloques completo).
 - ✅ Import/export CSV.
-- ✅ **Comentarios de fila** (`Comment.recordId`, hilo en la ficha). ❌ Dependencias en el Cronograma, bloquear base de datos, comentarios por propiedad.
+- ✅ **Comentarios de fila** (`Comment.recordId`, hilo en la ficha). ❌ Comentarios por propiedad.
 
 ---
 
