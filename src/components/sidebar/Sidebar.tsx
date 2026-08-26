@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BlockNoteEditor } from "@blocknote/core";
-import { Bell, ChevronDown, ChevronRight, CircleCheck, Copy, Database, FilePlus, FileText, Folder, FolderInput, Keyboard, Link2, Loader2, Moon, MoreHorizontal, PanelLeftClose, Plus, Search, Settings, Sparkles, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, CircleCheck, Copy, Database, FilePlus, FileText, Folder, FolderInput, House, Keyboard, Link2, Loader2, Moon, MoreHorizontal, PanelLeftClose, Plus, Search, Settings, Sparkles, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { emojiIcono, IconoPagina } from "@/components/PageIcon";
 import { openShortcuts } from "@/components/Shortcuts";
@@ -250,6 +250,13 @@ export function Sidebar() {
       {showTemplates && <TemplatesGallery onClose={() => setShowTemplates(false)} />}
 
       <nav className="flex-1 overflow-y-auto px-2 pb-6">
+        {/* Inicio: el Home con saludo, recientes y mis tareas, como en Notion. */}
+        <Link
+          href="/"
+          className="toque-estrecho mb-1 flex items-center gap-2 rounded px-2 py-1 text-sm font-medium text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+        >
+          <House size={15} /> Inicio
+        </Link>
         <Favorites />
         <Tree nodes={byParent.get(null) ?? []} byParent={byParent} parentById={parentById} depth={0} canEdit={canEdit} />
       </nav>
