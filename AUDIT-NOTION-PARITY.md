@@ -205,7 +205,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Bloque sincronizado | Contenido espejado en varias páginas | ❌ | No existe en `editorSchema` (`mention.tsx:57-68`) | P2 | L |
 | Bloque botón | Ejecuta acciones / inserta plantilla | ❌ | No existe | P2 | L |
 | Bloque breadcrumb | Ruta de ancestros en el cuerpo | ❌ | No existe | P2 | M |
-| Mención de fecha `@hoy`/`@fecha` | Inline, con recordatorio opcional | ❌ | `mention.tsx` solo define `mention` (@página) y `personMention` | P2 | M |
+| Mención de fecha `@hoy`/`@fecha` | Inline, con recordatorio opcional | ✅ | Grupo «Fechas» en el menú @ (Hoy/Mañana/25-12); chip `dateMention` con etiqueta relativa al pintar (tanda 23); sin recordatorio (los tiene el campo fecha de BD) | — | — |
 | Menú de bloque (drag handle): Convertir en, Color, Duplicar, Copiar enlace, Comentar | Menú contextual completo por bloque | ⚠️ | «Convertir en» ofrece la Llamada y el tirador tiene Eliminar/Colores/«Copiar enlace al bloque» (tanda 20); toc/bookmark/database se insertan, no se convierten (sin celda de texto) | P2 | S |
 | Colores de texto y fondo (9+9) | Desde el menú de formato y de bloque | ✅ | Verificado en BlockNote 0.53: `ColorStyleButton` en la toolbar y `BlockColorsItem` en el menú de bloque van de serie con `defaultStyleSpecs`; callout con 10 colores `--tag-*` (`calloutBlock.tsx:7-19`) | — | — |
 | Comentario anclado a un bloque | Además del comentario sobre selección | ❌ | Solo selección de texto (`Editor.tsx:88-89`, `FloatingComposerController`) | P2 | L |
@@ -402,7 +402,7 @@ columnas interactivas, synced block y ecuaciones.
 | PWA: manifest + SW + push | — | ✅ | `manifest.ts`, `public/sw.js:38-108` | — | — |
 | PWA: datos de BD offline | Notion cachea lo visitado | ⚠️ | Solo app-shell; docs offline vía y-indexeddb, BD no | P2 | L |
 | Atajos: cobertura | ~15+ (turn-into Ctrl+Shift+0-9, nav Ctrl+[ ], tema) | ⚠️ | 4 globales + los de BlockNote (`AppShell.tsx:36-61`) | P2 | S |
-| Markdown al escribir + `:emoji:` + `@fecha` | En vivo | ⚠️ | BlockNote cubre los básicos (#, -, [], >, ```) y el `:emoji:` YA viene de serie (el default UI monta el emoji picker con «:»; la auditoría lo daba por ausente — corregido tanda 22); sin `@fecha` | P2 | M |
+| Markdown al escribir + `:emoji:` + `@fecha` | En vivo | ⚠️ | BlockNote cubre los básicos (#, -, [], >, ```) y el `:emoji:` YA viene de serie (el default UI monta el emoji picker con «:»; la auditoría lo daba por ausente — corregido tanda 22) y `@fecha` ✅ (tanda 23) | — | — |
 
 \* P0 relativo al objetivo declarado («paridad 1:1 y migrar desde Notion»); si nadie migra datos ni usa la API con BD grandes, tratar como P1.
 
