@@ -92,7 +92,7 @@ export default function PageView() {
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto" data-font={page.type === "database" ? undefined : (page.font ?? "sans")}>
           {page.type === "database" ? (
             <Database
               key={page.id}
@@ -197,8 +197,8 @@ function LockedPill({ pageId, canEdit }: { pageId: string; canEdit: boolean }) {
   );
 }
 
-/** Menú "⋯" de la cabecera: Ancho completo (solo docs) y Mover a…. */
-function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean } }) {
+/** Menú "⋯" de la cabecera: Ancho completo, Estilo (solo docs) y Mover a…. */
+function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string } }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -206,6 +206,7 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
   const ref = useRef<HTMLDivElement>(null);
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
   const setLocked = trpc.pages.setLocked.useMutation();
+  const setFont = trpc.pages.setFont.useMutation();
   const people = usePeople();
 
   async function exportarZip() {
@@ -284,6 +285,31 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
               Ancho completo
               {page.fullWidth && <Check size={14} className="ml-auto text-brand" />}
             </button>
+          )}
+          {/* Estilo (el «Style» de Notion): tipografía del cuerpo y los títulos. */}
+          {page.type !== "database" && (
+            <div className="px-3 py-1.5">
+              <div className="mb-1 text-xs text-[var(--muted)]">Estilo</div>
+              <div className="flex gap-1">
+                {([["sans", "Normal"], ["serif", "Serif"], ["mono", "Mono"]] as const).map(([v, l]) => (
+                  <button
+                    key={v}
+                    onClick={() => {
+                      utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, font: v } : p));
+                      setFont.mutate({ id: page.id, font: v });
+                    }}
+                    className={`flex-1 rounded-md border px-1 py-1 text-center ${
+                      (page.font ?? "sans") === v
+                        ? "border-brand text-brand"
+                        : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    <span className={`block text-base leading-none ${v === "serif" ? "font-serif" : v === "mono" ? "font-mono" : ""}`}>Ag</span>
+                    <span className="text-[10px]">{l}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           <button
             onClick={exportarZip}

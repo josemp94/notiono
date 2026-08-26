@@ -94,6 +94,7 @@ model Page {
   embedded    Boolean   @default(false) // contenedor oculto de una BD embebida en otra página (no sale en el árbol)
   fullWidth   Boolean   @default(false) // el contenido usa todo el ancho (toggle "Ancho completo")
   locked      Boolean   @default(false) // candado anti-ediciones accidentales (cualquiera con edición lo quita, como en Notion)
+  font        String    @default("sans") // tipografía de la página: sans | serif | mono (el «Style» de Notion)
   content     Json?     // documento de bloques (BlockNote) si type=doc
   ydoc        Bytes? // estado Yjs para la edición simultánea (el contenido legible sigue en content)
   publicToken String?   @unique // si no es null, la página está publicada en la web (/s/<token>)

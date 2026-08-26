@@ -365,6 +365,18 @@ export const pagesRouter = router({
       });
     }),
 
+  /** Tipografía de la página (el «Style» de Notion): sans, serif o mono. */
+  setFont: workspaceProcedure
+    .input(z.object({ id: z.string(), font: z.enum(["sans", "serif", "mono"]) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id);
+      return ctx.db.page.update({
+        where: { id: input.id },
+        data: { font: input.font },
+        select: { id: true, font: true },
+      });
+    }),
+
   /** Candado anti-ediciones accidentales: cualquiera con edición lo pone y lo
    *  quita, como en Notion (no es un permiso, es un «no tocar sin querer»). */
   setLocked: workspaceProcedure

@@ -402,3 +402,25 @@ td input[type="tel"] {
     background: transparent;
   }
 }
+
+/* Estilo de página (el «Style» de Notion): Serif o Mono para cuerpo y títulos.
+   Sube por --bn-font-family (el editor) y pisa la regla global de .font-display
+   y h1-h3 (los encabezados y el título de la página). */
+[data-font="serif"] .bn-container {
+  --bn-font-family: Georgia, "Times New Roman", serif;
+}
+[data-font="serif"] .font-display,
+[data-font="serif"] h1,
+[data-font="serif"] h2,
+[data-font="serif"] h3 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+[data-font="mono"] .bn-container {
+  --bn-font-family: var(--font-mono), ui-monospace, monospace;
+}
+[data-font="mono"] .font-display,
+[data-font="mono"] h1,
+[data-font="mono"] h2,
+[data-font="mono"] h3 {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
