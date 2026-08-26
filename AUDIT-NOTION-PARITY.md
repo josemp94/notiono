@@ -377,7 +377,7 @@ columnas interactivas, synced block y ecuaciones.
 | Toast genérico con Deshacer | Sistema de toasts | ✅ | `Toast.tsx` (host en AppShell); borrar fila suelta/lote/ficha con «Deshacer» y sin confirmación (tanda 13) | — | — |
 | Modo oscuro base, scrollbars, focus, z-index, iconos lucide, headings responsive, táctil 40px | — | ✅ | `globals.css:20-77,232-260`; z-index ordenado | — | — |
 | Página pública /s/ con tema | — | ✅ | `PublicView.tsx:30-50` | — | — |
-| Drag&drop: ghost/indicadores | Línea de inserción + ghost | ⚠️ | Línea sí (`Sidebar.tsx:783-789`); sin ghost | P2 | S |
+| Drag&drop: ghost/indicadores | Línea de inserción + ghost | ✅ | Línea + foto nativa del drag HTML5 + la fila de origen se atenúa al arrastrar (árbol y favoritos, tanda 27) | — | — |
 | Indicador de guardado | «Guardando…/Guardado» visible | ✅ | Se muestra en la barra del editor (`Editor.tsx:188-194`; la fila estaba desfasada) | — | — |
 
 ---
