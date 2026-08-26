@@ -26,6 +26,7 @@ model User {
   pushSubscriptions PushSubscription[]
   pagePermissions   PagePermission[]
   archivedPages     Page[]         @relation("archivedPages")
+  pageFollows       PageFollow[]
 }
 
 /**
@@ -114,8 +115,21 @@ model Page {
   notifications Notification[]
   favorites   Favorite[]
   permissions PagePermission[]
+  followers   PageFollow[]
 
   @@index([workspaceId, parentId])
+}
+
+// Quien sigue una página recibe aviso cuando otro la edita (el «watch» de Notion)
+model PageFollow {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pageId String
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+  @@index([pageId])
 }
 
 // Página marcada como favorita por un usuario (sección ⭐ del sidebar)

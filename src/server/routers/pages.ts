@@ -8,6 +8,7 @@ import { rankAtEnd, rankBetween } from "@/lib/fractional";
 import { TEMPLATES } from "@/lib/templates";
 import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
+import { sendPush } from "../push";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage } from "../services/pages";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
@@ -201,9 +202,13 @@ export const pagesRouter = router({
       const autor = ultima?.authorId
         ? await ctx.db.user.findUnique({ where: { id: ultima.authorId }, select: { name: true, email: true } })
         : null;
+      const sigo = await ctx.db.pageFollow.findUnique({
+        where: { userId_pageId: { userId: ctx.user.id, pageId: page.id } },
+        select: { id: true },
+      });
       // El hash de la contraseña pública no viaja al cliente; solo si existe.
       const { publicPassword, ...resto } = page;
-      return { ...resto, hasPublicPassword: !!publicPassword, nivel, editadoPor: autor ? autor.name || autor.email : null };
+      return { ...resto, hasPublicPassword: !!publicPassword, siguiendo: !!sigo, nivel, editadoPor: autor ? autor.name || autor.email : null };
     }),
 
   /**
@@ -377,6 +382,21 @@ export const pagesRouter = router({
       });
     }),
 
+  /** Seguir/dejar de seguir una página: el que sigue recibe aviso cuando otro la edita. */
+  toggleFollow: workspaceProcedure
+    .input(z.object({ pageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.pageId, "view");
+      const clave = { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } };
+      const existente = await ctx.db.pageFollow.findUnique({ where: clave, select: { id: true } });
+      if (existente) {
+        await ctx.db.pageFollow.delete({ where: clave });
+        return { siguiendo: false };
+      }
+      await ctx.db.pageFollow.create({ data: { userId: ctx.user.id, pageId: input.pageId } });
+      return { siguiendo: true };
+    }),
+
   /** Candado anti-ediciones accidentales: cualquiera con edición lo pone y lo
    *  quita, como en Notion (no es un permiso, es un «no tocar sin querer»). */
   setLocked: workspaceProcedure
@@ -412,11 +432,34 @@ export const pagesRouter = router({
           data: { pageId: input.id, snapshot: (page.content ?? []) as Prisma.InputJsonValue, authorId: ctx.user.id },
         });
       }
-      return ctx.db.page.update({
+      const saved = await ctx.db.page.update({
         where: { id: input.id },
         data: { content: input.content },
-        select: { id: true, updatedAt: true },
+        select: { id: true, updatedAt: true, title: true },
       });
+      // Avisa a quien sigue la página (menos al que edita). El autosave dispara
+      // esto sin parar: el anti-duplicados de siempre (una sin leer del mismo
+      // actor en la misma página basta) lo deja en un aviso por sesión de edición.
+      const seguidores = await ctx.db.pageFollow.findMany({
+        where: { pageId: input.id, userId: { not: ctx.user.id } },
+        select: { userId: true },
+      });
+      for (const { userId } of seguidores) {
+        const dup = await ctx.db.notification.findFirst({
+          where: { userId, pageId: input.id, actorId: ctx.user.id, type: "follow", read: false },
+          select: { id: true },
+        });
+        if (dup) continue;
+        await ctx.db.notification.create({
+          data: { userId, workspaceId: ctx.workspace.id, type: "follow", pageId: input.id, actorId: ctx.user.id },
+        });
+        sendPush(userId, {
+          title: `${ctx.user.name || ctx.user.email} ha editado ${saved.title || "Sin título"}`,
+          body: "Sigues esta página.",
+          url: `/p/${input.id}`,
+        });
+      }
+      return { id: saved.id, updatedAt: saved.updatedAt };
     }),
 
   /** Historial de versiones del contenido de una página. */

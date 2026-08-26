@@ -475,6 +475,11 @@ function NotificationsBell() {
                             {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
                             {n.title ? <>: «{n.title}»</> : null}
                           </>
+                        ) : n.type === "follow" ? (
+                          <>
+                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> editó «
+                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}», que sigues
+                          </>
                         ) : (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te mencionó en «

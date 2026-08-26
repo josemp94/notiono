@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Bell, Check, FileArchive, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -84,6 +84,7 @@ export default function PageView() {
                 {haceCuanto(page.updatedAt)}
               </span>
               {page.locked && <LockedPill pageId={page.id} canEdit={canEdit} />}
+              <FollowButton pageId={page.id} siguiendo={page.siguiendo} />
               {canEdit && <FavoriteButton pageId={page.id} />}
               {nivel === "full" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
               {page.type !== "database" && <HistoryButton onClick={() => setHistory(true)} />}
@@ -333,6 +334,27 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
       )}
       {moving && <MovePageModal pageId={page.id} onClose={() => setMoving(false)} />}
     </div>
+  );
+}
+
+/** Campana de la cabecera: seguir la página (aviso cuando otro la edita). */
+function FollowButton({ pageId, siguiendo }: { pageId: string; siguiendo?: boolean }) {
+  const utils = trpc.useUtils();
+  const toggle = trpc.pages.toggleFollow.useMutation({
+    onSuccess: (r) => {
+      utils.pages.get.setData({ id: pageId }, (p) => (p ? { ...p, siguiendo: r.siguiendo } : p));
+      toast(r.siguiendo ? "Siguiendo la página: te avisaremos de los cambios" : "Has dejado de seguirla");
+    },
+  });
+  return (
+    <button
+      onClick={() => toggle.mutate({ pageId })}
+      disabled={toggle.isPending}
+      className={`toque inline-flex items-center justify-center rounded-md px-2 py-1 text-sm hover:bg-[var(--hover)] ${siguiendo ? "text-brand" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+      title={siguiendo ? "Dejar de seguir la página" : "Seguir la página (aviso cuando alguien la edite)"}
+    >
+      <Bell size={16} fill={siguiendo ? "currentColor" : "none"} />
+    </button>
   );
 }
 
