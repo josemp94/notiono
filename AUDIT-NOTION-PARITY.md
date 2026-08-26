@@ -143,6 +143,12 @@
 > migas, buscador, menciones, mover a, papelera y vistas enlazadas; `emojiIcono` la omite en textos planos).
 > Nota de infraestructura: origin/main pasa a ser el punto de sincronía entre sesiones (hubo un
 > `reset --hard origin/main` externo a media tanda; los commits se empujan al terminar cada función).
+> **Vigesimosexta tanda 24-ago-2026:** **portada reposicionable** («Reposicionar» + arrastre con pointer
+> events; el desplazamiento viaja en el propio string `url:<src>|y=<0-100>`, sin migración, y `coverStyle`
+> lo aplica también en las páginas públicas) y **reacciones emoji en comentarios** (`Comment.reactions`
+> con migración + `comments.react`; pills emoji+recuento con toggle y «+» con los seis rápidos, en hilos
+> de página y de fila). Reparto de carriles acordado con la otra sesión por mensaje (editor+API/datos para
+> ella; compartir/comentarios/chrome para esta).
 > Toda evidencia cita `fichero:línea` del repo. Leyenda: ❌ falta · ⚠️ parcial · ✅ ok (puede diferir en detalle).
 > Severidad: **P0** = cualquier usuario lo nota a diario · **P1** = se nota al usarlo en serio · **P2** = nicho/pulido.
 > Esfuerzo: **S** < 1 día · **M** = días · **L** = semana(s).
@@ -314,7 +320,7 @@ columnas interactivas, synced block y ecuaciones.
 | Historial de versiones | + diff visual + para BD | ⚠️ | Snapshot/restaurar/autor OK y diff visual ✅ («Ver los cambios», `lib/diff.ts`, tanda 12); sigue siendo solo de docs, no de BD | P2 | M |
 | Papelera con jerarquía y restaurar | + «borrado por» | ✅ | `trash/page.tsx`; «por X» con `Page.archivedById` (tanda 15) | — | — |
 | Icono de página | Emoji **o imagen subida** | ✅ | «Subir una imagen» + `IconoPagina` en todos los sitios con icono (tanda 25) | — | — |
-| Portada: reposicionar + galería (Unsplash) | Crop/offset | ⚠️ | Gradientes/subir/URL OK (`PageCover.tsx:9-183`); sin reposicionar ni galería | P2 | M |
+| Portada: reposicionar + galería (Unsplash) | Crop/offset | ✅ | «Reposicionar» arrastrando (`url:…|y=`, tanda 26); la galería Unsplash queda fuera (autoalojado sin llamadas a terceros) | — | — |
 | Home/Inicio con widgets | Recientes, tareas, eventos | ❌ | `(app)/page.tsx:7-23` redirige a la primera página; `/my-tasks` cubre parte | P2 | L |
 | Wiki (página verificada) | Verificación con caducidad | ❌ | No existe (nicho para familia) | P2 | L |
 | Duplicar página con copia profunda | — | ✅ | `pages.ts:448-474,575-681` con remapeo de IDs | — | — |
@@ -336,7 +342,7 @@ columnas interactivas, synced block y ecuaciones.
 | Conflictos en celdas | CRDT también en propiedades | ⚠️ | Merge atómico por campo en Postgres (`01030f3`): campos distintos nunca se pisan; la MISMA celda a la vez gana el último, como Notion | P2 | L |
 | Cursores + presencia | Nombre/color + avatares | ✅ | `Presence.tsx:12-53` | — | — |
 | Comentarios de página + inline con resolver | — | ✅ | `CommentsPanel.tsx`, `YjsThreadStore` (`useCollaboration.ts:111-116`) | — | — |
-| Respuestas anidadas + reacciones emoji | En cualquier comentario | ❌ | `Comment` sin `parentCommentId` ni reactions (schema) | P2 | M |
+| Respuestas anidadas + reacciones emoji | En cualquier comentario | ⚠️ | Reacciones ✅ (`Comment.reactions` + pills con toggle, tanda 26); respuestas anidadas no (el hilo plano cubre a una familia) | P2 | M |
 | Editar comentario propio | Editar además de borrar | ✅ | `comments.edit` + lápiz inline (`7eb2fee`) | — | — |
 | @mención dentro de un comentario | Notifica | ❌ | El body del comentario es texto plano | P2 | M |
 | Comentarios en filas/celdas de BD | Discusión por registro | ✅ | `Comment.recordId` + sección Comentarios en la ficha (`CommentThread`, tanda 11); por celda/propiedad no (nicho) | — | — |
