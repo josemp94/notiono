@@ -5,14 +5,16 @@ import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineC
 import { codeBlockOptions } from "@blocknote/code-block";
 import { createReactInlineContentSpec, SuggestionMenuController } from "@blocknote/react";
 import { trpc } from "@/trpc/react";
+import { useContext } from "react";
 import { IconoPagina } from "@/components/PageIcon";
 import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
 import { CalloutBlock } from "./calloutBlock";
-import { DatabaseBlock } from "./databaseBlock";
+import { DatabaseBlock, PublicBaseContext } from "./databaseBlock";
 import { TocBlock } from "./tocBlock";
 
-/** Chip de mención inline: icono + título de la página, enlaza a /p/<id>. */
+/** Chip de mención inline: icono + título de la página. Enlaza a /p/<id> o, en
+ *  una página pública, a la subpágina pública (/s/<token>/<id>). */
 const Mention = createReactInlineContentSpec(
   {
     type: "mention",
@@ -25,16 +27,23 @@ const Mention = createReactInlineContentSpec(
   },
   {
     render: ({ inlineContent }) => (
+      <MentionChip inlineContent={inlineContent} />
+    ),
+  },
+);
+
+function MentionChip({ inlineContent }: { inlineContent: { props: { pageId: string; title: string; icon: string } } }) {
+  const base = useContext(PublicBaseContext);
+  return (
       <a
-        href={`/p/${inlineContent.props.pageId}`}
+        href={base ? `${base}/${inlineContent.props.pageId}` : `/p/${inlineContent.props.pageId}`}
         className="whitespace-nowrap rounded bg-brand-50 px-1 font-medium text-brand no-underline hover:underline"
       >
         {inlineContent.props.icon ? <IconoPagina icon={inlineContent.props.icon} size={14} /> : <FileText size={13} className="inline align-[-2px]" />}{" "}
         {inlineContent.props.title || "Sin título"}
       </a>
-    ),
-  },
-);
+  );
+}
 
 /** Chip de mención de persona: @nombre en azul (distinto de las páginas, en naranja de marca). */
 const PersonMention = createReactInlineContentSpec(

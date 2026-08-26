@@ -25,6 +25,12 @@ export type PublicDbTable = { headers: string[]; rows: string[][] };
  */
 export const PublicDbContext = createContext<Record<string, PublicDbTable> | null>(null);
 
+/**
+ * Base de las rutas públicas ("/s/<token>"): con ella puesta, las menciones de
+ * página enlazan a la subpágina pública en vez de a /p/<id> (que pide sesión).
+ */
+export const PublicBaseContext = createContext<string | null>(null);
+
 /** Tabla estática de solo lectura (vista pública de una BD, completa o embebida). */
 export function StaticDbTable({ table }: { table: PublicDbTable }) {
   return (
