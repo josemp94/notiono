@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, MessageSquare, Pencil, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, MessageSquare, Pencil, SmilePlus, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 
 function when(d: Date) {
@@ -38,6 +38,7 @@ export function CommentThread({
     },
   });
   const toggle = trpc.comments.toggleResolve.useMutation({ onSuccess: refresh });
+  const react = trpc.comments.react.useMutation({ onSuccess: refresh });
   const remove = trpc.comments.remove.useMutation({ onSuccess: refresh });
   // Editar el propio comentario, inline.
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
@@ -129,6 +130,12 @@ export function CommentThread({
             ) : (
               <p className={`mt-1 whitespace-pre-wrap pl-7 ${c.resolved ? "line-through" : ""}`}>{c.body}</p>
             )}
+            <Reacciones
+              reactions={(c.reactions ?? {}) as Record<string, string[]>}
+              meId={me?.id}
+              canReact={canEdit}
+              onReact={(emoji) => react.mutate({ id: c.id, emoji })}
+            />
           </div>
         ))}
       </div>
@@ -189,5 +196,85 @@ export function CommentsButton({ pageId, onClick }: { pageId: string; onClick: (
     >
       <MessageSquare size={16} /> {comments?.length ?? 0}
     </button>
+  );
+}
+
+/** Los seis de siempre; para más matices ya está el texto. */
+const EMOJIS_RAPIDOS = ["👍", "❤️", "😂", "🎉", "😮", "😢"];
+
+/** Reacciones de un comentario: pills emoji+recuento (toggle) y un «+» con los
+ *  emojis rápidos, como en Notion. */
+function Reacciones({
+  reactions,
+  meId,
+  canReact,
+  onReact,
+}: {
+  reactions: Record<string, string[]>;
+  meId?: string;
+  canReact: boolean;
+  onReact: (emoji: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const entries = Object.entries(reactions).filter(([, users]) => users.length > 0);
+  if (!entries.length && !canReact) return null;
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1 pl-7">
+      {entries.map(([emoji, users]) => (
+        <button
+          key={emoji}
+          onClick={() => canReact && onReact(emoji)}
+          title={`${users.length} reacción${users.length > 1 ? "es" : ""}`}
+          className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs ${
+            meId && users.includes(meId)
+              ? "border-brand/60 bg-brand-50 text-[var(--foreground)]"
+              : "border-[var(--border)] hover:bg-[var(--hover)]"
+          }`}
+        >
+          {emoji} {users.length}
+        </button>
+      ))}
+      {canReact && (
+        <span className="relative" ref={ref}>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className={`${open ? "" : "al-pasar"} flex items-center rounded-full border border-[var(--border)] p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]`}
+            title="Reaccionar"
+          >
+            <SmilePlus size={13} />
+          </button>
+          {open && (
+            <span
+              data-menu=""
+              className="absolute bottom-full left-0 z-30 mb-1 flex gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl"
+            >
+              {EMOJIS_RAPIDOS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => {
+                    onReact(e);
+                    setOpen(false);
+                  }}
+                  className="rounded p-1 text-base hover:bg-[var(--hover)]"
+                >
+                  {e}
+                </button>
+              ))}
+            </span>
+          )}
+        </span>
+      )}
+    </div>
   );
 }

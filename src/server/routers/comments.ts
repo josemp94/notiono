@@ -97,6 +97,29 @@ export const commentsRouter = router({
       return ctx.db.comment.update({ where: { id: c.id }, data: { body: input.body } });
     }),
 
+  /** Pone o quita la reacción del usuario a un comentario (toggle por emoji). */
+  react: workspaceProcedure
+    .input(z.object({ id: z.string(), emoji: z.string().min(1).max(8) }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await ctx.db.comment.findFirst({
+        where: { id: input.id, page: { workspaceId: ctx.workspace.id } },
+        select: { id: true, reactions: true },
+      });
+      if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      const reactions = { ...((c.reactions as Record<string, string[]>) ?? {}) };
+      const quienes = reactions[input.emoji] ?? [];
+      const next = quienes.includes(ctx.user.id)
+        ? quienes.filter((u) => u !== ctx.user.id)
+        : [...quienes, ctx.user.id];
+      if (next.length) reactions[input.emoji] = next;
+      else delete reactions[input.emoji];
+      return ctx.db.comment.update({
+        where: { id: c.id },
+        data: { reactions },
+        select: { id: true, reactions: true },
+      });
+    }),
+
   toggleResolve: workspaceProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

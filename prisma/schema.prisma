@@ -138,6 +138,7 @@ model Comment {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   body      String
+  reactions Json     @default("{}") // { "👍": [userId, …] } — reacciones emoji, como Notion
   resolved  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
