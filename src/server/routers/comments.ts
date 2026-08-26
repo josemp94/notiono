@@ -48,17 +48,54 @@ export const commentsRouter = router({
       const comment = await ctx.db.comment.create({
         data: { pageId: input.pageId, recordId: input.recordId ?? null, authorId: ctx.user.id, body: input.body },
       });
+      const page = await ctx.db.page.findUnique({ where: { id: input.pageId }, select: { title: true } });
+      const resumen = input.body.length > 80 ? input.body.slice(0, 77) + "…" : input.body;
+
+      // «@Nombre» dentro del texto avisa al nombrado, como en Notion. El cuerpo
+      // es texto plano, así que se casa contra los miembros del espacio: el
+      // nombre completo, su primera palabra o el correo, sin mayúsculas ni
+      // acentos («@maria» encuentra a María).
+      const llano = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cuerpo = llano(input.body);
+      const mencionados = new Set<string>();
+      if (cuerpo.includes("@")) {
+        const miembros = await ctx.db.member.findMany({
+          where: { workspaceId: ctx.workspace.id, userId: { not: ctx.user.id } },
+          select: { userId: true, user: { select: { name: true, email: true } } },
+        });
+        for (const m of miembros) {
+          const nombres = [m.user.name, m.user.name?.split(/\s+/)[0], m.user.email].filter(Boolean) as string[];
+          if (nombres.some((n) => cuerpo.includes("@" + llano(n)))) mencionados.add(m.userId);
+        }
+        for (const userId of mencionados) {
+          await ctx.db.notification.create({
+            data: {
+              userId,
+              workspaceId: ctx.workspace.id,
+              type: "mention",
+              title: resumen,
+              pageId: input.pageId,
+              actorId: ctx.user.id,
+            },
+          });
+          sendPush(userId, {
+            title: `${ctx.user.name || ctx.user.email} te ha mencionado en un comentario`,
+            body: resumen,
+            url: input.recordId ? `/p/${input.pageId}?r=${input.recordId}` : `/p/${input.pageId}`,
+          });
+        }
+      }
+
       // Avisa a los demás participantes: quienes ya comentaron este mismo hilo.
       // Anti-duplicados como en las menciones: una sin leer del mismo actor basta.
+      // Los ya mencionados no reciben además el aviso genérico del hilo.
       const previos = await ctx.db.comment.findMany({
         where: { pageId: input.pageId, recordId: input.recordId ?? null, authorId: { not: ctx.user.id } },
         select: { authorId: true },
         distinct: ["authorId"],
       });
       if (previos.length) {
-        const page = await ctx.db.page.findUnique({ where: { id: input.pageId }, select: { title: true } });
-        const resumen = input.body.length > 80 ? input.body.slice(0, 77) + "…" : input.body;
-        for (const { authorId } of previos) {
+        for (const { authorId } of previos.filter((p) => !mencionados.has(p.authorId))) {
           const dup = await ctx.db.notification.findFirst({
             where: { userId: authorId, pageId: input.pageId, actorId: ctx.user.id, type: "comment", read: false },
             select: { id: true },
