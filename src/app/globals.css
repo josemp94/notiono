@@ -424,3 +424,62 @@ td input[type="tel"] {
 [data-font="mono"] h3 {
   font-family: var(--font-mono), ui-monospace, monospace;
 }
+
+/* Título emergente estilo Notion: pastilla con los colores invertidos y el
+   atajo en una segunda línea. data-pista = texto, data-atajo = atajo opcional.
+   Solo con ratón (@media hover): en táctil no hay hover, y el title nativo
+   tampoco salía. Variantes: data-pista-arriba (encima, para la barra de abajo
+   del panel) y data-pista-izq / data-pista-der (pegada a ese borde del botón,
+   para esquinas donde la centrada se saldría de la pantalla). */
+@media (hover: hover) {
+  /* :where() para no pisar a un botón que ya sea absolute (también ancla). */
+  :where([data-pista]) {
+    position: relative;
+  }
+  [data-pista]::after {
+    content: attr(data-pista);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    width: max-content;
+    max-width: 260px;
+    white-space: pre-line;
+    text-align: center;
+    border-radius: 6px;
+    background: var(--foreground);
+    color: var(--background);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.1s ease;
+  }
+  /* ponytail: el atajo va del mismo color que el texto — attr() no deja pintar
+     media pastilla en gris; si molesta, componente Tooltip de React. */
+  [data-pista][data-atajo]::after {
+    content: attr(data-pista) "\A" attr(data-atajo);
+  }
+  [data-pista]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0.35s;
+  }
+  [data-pista-arriba]::after {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+  [data-pista-izq]::after {
+    left: 0;
+    transform: none;
+  }
+  [data-pista-der]::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+}

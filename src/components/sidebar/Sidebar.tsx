@@ -177,7 +177,9 @@ export function Sidebar() {
         <button
           onClick={() => window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT))}
           className={`hidden md:block ${accionPanel}`}
-          title="Plegar el panel · Ctrl+\\"
+          data-pista="Plegar el panel"
+          data-atajo="Ctrl+\"
+          data-pista-der=""
           aria-label="Plegar el panel"
         >
           <PanelLeftClose size={16} />
@@ -188,7 +190,7 @@ export function Sidebar() {
 
       {/* Acciones del panel: solo iconos, el nombre va en el título emergente. */}
       <div className="mx-2 mb-1 flex items-center gap-0.5">
-        <button onClick={openSearchPalette} className={accionPanel} title="Buscar · Ctrl+K" aria-label="Buscar">
+        <button onClick={openSearchPalette} className={accionPanel} data-pista="Buscar" data-atajo="Ctrl+K" aria-label="Buscar">
           <Search size={16} />
         </button>
         <NotificationsBell />
@@ -196,7 +198,7 @@ export function Sidebar() {
           <button
             onClick={() => setShowTemplates(true)}
             className={accionPanel}
-            title="Crear desde una plantilla"
+            data-pista="Crear desde una plantilla"
             aria-label="Plantillas"
           >
             <Sparkles size={16} />
@@ -208,7 +210,8 @@ export function Sidebar() {
             <button
               onClick={() => create.mutate({ parentId: null })}
               className={accionPanel}
-              title="Nueva página · Ctrl+Alt+N"
+              data-pista="Nueva página"
+              data-atajo="Ctrl+Alt+N"
               aria-label="Nueva página"
             >
               <FilePlus size={16} />
@@ -216,7 +219,7 @@ export function Sidebar() {
             <button
               onClick={() => createDb.mutate({ parentId: null })}
               className={accionPanel}
-              title="Nueva base de datos"
+              data-pista="Nueva base de datos"
               aria-label="Nueva base de datos"
             >
               <Database size={16} />
@@ -225,7 +228,7 @@ export function Sidebar() {
               onClick={() => importInput.current?.click()}
               disabled={!!importando}
               className={`${accionPanel} disabled:opacity-50`}
-              title={importando ?? "Importar Markdown (página), CSV (base de datos) o ZIP de Notion"}
+              data-pista={importando ?? "Importar Markdown (página), CSV (base de datos) o ZIP de Notion"}
               aria-label="Importar"
             >
               {importando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
@@ -396,7 +399,7 @@ function NotificationsBell() {
       <button
         onClick={() => setOpen(true)}
         className={`relative ${accionPanel}`}
-        title={unread ? `Notificaciones (${unread} sin leer)` : "Notificaciones"}
+        data-pista={unread ? `Notificaciones (${unread} sin leer)` : "Notificaciones"}
         aria-label="Notificaciones"
       >
         <Bell size={16} />
@@ -769,7 +772,9 @@ function AccountFooter({ me }: { me: Me }) {
       <button
         onClick={openShortcuts}
         className="shrink-0 rounded p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-        title="Atajos · ?"
+        data-pista="Atajos de teclado"
+        data-atajo="?"
+        data-pista-arriba=""
         aria-label="Atajos"
       >
         <Keyboard size={14} />
@@ -778,7 +783,9 @@ function AccountFooter({ me }: { me: Me }) {
       <button
         onClick={() => logout.mutate()}
         className="shrink-0 rounded px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-        title="Cerrar sesión"
+        data-pista="Cerrar sesión"
+        data-pista-arriba=""
+        data-pista-der=""
       >
         Salir
       </button>
@@ -793,7 +800,10 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       className="shrink-0 rounded px-1.5 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-      title={`${theme === "dark" ? "Tema claro" : "Tema oscuro"} (Ctrl+Mayús+L)`}
+      data-pista={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+      data-atajo="Ctrl+Mayús+L"
+      data-pista-arriba=""
+      aria-label="Cambiar el tema"
     >
       {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
     </button>

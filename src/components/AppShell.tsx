@@ -139,7 +139,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onMouseEnter={asomar}
             onMouseLeave={esconder}
             className="absolute left-1.5 top-2 z-20 hidden rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] md:block"
-            title="Mostrar el panel (Ctrl+\\)"
+            data-pista="Mostrar el panel"
+            data-atajo="Ctrl+\"
+            data-pista-izq=""
+            aria-label="Mostrar el panel"
           >
             <PanelLeft size={18} />
           </button>
