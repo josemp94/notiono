@@ -342,13 +342,13 @@ function Favorites() {
             setDragId(null);
             setDrop(null);
           }}
-          className={
+          className={`${dragId === p.id ? "opacity-50" : ""} ${
             drop?.id === p.id
               ? drop.pos === "before"
                 ? "shadow-[inset_0_2px_0_0_var(--color-brand)]"
                 : "shadow-[inset_0_-2px_0_0_var(--color-brand)]"
               : ""
-          }
+          }`}
         >
           <SectionLink page={p} />
         </div>
@@ -908,9 +908,13 @@ function TreeItem({
         onDragStart={(e) => {
           draggedId = node.id;
           e.dataTransfer.effectAllowed = "move";
+          // La fila de origen se atenúa mientras viaja, como en Notion. A pelo
+          // sobre el DOM: draggedId no es estado y aquí no hay re-render.
+          e.currentTarget.classList.add("opacity-50");
         }}
-        onDragEnd={() => {
+        onDragEnd={(e) => {
           draggedId = null;
+          e.currentTarget.classList.remove("opacity-50");
         }}
         onDragOver={(e) => {
           if (!canEdit || !draggedId || isInSubtree(node.id, draggedId, parentById)) return;
