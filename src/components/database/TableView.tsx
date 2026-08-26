@@ -1248,8 +1248,10 @@ function BotonConfig({
   allFields: FieldLite[];
   onConfig: (config: Record<string, unknown>) => void;
 }) {
-  const cfg = (field.config as { label?: string; acciones?: AccionBoton[] } | null) ?? {};
+  const cfg = (field.config as { label?: string; acciones?: AccionBoton[]; abrePageId?: string } | null) ?? {};
   const acciones = cfg.acciones ?? [];
+  // Para «Al terminar, abrir página»: el árbol ya está cacheado por el sidebar.
+  const { data: paginas } = trpc.pages.tree.useQuery();
   const elegibles = allFields.filter((f) =>
     ["text", "number", "checkbox", "select", "status", "date"].includes(f.type),
   );
@@ -1332,6 +1334,22 @@ function BotonConfig({
           <option key={f.id} value={f.id}>{f.name}</option>
         ))}
       </select>
+      {/* Y después, opcionalmente, navegar a una página (el «Open page» de Notion). */}
+      <label className="flex items-center justify-between gap-2 pt-1 text-xs">
+        <span className="shrink-0 text-[var(--muted)]">Al terminar, abrir</span>
+        <select
+          value={cfg.abrePageId ?? ""}
+          onChange={(e) => onConfig({ abrePageId: e.target.value || null })}
+          className="min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs outline-none"
+        >
+          <option value="">Nada (quedarse aquí)</option>
+          {(paginas ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title || "Sin título"}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Pencil, Trash2, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
@@ -744,18 +745,25 @@ export type AccionBoton = { fieldId: string; value: unknown };
 
 function ButtonCell({ field, recordId }: { field: FieldLite; recordId?: string }) {
   const utils = trpc.useUtils();
+  const router = useRouter();
   const updateCell = trpc.db.updateCell.useMutation({ onSuccess: () => utils.db.get.invalidate() });
   const [hecho, setHecho] = useState(false);
-  const cfg = (field.config as { label?: string; acciones?: AccionBoton[] } | null) ?? {};
+  const cfg = (field.config as { label?: string; acciones?: AccionBoton[]; abrePageId?: string } | null) ?? {};
   const acciones = cfg.acciones ?? [];
+  const configurado = acciones.length > 0 || Boolean(cfg.abrePageId);
 
   const ejecutar = () => {
-    if (!recordId || !acciones.length) return;
+    if (!recordId || !configurado) return;
     const hoy = new Date();
     const hoyYmd = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
     for (const a of acciones) {
       // "@hoy" se resuelve al pulsar, no al configurar: el botón siempre pone la fecha del día.
       updateCell.mutate({ recordId, fieldId: a.fieldId, value: a.value === "@hoy" ? hoyYmd : a.value });
+    }
+    // «Abrir página» va lo último: primero se disparan los cambios, luego se navega.
+    if (cfg.abrePageId) {
+      router.push(`/p/${cfg.abrePageId}`);
+      return;
     }
     setHecho(true);
     setTimeout(() => setHecho(false), 1000);
@@ -764,8 +772,8 @@ function ButtonCell({ field, recordId }: { field: FieldLite; recordId?: string }
   return (
     <button
       onClick={ejecutar}
-      disabled={!recordId || !acciones.length}
-      title={acciones.length ? "" : "Configura sus acciones en el menú de la columna"}
+      disabled={!recordId || !configurado}
+      title={configurado ? "" : "Configura sus acciones en el menú de la columna"}
       className="rounded border border-brand/60 px-2 py-0.5 text-xs font-medium text-brand hover:bg-brand/10 disabled:opacity-40"
     >
       {hecho ? <Check size={12} className="inline" /> : cfg.label || "Hacer"}
