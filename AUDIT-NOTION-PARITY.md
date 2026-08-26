@@ -389,7 +389,7 @@ columnas interactivas, synced block y ecuaciones.
 | Galería de plantillas | Miles + categorías + crear la tuya | ⚠️ | 6 fijas sin categorías (`lib/templates.ts:21-185`); no se puede guardar una página propia como plantilla | P2 | M |
 | Plantillas de fila + default | Marcar una como predeterminada | ✅ | Estrella en «Nueva fila ▾» (`setDefaultTemplate`, tanda 12) | — | — |
 | **Importar ZIP de export de Notion** | Migración completa | ✅ | `lib/importNotion.ts` en cliente (fflate): jerarquía, BDs, adjuntos y enlaces (`ff8b7d5`); omite los .md de filas de BD | — | — |
-| Importar MD / CSV | + frontmatter, tipos autodetectados, a BD existente | ⚠️ | MD y CSV con **tipos autodetectados** (`lib/csvTipos.ts`, `3af6270`); falta importar a BD existente (append/merge) | P2 | M |
+| Importar MD / CSV | + frontmatter, tipos autodetectados, a BD existente | ✅ | MD y CSV con tipos autodetectados (`3af6270`) + **CSV a BD existente** (botón de subir en la barra de la BD, `importCsvInto` en el servicio: cabeceras por nombre, columnas y opciones nuevas al vuelo — tanda 25) | — | — |
 | Importar HTML / Word / Evernote / Trello | Soportados | ❌ | No existen | P2 | L |
 | Exportar página con subpáginas (ZIP) | Árbol completo + imágenes | ✅ | `pages.exportTree` + `lib/exportZip.ts` (MD+CSV+adjuntos, tanda 12) | — | — |
 | Exportar PDF / HTML | Por página o árbol | ❌ | No existe | P2 | M |
