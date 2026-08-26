@@ -196,7 +196,7 @@ enteros (Fórmulas 2.0 y permisos por página).
 | Subir vídeo/audio/archivo | Igual que imagen | ✅ | Ídem; también en `RecordPanel.tsx:71` | — | — |
 | Código: resaltado de sintaxis | Colores por lenguaje (~60 lenguajes) | ✅ | `mention.tsx:62` `createCodeBlockSpec(codeBlockOptions)` de `@blocknote/code-block` (`dc00069`) | — | — |
 | Código: selector de lenguaje y wrap | Dropdown + ajuste de línea | ✅ | Selector con ~48 lenguajes vía `codeBlockOptions` | — | — |
-| Ecuaciones LaTeX (bloque e inline) | KaTeX en `$$` y `/math` | ❌ | Cero referencias a katex/math en `src/components/editor/` | P2 | L |
+| Ecuaciones LaTeX (bloque e inline) | KaTeX en `$$` y `/math` | ⚠️ | Bloque ✅ (tanda 31): «/ecuación» con KaTeX, clic para editar con vista previa, exporta como `$$…$$`; inline no (BlockNote no deja editar props de un inline content desde su render) | P2 | M |
 | Embeds: Figma / X / Maps / PDF / iframe | Bloque Embed genérico + previews específicas | ❌ | `src/lib/embed.ts:1-20` solo reconoce YouTube/Vimeo; el resto cae a tarjeta OpenGraph (`bookmarkBlock.tsx:48-60`) | P2 | M |
 | Bookmark con OpenGraph | Tarjeta con imagen/título/dominio | ✅ | `bookmarkBlock.tsx:33-84` + `linkPreview` con anti-SSRF | — | — |
 | Columnas: crear 2/3 desde `/` | También arrastrando un bloque al lado de otro | ⚠️ | `Editor.tsx:281-297` crea `columnList`; **no** hay drag-to-create-column | P1 | L |

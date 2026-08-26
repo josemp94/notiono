@@ -116,7 +116,7 @@ Schema único en `src/components/editor/mention.tsx` (`editorSchema`), compartid
 el panel de registro, el historial y las páginas publicadas.
 
 - ✅ De BlockNote 0.53 (**ahora en español**: el diccionario `es` estaba sin usar): párrafo, encabezados 1-6 y **encabezado plegable**, listas (viñeta, numerada, tareas, toggle), cita, código, divisor, imagen, vídeo, audio, fichero, tabla, enlaces.
-- ✅ Propios: bloques **`database`** (BD embebida o enlazada, que recuerda su vista), **`callout`** («Llamada»), **`toc`** (tabla de contenidos) y **`bookmark`** («Enlace web»: tarjeta OpenGraph o reproductor de YouTube/Vimeo); inline **`mention`** (@página) y **`personMention`** (@persona, que notifica).
+- ✅ Propios: bloques **`database`** (BD embebida o enlazada, que recuerda su vista), **`callout`** («Llamada»), **`toc`** (tabla de contenidos), **`bookmark`** («Enlace web»: tarjeta OpenGraph o reproductor de YouTube/Vimeo) y **`equation`** («Ecuación»: TeX con KaTeX, clic para editar con vista previa; solo en bloque, no inline); inline **`mention`** (@página) y **`personMention`** (@persona, que notifica).
 - ✅ Autosave (800 ms contenido / 600 ms título), export a Markdown, portada, icono emoji, ancho completo, solo-lectura para `viewer`.
 - ✅ **Columnas** (dos o tres, desde el menú `/`): hechas a mano con los mismos nombres de bloque que el paquete de pago de BlockNote (`columnList`/`column`), cuyas clases CSS ya vienen en la hoja de estilos. Con **ancho ajustable arrastrando** el borde entre columnas y **«+» para añadir columna** a un layout ya creado (solo ratón). En el móvil se apilan. ❌ Crear columnas arrastrando un bloque al lado de otro.
 - ✅ **«/subpágina»**: crea una página hija colgando de la actual y la enlaza en el sitio del cursor con la mención.
