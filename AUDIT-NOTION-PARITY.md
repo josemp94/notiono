@@ -350,7 +350,7 @@ columnas interactivas, synced block y ecuaciones.
 | Invitados externos por página | Email con acceso a UNA página | ❌ | Solo invitación al workspace | P1 | L |
 | Grupos de miembros | Permisos por grupo | ❌ | Sin modelo | P2 | M |
 | Publicar: duplicar-como-plantilla, SEO, caducidad, contraseña | Opciones del share público | ⚠️ | Caducidad + contraseña ✅ (cookie HMAC atada al hash, rate limit; tanda 26); duplicar-como-plantilla y SEO no (nicho autoalojado) | P2 | M |
-| Subpáginas públicas navegables | El share incluye hijos | ❌ | Cada página se publica por separado | P2 | M |
+| Subpáginas públicas navegables | El share incluye hijos | ✅ | /s/<token>/<pageId> para descendientes vivas, con la puerta/caducidad de la raíz; las menciones enlazan en público vía PublicBaseContext (tanda 26) | — | — |
 | Feed «Actualizaciones» por página + Editado por X hace Y | Actividad visible | ❌ | Solo versiones; sin `lastEditedBy` visible en cabecera | P2 | M |
 | Seguir página (watch) | Aviso de cambios | ❌ | Sin modelo de suscripción | P2 | M |
 | Push reales + diagnóstico | — | ✅ | `push.ts:39-71`, `api/health`, Ajustes→Estado (`settings/page.tsx:220-246`) | — | — |
