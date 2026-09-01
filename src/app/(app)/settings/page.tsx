@@ -70,6 +70,7 @@ export default function SettingsPage() {
       </section>
 
       <BackupSection />
+      <InstalarSection />
       <AndroidSection />
       <EstadoSection />
       <PushSection />
@@ -210,6 +211,87 @@ function BackupSection() {
         <Download size={15} /> Descargar copia (ZIP)
       </button>
       {estado && <p className="mt-2 text-xs text-[var(--muted)]">{estado}</p>}
+    </section>
+  );
+}
+
+interface BIPEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: string }>;
+}
+
+function InstalarSection() {
+  const [deferred, setDeferred] = useState<BIPEvent | null>(null);
+  const [instalada, setInstalada] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches) setInstalada(true);
+    const onBIP = (e: Event) => {
+      e.preventDefault();
+      setDeferred(e as BIPEvent);
+    };
+    const onInstalled = () => {
+      setInstalada(true);
+      setDeferred(null);
+    };
+    window.addEventListener("beforeinstallprompt", onBIP);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBIP);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  async function instalar() {
+    if (!deferred) return;
+    await deferred.prompt();
+    setDeferred(null);
+  }
+
+  if (instalada) {
+    return (
+      <section className="mt-10">
+        <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
+          <Download size={16} /> Instalar la app
+        </h2>
+        <p className="text-sm text-[var(--muted)]">
+          Ya la tienes instalada como app. Se actualiza sola con la web.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-10">
+      <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
+        <Download size={16} /> Instalar la app
+      </h2>
+      <p className="mb-3 text-sm text-[var(--muted)]">
+        Notiono con su icono y ventana propia, sin barra del navegador. Funciona en Windows, Mac,
+        Linux y Android. Sin descargar nada ni certificados.
+      </p>
+      {deferred ? (
+        <button
+          onClick={instalar}
+          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
+        >
+          <Download size={16} /> Instalar Notiono
+        </button>
+      ) : (
+        <div className="text-sm text-[var(--muted)]">
+          <p>
+            Para instalarla usa <b>Chrome</b> o <b>Edge</b> (en LibreWolf/Firefox no sale):
+          </p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            <li>
+              Ordenador: icono <b>Instalar</b> a la derecha de la barra de direcciones (o menu ... -
+              &laquo;Instalar Notiono&raquo;).
+            </li>
+            <li>Android (Chrome): menu ... - &laquo;Instalar app&raquo;.</li>
+            <li>iPhone (Safari): Compartir - &laquo;Anadir a pantalla de inicio&raquo;.</li>
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
