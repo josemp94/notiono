@@ -36,7 +36,25 @@ export async function publicVapidKey(): Promise<string> {
  * ni rompe la operación que lo provocó; las suscripciones caducadas (404/410) se
  * borran solas, que es como se limpian los navegadores que ya no existen.
  */
+/**
+ * Reenvía el aviso al gateway de OpenClaw (Dobby) para que llegue por WhatsApp, SOLO
+ * para los usuarios de OPENCLAW_NOTIF_USERS. Fire-and-forget: nunca espera ni rompe.
+ * Si faltan las envs o el usuario no está en la lista, no hace nada.
+ */
+function forwardToOpenclaw(userId: string, payload: { title: string; body: string; url?: string }): void {
+  const url = process.env.OPENCLAW_NOTIF_URL;
+  const token = process.env.OPENCLAW_HOOK_TOKEN;
+  const users = (process.env.OPENCLAW_NOTIF_USERS ?? "").split(",").map((u) => u.trim()).filter(Boolean);
+  if (!url || !token || !users.includes(userId)) return;
+  void fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-openclaw-token": token },
+    body: JSON.stringify({ userId, ...payload }),
+  }).catch(() => {});
+}
+
 export function sendPush(userId: string, payload: { title: string; body: string; url?: string }): void {
+  forwardToOpenclaw(userId, payload);
   void (async () => {
     try {
       const subs = await db.pushSubscription.findMany({ where: { userId } });
