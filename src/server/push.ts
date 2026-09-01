@@ -42,11 +42,13 @@ export async function publicVapidKey(): Promise<string> {
  * Si faltan las envs o el usuario no está en la lista, no hace nada.
  */
 function forwardToOpenclaw(userId: string, payload: { title: string; body: string; url?: string }): void {
-  const url = process.env.OPENCLAW_NOTIF_URL;
+  const base = process.env.OPENCLAW_NOTIF_BASE;
   const token = process.env.OPENCLAW_HOOK_TOKEN;
-  const users = (process.env.OPENCLAW_NOTIF_USERS ?? "").split(",").map((u) => u.trim()).filter(Boolean);
-  if (!url || !token || !users.includes(userId)) return;
-  void fetch(url, {
+  let routes: Record<string, string> = {};
+  try { routes = JSON.parse(process.env.OPENCLAW_NOTIF_ROUTES ?? "{}"); } catch { routes = {}; }
+  const path = routes[userId];
+  if (!base || !token || !path) return;
+  void fetch(`${base}/${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-openclaw-token": token },
     body: JSON.stringify({ userId, ...payload }),

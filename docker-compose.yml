@@ -64,8 +64,8 @@ services:
       # ellos la cabecera x-openclaw-token simplemente no se añade.
       OPENCLAW_HOOK_TOKEN: "${OPENCLAW_HOOK_TOKEN}"
       OPENCLAW_HOOK_URL_PREFIX: "${OPENCLAW_HOOK_URL_PREFIX}"
-      OPENCLAW_NOTIF_URL: "${OPENCLAW_NOTIF_URL}"
-      OPENCLAW_NOTIF_USERS: "${OPENCLAW_NOTIF_USERS}"
+      OPENCLAW_NOTIF_BASE: "${OPENCLAW_NOTIF_BASE}"
+      OPENCLAW_NOTIF_ROUTES: "${OPENCLAW_NOTIF_ROUTES}"
     ports:
       - "3010:3000"
     healthcheck:
