@@ -35,11 +35,13 @@ export const PublicBaseContext = createContext<string | null>(null);
 export function StaticDbTable({ table }: { table: PublicDbTable }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+      {/* .tabla-bd: dentro del editor, la hoja de BlockNote aplasta las columnas de
+          cualquier tabla (ver globals.css). */}
+      <table className="tabla-bd w-full border-collapse text-sm">
         <thead>
           <tr className="border-y border-[var(--border)] text-left text-[var(--muted)]">
             {table.headers.map((h, i) => (
-              <th key={i} className="min-w-32 px-2 py-1 font-medium">
+              <th key={i} className="min-w-32 px-2 py-1 font-medium" style={{ ["--min-col" as string]: "8rem" }}>
                 {h}
               </th>
             ))}

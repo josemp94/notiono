@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { cellToText, peopleOf } from "@/server/services/cells";
 import type { PublicDbTable } from "@/components/editor/databaseBlock";
+import { formatDate, formatNumber, type FieldLite } from "@/lib/cellText";
 import { publicCookieName, publicCookieValue } from "@/server/publicAuth";
 
 /**
@@ -57,6 +58,20 @@ function loadCollection(where: { pageId: string } | { id: string; page: { worksp
   });
 }
 
+/**
+ * El texto de una celda tal como se ve en la app. cellToText da el del CSV (fechas
+ * ISO, «12.5», «true»), que en una página publicada se leía como datos en crudo.
+ */
+function textoVisible(f: Col["fields"][number], v: unknown, r: Col["records"][number], people: Map<string, string>): string {
+  const campo = f as unknown as FieldLite;
+  if (f.type === "date") return formatDate(v, campo);
+  if (f.type === "number") return v === null || v === undefined || v === "" ? "" : formatNumber(v, campo);
+  if (f.type === "checkbox") return v ? "✓" : "";
+  if (f.type === "created_time" || f.type === "last_edited_time")
+    return formatDate((f.type === "created_time" ? r.createdAt : r.updatedAt).toISOString().slice(0, 10), campo);
+  return cellToText(f, v, r, people);
+}
+
 /** Colección → tabla estática. Campos computados (relación/rollup/fórmula) fuera: sus celdas no tienen valor legible. */
 function tableOf(col: Col, people: Map<string, string>): PublicDbTable {
   const fields = col.fields.filter((f) => !["relation", "rollup", "formula"].includes(f.type));
@@ -64,7 +79,7 @@ function tableOf(col: Col, people: Map<string, string>): PublicDbTable {
     headers: fields.map((f) => f.name),
     rows: col.records.map((r) => {
       const cells = (r.cells ?? {}) as Record<string, unknown>;
-      return fields.map((f) => cellToText(f, cells[f.id], r, people));
+      return fields.map((f) => textoVisible(f, cells[f.id], r, people));
     }),
   };
 }
