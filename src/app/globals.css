@@ -380,7 +380,7 @@ td input[type="tel"] {
 /* Los menús colgantes son listas largas de opciones (los tipos de columna son 16).
    Con el dedo, renglones de 28 px son una lotería: en táctil se separan. */
 @media (pointer: coarse) {
-  [data-menu] button,
+  [data-menu] button:not([role="switch"]),
   [data-menu] a {
     min-height: 40px;
   }
@@ -543,4 +543,22 @@ td input[type="tel"] {
   .bn-side-menu {
     display: none !important;
   }
+}
+
+/* Una BD embebida vive dentro del editor, y la hoja de BlockNote trata como suya
+   cualquier tabla bajo .ProseMirror: ancho fijo al 100 %, sin desbordar y
+   `min-width: auto !important` en todas las celdas. Las columnas se aplastaban
+   hasta partir una fecha letra a letra. Aquí se le devuelve lo suyo a nuestra
+   tabla; el doble .tabla-bd es para ganar en especificidad a su regla. */
+.ProseMirror table.tabla-bd {
+  table-layout: auto;
+  overflow: visible;
+}
+.ProseMirror table.tabla-bd.tabla-bd :is(td, th) {
+  min-width: var(--min-col, auto) !important;
+}
+/* También les pone `position: relative`, que anula el sticky de las columnas
+   congeladas: su `left` pasaba a desplazarlas encima de la columna de al lado. */
+.ProseMirror table.tabla-bd.tabla-bd :is(td, th).sticky {
+  position: sticky;
 }

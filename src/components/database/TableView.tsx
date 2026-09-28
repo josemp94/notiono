@@ -159,7 +159,7 @@ export function TableView({
   const lefts = frozenOffsets(fields.map((f) => widthOf(f.id)), frozen, GUTTER_WIDTH);
   // El margen se fuerza a ese mismo ancho en TODAS sus celdas: es el punto de
   // partida del que cuelgan las congeladas.
-  const margen = { width: GUTTER_WIDTH, minWidth: GUTTER_WIDTH, maxWidth: GUTTER_WIDTH };
+  const margen = { width: GUTTER_WIDTH, minWidth: GUTTER_WIDTH, maxWidth: GUTTER_WIDTH, ["--min-col" as string]: `${GUTTER_WIDTH}px` };
   // Una columna congelada necesita ancho fijo; si no se le ha puesto, se le supone uno.
   const anchoDe = (i: number) => (lefts[i] !== null ? (widthOf(fields[i].id) ?? FROZEN_WIDTH) : widthOf(fields[i].id));
 
@@ -394,7 +394,7 @@ export function TableView({
         const left = lefts[i];
         // Las congeladas llevan fondo propio, o se transparentarían sobre lo que pasa por debajo.
         const style = {
-          ...(w ? { maxWidth: w, width: w } : {}),
+          ...(w ? { maxWidth: w, width: w, ["--min-col" as string]: `${w}px` } : {}),
           ...(left === null ? {} : { left, background: colorOf(r) ?? "var(--background)" }),
         };
         const esSel = sel?.recId === r.id && sel?.fieldId === f.id;
@@ -485,7 +485,7 @@ export function TableView({
   return (
     <div>
       <ScrollHorizontal>
-      <table ref={tablaRef} className="w-full border-collapse text-sm">
+      <table ref={tablaRef} className="tabla-bd w-full border-collapse text-sm">
         <thead>
           {/* Solo la raya de abajo: la de arriba ya la pone la barra de vistas, y con las
               dos se veía una doble raya. */}
@@ -516,6 +516,9 @@ export function TableView({
                 style={{
                   ...(anchoDe(i) ? { width: anchoDe(i), minWidth: anchoDe(i), maxWidth: anchoDe(i) } : {}),
                   ...(lefts[i] === null ? {} : { left: lefts[i] }),
+                  // El mínimo también como variable: dentro de una página, la hoja de
+                  // BlockNote pisa el min-width de toda celda (ver .tabla-bd en globals.css).
+                  ["--min-col" as string]: `${anchoDe(i) ?? 160}px`,
                 }}
                 onDragOver={(e) => {
                   if (!dragCol || dragCol === f.id) return;
