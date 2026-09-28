@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, SmilePlus } from "lucide-react";
 
 const COMMON = [
   "📄","📝","📌","✅","📆","💡","🔥","⭐","🎯","🚀","📊","📈","💰","🏦","🧾","🛒",
@@ -111,9 +111,9 @@ export function PageIcon({
           onClick={() => setOpen((o) => !o)}
           // .al-pasar y no opacity-0 a pelo: en táctil no hay hover y el botón
           // quedaba invisible (aunque pulsable a ciegas).
-          className="al-pasar rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+          className="al-pasar flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         >
-          😀 Añadir icono
+          <SmilePlus size={16} /> Añadir icono
         </button>
       )}
 

@@ -219,11 +219,13 @@ h1, h2, h3, .font-display {
    Con el dedo no se acierta en un icono de 28 px: en pantallas táctiles los
    botones de la interfaz crecen a 40, que es lo que mide una yema. Y los campos
    suben a 16 px porque por debajo de eso Safari hace zoom al tocarlos y deja la
-   página descolocada, con el usuario buscando dónde ha ido a parar. */
+   página descolocada, con el usuario buscando dónde ha ido a parar.
+   Los títulos (.font-display) se libran: esta regla va fuera de capas y le ganaba
+   a su text-4xl, así que en el móvil el título de cada página salía a 16 px. */
 @media (pointer: coarse) {
-  input:not([type="checkbox"]):not([type="radio"]),
+  input:not([type="checkbox"]):not([type="radio"]):not(.font-display),
   select,
-  textarea {
+  textarea:not(.font-display) {
     font-size: 16px;
   }
   .toque {
@@ -340,30 +342,34 @@ td input[type="tel"] {
   }
 }
 
-/* Tamaños de los encabezados del editor en el móvil.
-   BlockNote los pinta con `font-size: var(--level)` y de fábrica el H1 va a 3em:
-   48 px en una pantalla de 390, donde un título de dos palabras ocupa dos líneas y
-   media pantalla. Se rebajan solo en móvil, cambiando la variable —no el font-size—
-   para que siga funcionando su cadena de tamaños. */
-@media (max-width: 767px) {
-  [data-content-type="heading"] {
-    --level: 2em;
-  }
-  [data-content-type="heading"][data-level="2"] {
-    --level: 1.6em;
-  }
-  [data-content-type="heading"][data-level="3"] {
-    --level: 1.2em;
-  }
-  [data-prev-level="1"] {
-    --prev-level: 2em;
-  }
-  [data-prev-level="2"] {
-    --prev-level: 1.6em;
-  }
-  [data-prev-level="3"] {
-    --prev-level: 1.2em;
-  }
+/* Tamaños de los encabezados del editor, los de Notion: H1 30 px, H2 24, H3 20,
+   por debajo del título de la página (40). BlockNote los trae a 3em/2em/1.3em: un
+   H1 de 48 px, más grande que el propio título. Se cambia la variable `--level` —no
+   el font-size— para que siga funcionando su cadena de tamaños (y la animación al
+   cambiar de nivel, que tira de --prev-level). Con `.bn-container` delante: la hoja
+   de BlockNote se carga después y, a igual especificidad, ganaba ella (por eso la
+   rebaja que había solo para el móvil nunca llegó a verse). */
+.bn-container [data-content-type="heading"] {
+  --level: 1.875em;
+}
+.bn-container [data-content-type="heading"][data-level="2"] {
+  --level: 1.5em;
+}
+.bn-container [data-content-type="heading"][data-level="3"] {
+  --level: 1.25em;
+}
+.bn-container [data-prev-level="1"] {
+  --prev-level: 1.875em;
+}
+.bn-container [data-prev-level="2"] {
+  --prev-level: 1.5em;
+}
+.bn-container [data-prev-level="3"] {
+  --prev-level: 1.25em;
+}
+/* Las casillas de las listas de tareas, con el color de la casa y no el azul del sistema. */
+.bn-container input[type="checkbox"] {
+  accent-color: var(--color-brand);
 }
 
 /* Los menús colgantes son listas largas de opciones (los tipos de columna son 16).
