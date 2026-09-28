@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CircleCheck, Database } from "lucide-react";
+import { fechaTarea } from "@/lib/cellText";
 import { trpc } from "@/trpc/react";
 
 /** "Mis tareas": todo lo que tengo asignado en cualquier base de datos del espacio. */
@@ -21,7 +22,8 @@ export default function MyTasksPage() {
         <CircleCheck size={22} className="text-brand" /> Mis tareas
       </h1>
       <p className="mb-6 text-sm text-[var(--muted)]">
-        Filas de cualquier base de datos en las que alguien te ha asignado con un campo de tipo Persona.
+        Filas de cualquier base de datos en las que alguien te ha asignado con un campo de tipo Persona. Lo
+        terminado no sale; lo más urgente, arriba.
       </p>
 
       {!list.length && (
@@ -46,11 +48,11 @@ export default function MyTasksPage() {
             {items.map((t) => (
               <li key={t.recordId}>
                 <Link
-                  href={`/p/${t.pageId}`}
+                  href={`/p/${t.pageId}?r=${t.recordId}`}
                   className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--border)]/20"
                 >
                   <span className="min-w-0 flex-1 truncate">{t.title || "Sin título"}</span>
-                  {t.date && <span className="shrink-0 text-xs text-[var(--muted)]">{t.date}</span>}
+                  {t.date && <span className="shrink-0 text-xs text-[var(--muted)]">{fechaTarea(t.date)}</span>}
                   {t.status && (
                     <span className="shrink-0 rounded bg-[var(--border)]/50 px-1.5 py-0.5 text-xs">{t.status}</span>
                   )}

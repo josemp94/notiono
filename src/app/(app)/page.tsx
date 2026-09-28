@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CircleCheck, Clock, Database } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { getRecents, RECENTS_EVENT, type Recent } from "@/lib/recents";
+import { fechaTarea } from "@/lib/cellText";
 import { IconoPagina } from "@/components/PageIcon";
 
 /**
@@ -36,7 +37,7 @@ export default function Inicio() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="font-display mb-10 text-center text-3xl font-extrabold">
+      <h1 className="font-display mb-8 text-center text-2xl font-extrabold md:mb-10 md:text-3xl">
         {saludo}
         {nombre ? `, ${nombre}` : ""}
       </h1>
@@ -76,10 +77,10 @@ export default function Inicio() {
                   className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--border)]/20"
                 >
                   <span className="min-w-0 flex-1 truncate">{t.title || "Sin título"}</span>
-                  <span className="flex shrink-0 items-center gap-1 text-xs text-[var(--muted)]">
+                  <span className="hidden shrink-0 items-center gap-1 text-xs text-[var(--muted)] sm:flex">
                     <Database size={12} /> {t.dbTitle || "BD"}
                   </span>
-                  {t.date && <span className="shrink-0 text-xs text-[var(--muted)]">{t.date}</span>}
+                  {t.date && <span className="shrink-0 text-xs text-[var(--muted)]">{fechaTarea(t.date)}</span>}
                   {t.status && (
                     <span className="shrink-0 rounded bg-[var(--border)]/50 px-1.5 py-0.5 text-xs">{t.status}</span>
                   )}

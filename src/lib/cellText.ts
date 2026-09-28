@@ -282,3 +282,9 @@ export function frozenOffsets(widths: (number | undefined)[], frozen: number, st
     return left;
   });
 }
+
+/** La fecha de una tarea en listas (Inicio, Mis tareas): «hoy», «mañana», «hace 2
+ *  días»… y, si queda lejos, «24 ago 2026». No la ISO en crudo. */
+export function fechaTarea(v: unknown): string {
+  return formatDate(v, { config: { dateFormat: "relativo" } } as unknown as FieldLite);
+}

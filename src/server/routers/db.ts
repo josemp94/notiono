@@ -254,7 +254,7 @@ export const dbRouter = router({
 
     // Las tareas de páginas restringidas sin mí tampoco salen aquí.
     const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
-    return records.filter((r) => alcanza(nivel(r.collection.page.id), "view")).map((r) => {
+    const tareas = records.filter((r) => alcanza(nivel(r.collection.page.id), "view")).flatMap((r) => {
       const fields = r.collection.fields;
       const cells = (r.cells ?? {}) as Record<string, unknown>;
       const first = (type: string) => fields.find((f) => f.type === type);
@@ -263,17 +263,25 @@ export const dbRouter = router({
       const dateField = first("date");
       const label = (f: (typeof fields)[number] | undefined) =>
         f ? cellToText(f, cells[f.id], r) : "";
-      return {
+      // Lo terminado (Estado en el grupo «Hecho») no sale, como en «Mis tareas» de Notion.
+      if (statusField?.type === "status") {
+        const opciones = ((statusField.config as { options?: { id: string; group?: string }[] } | null)?.options ?? []);
+        if (opciones.find((o) => o.id === cells[statusField.id])?.group === "done") return [];
+      }
+      return [{
         recordId: r.id,
         pageId: r.collection.page.id,
         dbTitle: r.collection.page.title || r.collection.name,
         dbIcon: r.collection.page.icon,
         title: titleField ? String(cells[titleField.id] ?? "") : "",
         status: label(statusField),
-        date: dateField ? String(cells[dateField.id] ?? "") : "",
+        // dayOf y no String(): las fechas con hora o rango son {start,end} y salía «[object Object]».
+        date: dateField ? (dayOf(cells[dateField.id]) ?? "") : "",
         updatedAt: r.updatedAt,
-      };
+      }];
     });
+    // Primero lo que tiene fecha, de la más cercana a la más lejana; luego el resto.
+    return tareas.sort((a, b) => (a.date && b.date ? a.date.localeCompare(b.date) : a.date ? -1 : b.date ? 1 : 0));
   }),
 
   /** Devuelve todo lo necesario para renderizar la base de datos de una página. */
