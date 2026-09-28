@@ -92,6 +92,11 @@ h1, h2, h3, .font-display {
 /* --- Editor BlockNote: tipografía y colores coherentes con la marca --- */
 .bn-container {
   --bn-font-family: var(--font-sans), system-ui, sans-serif;
+}
+/* Con [data-color-scheme]: desde BlockNote 0.55 su tema claro/oscuro va en
+   `.bn-root[data-color-scheme=…]`, más específico que `.bn-container`, y en oscuro
+   pintaba el editor como una caja #1f1f1f con esquinas sobre el fondo de la app. */
+.bn-container.bn-root[data-color-scheme] {
   --bn-colors-editor-background: transparent; /* hereda el fondo del tema de la app */
   --bn-colors-editor-text: var(--foreground);
 }
