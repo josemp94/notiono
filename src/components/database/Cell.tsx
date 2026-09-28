@@ -693,14 +693,20 @@ function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown;
                           />
                           <div className="flex flex-wrap gap-1">
                             {COLOR_NAMES.map((c) => (
+                              // El botón es la zona de toque (alta en táctil) y el círculo va
+                              // dentro: si no, en el móvil el círculo se estiraba en óvalo.
                               <button
                                 key={c}
                                 onClick={() => colorOpt(o.id, c)}
-                                className="toque-estrecho flex size-[18px] items-center justify-center rounded-full border border-[var(--border)]"
-                                style={{ background: OPTION_COLORS[c] }}
+                                className="flex items-center justify-center"
                                 title={COLOR_LABELS[c]}
                               >
-                                {(o.color ?? "gray") === c && <Check size={12} style={{ color: "var(--tag-fg)" }} />}
+                                <span
+                                  className="flex size-[18px] items-center justify-center rounded-full border border-[var(--border)]"
+                                  style={{ background: OPTION_COLORS[c] }}
+                                >
+                                  {(o.color ?? "gray") === c && <Check size={12} style={{ color: "var(--tag-fg)" }} />}
+                                </span>
                               </button>
                             ))}
                           </div>
