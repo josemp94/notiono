@@ -3,6 +3,7 @@
 import { CircleCheck, House, Inbox, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { openSearchPalette } from "@/components/SearchPalette";
 import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 import { NEW_PAGE_EVENT } from "@/lib/shortcuts";
@@ -24,9 +25,15 @@ const HUECO = "flex h-8 w-10 items-center justify-center";
 export function BarraInferior() {
   const ruta = usePathname();
   const noLeidas = useNoLeidas();
+  const teclado = useTecladoAbierto();
   // «Inicio» es donde vive el contenido: la portada redirige a la primera página, así
   // que estando en una página el sitio marcado tiene que ser ese.
   const enPaginas = ruta === "/" || ruta.startsWith("/p/");
+
+  // Mientras se escribe, fuera: con el teclado abierto la página se encoge hasta él
+  // (interactive-widget en layout.tsx) y la barra quedaría flotando encima de las
+  // teclas, quitando sitio al texto. Notion hace lo mismo.
+  if (teclado) return null;
 
   return (
     <nav className="no-imprimir zona-segura-abajo flex shrink-0 items-stretch border-t border-[var(--border)] bg-[var(--surface)] pt-1 md:hidden">
@@ -97,4 +104,28 @@ function Boton({
       {dentro}
     </button>
   );
+}
+
+/**
+ * ¿Está abierto el teclado en pantalla? Con `interactive-widget=resizes-content` el
+ * teclado encoge la ventana: si mide bastante menos que la más alta vista con el
+ * mismo ancho (girar el móvil cambia el ancho), es que está abierto.
+ */
+function useTecladoAbierto(): boolean {
+  const [abierto, setAbierto] = useState(false);
+  useEffect(() => {
+    let ancho = window.innerWidth;
+    let maxAlto = window.innerHeight;
+    const medir = () => {
+      if (window.innerWidth !== ancho) {
+        ancho = window.innerWidth;
+        maxAlto = window.innerHeight;
+      }
+      maxAlto = Math.max(maxAlto, window.innerHeight);
+      setAbierto(maxAlto - window.innerHeight > 150);
+    };
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
+  return abierto;
 }

@@ -31,6 +31,10 @@ export const viewport: Viewport = {
   // Instalada como app, la web llega hasta debajo de la muesca y de la barra de
   // gestos; el hueco lo dejamos nosotros con las clases de zona segura.
   viewportFit: "cover",
+  // Con el teclado abierto, la página se recoloca en el hueco de encima en vez de
+  // quedarse medio tapada: así el cursor y la barra de formato del editor (que
+  // BlockNote pone sobre el teclado en táctil) no desaparecen debajo de él.
+  interactiveWidget: "resizes-content",
   // El color de la barra de estado sigue al tema: una barra naranja sobre una app
   // blanca (o negra) se ve como un parche.
   themeColor: [
