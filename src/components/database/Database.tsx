@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Maximize2, Search, X } from "lucide-react";
+import { AlignLeft, ArrowLeft, Check, ChevronDown, Maximize2, Search, X } from "lucide-react";
+import { Popover } from "./Popover";
 import { trpc } from "@/trpc/react";
 import { VIEW_MENU_EVENT, type ViewMenuDetail } from "@/lib/shortcuts";
 
@@ -14,6 +15,7 @@ function abrirMenuVista(e: { preventDefault: () => void; clientX: number; client
 }
 import { PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
+import { TituloGrande } from "@/components/TituloGrande";
 import { applyViewConfig, conComputados, openInOf, type DbField, type DbRecord } from "@/lib/viewData";
 import { RecordCard } from "./RecordPanel";
 import { usePeople } from "./Cell";
@@ -62,7 +64,9 @@ export function Database({
   const [title, setTitle] = useState(initialTitle);
   // Si renombran la BD desde fuera (sidebar, otra persona), adoptar el nombre
   // nuevo — salvo mientras se edita aquí, que teclear encima lo pisaría.
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const [conDescripcion, setConDescripcion] = useState(false);
+
   useEffect(() => {
     if (document.activeElement !== titleRef.current) setTitle(initialTitle);
   }, [initialTitle]);
@@ -184,34 +188,49 @@ export function Database({
   return (
     <div>
       {!embedded && cover && <CoverBand cover={cover} onChange={onCoverChange} editable={canEdit} />}
-      <div className={embedded ? "px-3 pb-3" : `px-3 pb-5 md:px-8 ${cover ? "" : "pt-5"}`}>
+      <div className={embedded ? "px-3 pb-3" : `px-4 pb-5 md:px-12 ${cover ? "pt-3" : "pt-8 md:pt-16"}`}>
       {!embedded && (
+      // La misma cabecera que una página: icono encima, «Añadir icono / portada»
+      // al pasar, y el título grande. Antes iba el icono al lado, a otra escala.
       <div className="group/header mb-4">
-        {canEdit && !cover && (
-          <div className="h-7">
-            <AddCoverButton onChange={onCoverChange} />
+        {icon && (
+          <div className={`mb-1 ${cover ? "relative z-10 -mt-14" : ""}`}>
+            <PageIcon icon={icon} onChange={onIconChange} editable={canEdit} />
           </div>
         )}
-        <div className={`mb-1 flex items-center gap-3 ${cover ? "relative z-10 -mt-10" : ""}`}>
-          <PageIcon icon={icon} onChange={onIconChange} editable={canEdit} />
-          <input
-            ref={titleRef}
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            placeholder="Sin título"
-            readOnly={!canEdit}
-            className="font-display w-full bg-transparent text-2xl font-extrabold outline-none placeholder:text-[var(--border)] md:text-3xl"
-          />
-        </div>
-        {/* Descripción bajo el título, como en Notion. Editable in situ; el
-            placeholder solo asoma al pasar el ratón por la cabecera. */}
+        {canEdit && (!icon || !cover || (col && !col.description && !conDescripcion)) && (
+          <div className="mb-1 flex h-7 items-center gap-1">
+            {!icon && <PageIcon icon={null} onChange={onIconChange} editable={canEdit} />}
+            {!cover && <AddCoverButton onChange={onCoverChange} />}
+            {col && !col.description && !conDescripcion && (
+              <button
+                onClick={() => setConDescripcion(true)}
+                className="al-pasar flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+              >
+                <AlignLeft size={16} /> Añadir descripción
+              </button>
+            )}
+          </div>
+        )}
+        <TituloGrande
+          inputRef={titleRef}
+          value={title}
+          onChange={onTitleChange}
+          readOnly={!canEdit}
+          className="mb-1 text-[2rem] md:text-[2.5rem]"
+        />
+        {/* Descripción bajo el título, como en Notion: si no hay, no ocupa sitio
+            hasta que se pide con «Añadir descripción». */}
         {col && (canEdit ? (
+          (col.description || conDescripcion) && (
           <textarea
+            autoFocus={conDescripcion && !col.description}
             key={col.description}
             defaultValue={col.description}
             rows={1}
             placeholder="Añade una descripción…"
             onBlur={(e) => {
+              if (!e.target.value.trim()) setConDescripcion(false);
               if (e.target.value.trim() !== col.description) {
                 setDescription.mutate({ collectionId: col.id, description: e.target.value });
               }
@@ -227,18 +246,30 @@ export function Database({
               el.style.height = "auto";
               el.style.height = `${el.scrollHeight}px`;
             }}
-            className={`w-full resize-none bg-transparent text-sm text-[var(--muted)] outline-none placeholder:text-transparent focus:placeholder:text-[var(--border)] group-hover/header:placeholder:text-[var(--border)] ${
-              col.description ? "" : "-mt-1"
-            }`}
+            className="w-full resize-none bg-transparent text-sm text-[var(--muted)] outline-none placeholder:text-[var(--border)]"
           />
+          )
         ) : (
           col.description && <p className="text-sm text-[var(--muted)]">{col.description}</p>
         ))}
       </div>
       )}
 
-      <div className="mb-4 flex flex-col items-stretch gap-1 border-b border-[var(--border)] md:flex-row md:items-end md:justify-between md:gap-2">
-        <div className="sin-barra flex items-center gap-0.5 overflow-x-auto">
+      <div className="mb-3 flex items-center gap-1 border-b border-[var(--border)] md:items-end md:gap-2">
+        {/* En el móvil las pestañas no caben: un selector con la vista actual, como
+            en la app de Notion. */}
+        {active && !searchOpen && (
+          <SelectorVista
+            views={col.views}
+            active={active}
+            onPick={(id) => {
+              setActiveViewId(id);
+              onViewChange?.(id);
+            }}
+            extra={canEdit && <AddViewButton pageId={pageId} collectionId={col.id} onViewCreated={(id) => setActiveViewId(id)} />}
+          />
+        )}
+        <div className="sin-barra hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto md:flex">
           {col.views.map((v) => (
             <button
               key={v.id}
@@ -313,11 +344,9 @@ export function Database({
             </a>
           )}
         </div>
-        {/* En el móvil, la barra baja a su propia línea: con los botones a tamaño de
-            dedo, en una sola fila las pestañas se quedaban en «Tab». */}
-        <div className="flex items-center justify-end gap-1 pb-1">
+        <div className={`flex items-center justify-end gap-0.5 pb-1 ${searchOpen ? "min-w-0 flex-1" : "ml-auto shrink-0"}`}>
           {searchOpen ? (
-            <div className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 md:flex-none">
               <Search size={13} className="shrink-0 text-[var(--muted)]" />
               <input
                 autoFocus
@@ -325,7 +354,7 @@ export function Database({
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && (setQ(""), setSearchOpen(false))}
                 placeholder="Buscar en la base de datos…"
-                className="w-44 bg-transparent text-xs outline-none"
+                className="min-w-0 flex-1 bg-transparent text-xs outline-none md:w-44 md:flex-none"
               />
               <button
                 onClick={() => { setQ(""); setSearchOpen(false); }}
@@ -436,6 +465,53 @@ export function Database({
         />
       )}
       </div>
+    </div>
+  );
+}
+
+/** Selector de vista del móvil: la vista actual con su icono y, al tocarla, la lista. */
+function SelectorVista({
+  views,
+  active,
+  onPick,
+  extra,
+}: {
+  views: { id: string; name: string; type: string }[];
+  active: { id: string; name: string; type: string };
+  onPick: (id: string) => void;
+  extra?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative min-w-0 md:hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="toque flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium"
+        aria-expanded={open}
+      >
+        <ViewIcon type={active.type} />
+        <span className="truncate">{active.name}</span>
+        <ChevronDown size={14} className="shrink-0 text-[var(--muted)]" />
+      </button>
+      {open && (
+        <Popover onClose={() => setOpen(false)} className="w-64 p-1">
+          {views.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => {
+                onPick(v.id);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+            >
+              <ViewIcon type={v.type} />
+              <span className="min-w-0 flex-1 truncate">{v.name}</span>
+              {v.id === active.id && <Check size={14} className="shrink-0 text-brand" />}
+            </button>
+          ))}
+          {extra && <div className="mt-1 flex items-center border-t border-[var(--border)] pt-1 text-sm text-[var(--muted)]">{extra}<span>Añadir vista</span></div>}
+        </Popover>
+      )}
     </div>
   );
 }

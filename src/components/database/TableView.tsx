@@ -10,7 +10,7 @@ import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPT
 import { CALC_OPTS, computeCalc } from "@/lib/calc";
 import { colorByRules, opsFor, wrapOf, WRAP_TYPES, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
 import { FILTER_MENU_EVENT, isTyping, type FilterMenuDetail } from "@/lib/shortcuts";
-import { FIELD_LABELS, AddFieldButton } from "./shared";
+import { FIELD_LABELS, AddFieldButton, FieldTypeIcon } from "./shared";
 import { Popover } from "./Popover";
 import { RelationCell } from "./RelationCell";
 import { RecordPanel } from "./RecordPanel";
@@ -29,6 +29,9 @@ type Rec = {
   updatedById?: string | null;
   seq?: number;
 };
+
+/** ¿Pantalla táctil? (el mismo criterio que .al-pasar en el CSS). */
+const esTactil = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 export function TableView({
   pageId,
@@ -407,11 +410,23 @@ export function TableView({
               {cell}
             </td>
           );
-        // La primera columna además lleva el árbol de subtareas.
+        // La primera columna además lleva el árbol de subtareas. En táctil, tocar el
+        // título abre la fila (como la app de Notion) en vez de ponerse a editarlo:
+        // el «ABRIR» de pasar el ratón allí tapaba el texto, y el título se edita
+        // igual dentro de la ficha. El mousedown sin default evita que el campo
+        // coja el foco (y saque el teclado) antes del clic.
         return (
           <td
             key={f.id}
             data-celda={`${r.id}:${f.id}`}
+            onMouseDownCapture={(e) => {
+              if (esTactil() && !(e.target as HTMLElement).closest("[data-propio]")) e.preventDefault();
+            }}
+            onClickCapture={(e) => {
+              if (!esTactil() || (e.target as HTMLElement).closest("[data-propio]")) return;
+              e.stopPropagation();
+              abrir(r);
+            }}
             onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
             className={`px-2 py-1.5 align-top ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
             style={style}
@@ -419,6 +434,7 @@ export function TableView({
             <div className="relative flex items-center" style={{ paddingLeft: depth * 20 }}>
               {hasChildren ? (
                 <button
+                  data-propio=""
                   onClick={() => toggle(r.id)}
                   className="flex w-4 shrink-0 items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)]"
                   title={collapsed.has(r.id) ? "Expandir subtareas" : "Plegar subtareas"}
@@ -434,7 +450,7 @@ export function TableView({
                   acciones propias de la celda, que en el título sobran. */}
               <button
                 onClick={() => abrir(r)}
-                className="al-pasar absolute right-0 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)] shadow-sm hover:text-[var(--foreground)]"
+                className="al-pasar absolute right-0 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--muted)] shadow-sm hover:text-[var(--foreground)] pointer-coarse:hidden"
               >
                 <Maximize2 size={11} /> ABRIR
               </button>
@@ -471,7 +487,9 @@ export function TableView({
       <ScrollHorizontal>
       <table ref={tablaRef} className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-y border-[var(--border)] text-left text-[var(--muted)]">
+          {/* Solo la raya de abajo: la de arriba ya la pone la barra de vistas, y con las
+              dos se veía una doble raya. */}
+          <tr className="border-b border-[var(--border)] text-left text-[var(--muted)]">
             <th className="group sticky left-0 z-20 bg-[var(--background)] text-center" style={margen}>
               <input
                 type="checkbox"
@@ -536,11 +554,13 @@ export function TableView({
                     "Opciones de la columna · arrastra para reordenar"
                   }
                 >
+                  {/* El tipo, con su icono delante del nombre como en Notion (antes, la
+                      palabra «TEXTO» en mayúsculas detrás, que se comía el nombre). */}
+                  <FieldTypeIcon type={f.type} className="shrink-0 opacity-70" />
                   <span className="truncate">{f.name}</span>
                   {(f.config as { description?: string })?.description && (
                     <Info size={12} className="shrink-0 text-[var(--muted)]" />
                   )}
-                  <span className="shrink-0 text-[10px] uppercase opacity-50">{FIELD_LABELS[f.type] ?? f.type}</span>
                 </button>
                 {/* Tirador para ajustar el ancho (doble clic vuelve al automático). */}
                 <span
@@ -697,7 +717,7 @@ export function TableView({
         </tbody>
         )}
         <tfoot>
-          <tr className="border-t border-[var(--border)] text-xs text-[var(--muted)]">
+          <tr className="group/pie border-t border-[var(--border)] text-xs text-[var(--muted)]">
             <td className="sticky left-0 z-10 bg-[var(--background)]" style={margen} />
             {fields.map((f, i) => (
               <td
@@ -840,7 +860,9 @@ function CalcCell({
       <select
         value={calc}
         onChange={(e) => onChange(e.target.value)}
-        className={`cursor-pointer rounded bg-transparent text-xs outline-none ${calc ? "opacity-0 group-hover/calc:opacity-100" : "opacity-40 group-hover/calc:opacity-100"}`}
+        // Como en Notion: «Calcular» solo asoma al pasar por la fila del pie (antes
+        // se veía siempre en todas las columnas). En táctil, tenue pero a la vista.
+        className={`cursor-pointer rounded bg-transparent text-xs outline-none ${calc ? "opacity-0 group-hover/calc:opacity-100" : "opacity-0 group-hover/pie:opacity-60 hover:!opacity-100 pointer-coarse:opacity-40"}`}
         title="Calcular"
       >
         {CALC_OPTS.map(([v, l]) => (
@@ -883,8 +905,8 @@ function BulkEditButton({ fields, onApply }: { fields: FieldLite[]; onApply: (fi
           {!field ? (
             editable.map((f) => (
               <button key={f.id} onClick={() => setFieldId(f.id)} className={item}>
+                <FieldTypeIcon type={f.type} className="shrink-0 text-[var(--muted)]" />
                 <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                <span className="text-[10px] uppercase text-[var(--muted)]">{FIELD_LABELS[f.type] ?? f.type}</span>
               </button>
             ))
           ) : field.type === "checkbox" ? (

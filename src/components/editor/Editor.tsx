@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Columns2, Columns3, Database, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquareQuote, Sigma, X } from "lucide-react";
@@ -43,6 +43,7 @@ import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
 import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
+import { TituloGrande } from "@/components/TituloGrande";
 
 /**
  * Item del menú del tirador: copia /p/<página>#<bloque>. Mismo patrón que los
@@ -213,15 +214,6 @@ export function Editor({
     titleTimer.current = setTimeout(() => persist(v, icon), 600);
   }
 
-  // El título crece con el texto (field-sizing aún no llega a Safari).
-  const tituloRef = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const t = tituloRef.current;
-    if (!t) return;
-    t.style.height = "auto";
-    t.style.height = `${t.scrollHeight}px`;
-  }, [title]);
-
   /** Del título al primer bloque del cuerpo, como Enter en Notion. */
   function alCuerpo() {
     if (!canEdit) return;
@@ -301,30 +293,12 @@ export function Editor({
             {!cover && <AddCoverButton onChange={onCoverChange} />}
           </div>
         )}
-        {/* Área de texto y no input: un título largo hace salto de línea, como en
-            Notion, en vez de cortarse. Enter no parte el título: baja al cuerpo. */}
-        <textarea
-          ref={tituloRef}
+        <TituloGrande
           value={title}
-          rows={1}
-          onChange={(e) => {
-            const v = e.target.value;
-            // En Android el Enter del teclado puede llegar como un salto dentro del
-            // texto y no como tecla: se trata igual.
-            if (v.includes("\n")) {
-              onTitleChange(v.replace(/\n/g, ""));
-              alCuerpo();
-            } else onTitleChange(v);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              alCuerpo();
-            }
-          }}
-          placeholder="Sin título"
+          onChange={onTitleChange}
+          onEnter={alCuerpo}
           readOnly={!canEdit}
-          className="font-display mb-2 block w-full resize-none overflow-hidden bg-transparent text-[2rem] font-bold leading-tight outline-none placeholder:text-[var(--border)] md:text-[2.5rem]"
+          className="mb-2 text-[2rem] md:text-[2.5rem]"
         />
       </div>
 

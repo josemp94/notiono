@@ -89,7 +89,8 @@ export function ScrollHorizontal({ className = "", children }: { className?: str
           style={{ touchAction: "none" }}
           onPointerDown={alPulsar}
         >
-          <div ref={pulgar} className="h-2.5 rounded-full bg-[var(--muted)] opacity-70" />
+          {/* Fina y tenue, como la de Notion: gruesa y oscura tapaba el pie de la tabla. */}
+          <div ref={pulgar} className="h-1.5 rounded-full bg-[var(--muted)] opacity-40 transition-opacity hover:opacity-70" />
         </div>
       )}
     </div>

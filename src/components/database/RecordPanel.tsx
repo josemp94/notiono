@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Maximize2, MessageSquare, Trash2, X } from "lucide-react";
+import { BookmarkPlus, ChevronDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react";
 import { es } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
@@ -15,7 +15,9 @@ import { useTheme } from "@/lib/theme";
 import { Cell } from "./Cell";
 import { type FieldLite } from "@/lib/cellText";
 import { RelationCell } from "./RelationCell";
-import { AddFieldButton } from "./shared";
+import { AddFieldButton, FieldTypeIcon } from "./shared";
+import { Popover } from "./Popover";
+import { TituloGrande } from "@/components/TituloGrande";
 import { CommentThread } from "@/components/CommentsPanel";
 
 type Rec = {
@@ -47,6 +49,7 @@ export function RecordCard({
   record,
   fields,
   onDeleted,
+  borrarAlPie = true,
 }: {
   pageId: string;
   collectionId?: string;
@@ -54,6 +57,8 @@ export function RecordCard({
   fields: FieldLite[];
   /** Qué hacer cuando el registro se borra (cerrar el panel, volver a la BD…). */
   onDeleted: () => void;
+  /** En el panel, borrar va en su «⋯»; como página completa, al pie. */
+  borrarAlPie?: boolean;
 }) {
   const utils = trpc.useUtils();
   const theme = useTheme();
@@ -104,25 +109,27 @@ export function RecordCard({
 
   return (
     <>
-      <input
+      <TituloGrande
         value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        placeholder="Sin título"
-        className="font-display mb-5 w-full bg-transparent text-2xl font-extrabold outline-none placeholder:text-[var(--border)] md:text-3xl"
+        onChange={onTitleChange}
+        onEnter={() => editor.focus()}
+        readOnly={!collectionId}
+        className="mb-5 text-[1.75rem] md:text-[2rem]"
       />
 
-      <div className="space-y-2">
+      <div className="ficha space-y-1">
         {propFields.map((f) => (
           // items-start: con texto envuelto la etiqueta va arriba, como en Notion
           // (centrada quedaba flotando en medio de un valor de varias líneas).
           <div key={f.id} className="grid grid-cols-[110px_1fr] items-start gap-3 md:grid-cols-[130px_1fr]">
             <span
-              className="truncate py-0.5 text-sm text-[var(--muted)]"
+              className="flex min-w-0 items-center gap-1.5 py-1 text-sm text-[var(--muted)]"
               title={(f.config as { description?: string } | null)?.description || undefined}
             >
-              {f.name}
+              <FieldTypeIcon type={f.type} className="shrink-0" />
+              <span className="truncate">{f.name}</span>
             </span>
-            <div className="min-w-0 rounded px-1 hover:bg-[var(--border)]/20">
+            <div className="min-w-0 rounded px-1 py-0.5 hover:bg-[var(--hover)]">
               {f.type === "relation" ? (
                 <RelationCell
                   field={f}
@@ -173,15 +180,17 @@ export function RecordCard({
       </div>
 
       {/* Sin confirmación: el borrado es reversible desde el propio aviso. */}
-      <button
-        onClick={() => {
-          deleteRecord.mutate({ id: record.id });
-          toast("Fila borrada", { etiqueta: "Deshacer", onClick: () => restoreRecord.mutate({ id: record.id }) });
-        }}
-        className="mt-8 flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-red-500"
-      >
-        <Trash2 size={14} /> Borrar registro
-      </button>
+      {borrarAlPie && collectionId && (
+        <button
+          onClick={() => {
+            deleteRecord.mutate({ id: record.id });
+            toast("Fila borrada", { etiqueta: "Deshacer", onClick: () => restoreRecord.mutate({ id: record.id }) });
+          }}
+          className="mt-8 flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-red-500"
+        >
+          <Trash2 size={14} /> Borrar registro
+        </button>
+      )}
     </>
   );
 }
@@ -210,8 +219,18 @@ export function RecordPanel({
 }) {
   const utils = trpc.useUtils();
   const saveTemplate = trpc.db.saveTemplate.useMutation({
-    onSuccess: () => utils.db.get.invalidate({ pageId }),
+    onSuccess: () => {
+      utils.db.get.invalidate({ pageId });
+      toast("Plantilla guardada");
+    },
   });
+  const deleteRecord = trpc.db.deleteRecord.useMutation({
+    onSuccess: async () => {
+      await utils.db.get.invalidate({ pageId });
+      onClose();
+    },
+  });
+  const restoreRecord = trpc.db.restoreRecord.useMutation({ onSuccess: () => utils.db.get.invalidate({ pageId }) });
 
   // Escape cierra el panel (en window: un menú abierto dentro lo consume antes
   // con stopPropagation, y el editor puede marcarlo con defaultPrevented).
@@ -274,56 +293,118 @@ export function RecordPanel({
           />
         )}
         <div className={centro ? "max-h-[90dvh] overflow-y-auto rounded-xl" : "h-full overflow-y-auto"}>
-        <div className="zona-segura-arriba flex items-center justify-between px-4 md:px-8">
+        {/* Cabecera como el «peek» de Notion: cerrar, abrir en grande y moverse
+            entre filas a la izquierda; lo demás, en el «⋯» de la derecha. */}
+        <div className="zona-segura-arriba sticky top-0 z-10 flex items-center gap-0.5 bg-[var(--background)] px-2 pb-1 md:px-4">
           <button
-            onClick={() => {
-              const name = prompt("Nombre de la plantilla", tituloDe(record, fields) || "Plantilla");
-              if (name?.trim()) saveTemplate.mutate({ recordId: record.id, name: name.trim() });
-            }}
-            className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-            title="Guardar estos valores como plantilla de fila"
+            onClick={onClose}
+            className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+            title="Cerrar"
+            aria-label="Cerrar"
           >
-            Guardar como plantilla
+            {centro ? <X size={18} /> : <ChevronsRight size={18} />}
           </button>
-          <div className="flex items-center gap-1">
-            {onExpand && (
+          {onExpand && (
+            <button
+              onClick={onExpand}
+              className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+              title="Abrir como página completa"
+              aria-label="Abrir como página completa"
+            >
+              <Maximize2 size={16} />
+            </button>
+          )}
+          {nav && (
+            <>
               <button
-                onClick={onExpand}
-                className="toque-estrecho rounded p-1 text-[var(--muted)] hover:text-[var(--foreground)]"
-                title="Abrir como página completa"
+                onClick={nav.prev}
+                disabled={!nav.prev}
+                className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:opacity-30"
+                title="Fila anterior"
+                aria-label="Fila anterior"
               >
-                <Maximize2 size={15} />
+                <ChevronUp size={18} />
               </button>
-            )}
-            {nav && (
-              <>
-                <button
-                  onClick={nav.prev}
-                  disabled={!nav.prev}
-                  className="toque-estrecho rounded p-1 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30"
-                  title="Fila anterior"
-                >
-                  <ChevronUp size={16} />
-                </button>
-                <button
-                  onClick={nav.next}
-                  disabled={!nav.next}
-                  className="toque-estrecho rounded p-1 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30"
-                  title="Fila siguiente"
-                >
-                  <ChevronDown size={16} />
-                </button>
-              </>
-            )}
-            <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar"><X size={16} /></button>
-          </div>
+              <button
+                onClick={nav.next}
+                disabled={!nav.next}
+                className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:opacity-30"
+                title="Fila siguiente"
+                aria-label="Fila siguiente"
+              >
+                <ChevronDown size={18} />
+              </button>
+            </>
+          )}
+          <span className="flex-1" />
+          <MenuFicha
+            onPlantilla={
+              collectionId
+                ? () => {
+                    const name = prompt("Nombre de la plantilla", tituloDe(record, fields) || "Plantilla");
+                    if (name?.trim()) saveTemplate.mutate({ recordId: record.id, name: name.trim() });
+                  }
+                : undefined
+            }
+            onEnlace={() => {
+              navigator.clipboard.writeText(`${location.origin}/p/${pageId}?r=${record.id}`);
+              toast("Enlace copiado");
+            }}
+            onBorrar={
+              collectionId
+                ? () => {
+                    deleteRecord.mutate({ id: record.id });
+                    toast("Fila borrada", { etiqueta: "Deshacer", onClick: () => restoreRecord.mutate({ id: record.id }) });
+                  }
+                : undefined
+            }
+          />
         </div>
 
           <div className="px-4 pb-10 pt-2 md:px-8">
-            <RecordCard pageId={pageId} collectionId={collectionId} record={record} fields={fields} onDeleted={onClose} />
+            <RecordCard pageId={pageId} collectionId={collectionId} record={record} fields={fields} onDeleted={onClose} borrarAlPie={false} />
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** El «⋯» de la ficha: guardar como plantilla, copiar el enlace y borrar la fila. */
+function MenuFicha({ onPlantilla, onEnlace, onBorrar }: { onPlantilla?: () => void; onEnlace: () => void; onBorrar?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
+  const hacer = (f: () => void) => () => {
+    setOpen(false);
+    f();
+  };
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+        title="Más acciones"
+        aria-label="Más acciones"
+      >
+        <MoreHorizontal size={18} />
+      </button>
+      {open && (
+        <Popover onClose={() => setOpen(false)} className="right-0 w-60 p-1">
+          <button onClick={hacer(onEnlace)} className={item}>
+            <LinkIcon size={15} /> Copiar enlace
+          </button>
+          {onPlantilla && (
+            <button onClick={hacer(onPlantilla)} className={item} title="Las filas nuevas podrán empezar con estos valores">
+              <BookmarkPlus size={15} /> Guardar como plantilla
+            </button>
+          )}
+          {onBorrar && (
+            <button onClick={hacer(onBorrar)} className={`${item} text-red-500`}>
+              <Trash2 size={15} /> Borrar
+            </button>
+          )}
+        </Popover>
+      )}
     </div>
   );
 }

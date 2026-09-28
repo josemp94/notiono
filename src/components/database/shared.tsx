@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Database, FunctionSquare, Link2, Plus, Sigma } from "lucide-react";
+import {
+  AlignLeft, ArrowUpRight, AtSign, Calendar, ChevronLeft, ChevronRight, CircleChevronDown, CircleDashed, CircleUser,
+  Clock, Database, FunctionSquare, Hash, KeyRound, Link, Link2, List, MapPin, MousePointerClick, Paperclip, Phone,
+  Plus, Search, Sigma, SquareCheck, Users, type LucideIcon,
+} from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { IconoPagina } from "@/components/PageIcon";
 import { Popover } from "./Popover";
@@ -32,6 +36,37 @@ export const FIELD_LABELS: Record<string, string> = {
   rollup: "Rollup",
   formula: "Fórmula",
 };
+
+/** El icono de cada tipo de columna, como los que Notion pone delante del nombre. */
+const FIELD_ICONS: Record<string, LucideIcon> = {
+  text: AlignLeft,
+  number: Hash,
+  select: CircleChevronDown,
+  multiselect: List,
+  status: CircleDashed,
+  person: Users,
+  files: Paperclip,
+  checkbox: SquareCheck,
+  date: Calendar,
+  url: Link,
+  email: AtSign,
+  phone: Phone,
+  location: MapPin,
+  created_time: Clock,
+  last_edited_time: Clock,
+  created_by: CircleUser,
+  last_edited_by: CircleUser,
+  id: KeyRound,
+  button: MousePointerClick,
+  relation: ArrowUpRight,
+  rollup: Search,
+  formula: FunctionSquare,
+};
+
+export function FieldTypeIcon({ type, size = 14, className }: { type: string; size?: number; className?: string }) {
+  const Icono = FIELD_ICONS[type] ?? AlignLeft;
+  return <Icono size={size} className={className} aria-label={FIELD_LABELS[type] ?? type} />;
+}
 
 const TYPES = ["text", "number", "select", "multiselect", "status", "person", "files", "checkbox", "date", "url", "email", "phone", "location", "created_time", "last_edited_time", "created_by", "last_edited_by", "id", "button"] as const;
 
@@ -96,8 +131,9 @@ export function AddFieldButton({
                 <button
                   key={t}
                   onClick={() => addField.mutate({ collectionId, name: FIELD_LABELS[t], type: t })}
-                  className="block w-full rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
                 >
+                  <FieldTypeIcon type={t} className="text-[var(--muted)]" />
                   {FIELD_LABELS[t]}
                 </button>
               ))}

@@ -2,13 +2,14 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, Pencil, Plus, Table, Trash2, Upload, X } from "lucide-react";
+import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, MoreHorizontal, Pencil, Plus, Table, Trash2, Upload, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { usePeople } from "./Cell";
 import { downloadText } from "@/lib/download";
+import { nombreSeguro } from "@/lib/exportZip";
 import { parseCsv } from "@/lib/csv";
 import { FILTER_MENU_EVENT, VIEW_MENU_EVENT, type FilterMenuDetail, type ViewMenuDetail } from "@/lib/shortcuts";
 import {
@@ -278,12 +279,23 @@ export function DbToolbar({
         )}
       </div>
 
-      {/* Opciones de la vista. No hay botón: se abren pinchando su pestaña, que es
-          donde uno mira. Antes había un engranaje aquí a la derecha y el menú salía
-          en la otra punta de la barra, lejos de la vista a la que se refería. */}
+      {/* Opciones de la vista: con el «⋯» de la barra, como en Notion, y también
+          pinchando otra vez su pestaña (o con clic derecho), que salen donde está
+          el ratón. Sin el «⋯» no había forma de descubrirlas, y menos en el móvil. */}
       <div className="relative">
+        <button
+          onClick={() => {
+            setCfgAt(null);
+            setOpen(open === "cfg" ? null : "cfg");
+          }}
+          className="toque flex items-center justify-center rounded-md px-2 py-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+          title="Opciones de la vista"
+          aria-label="Opciones de la vista"
+        >
+          <MoreHorizontal size={15} />
+        </button>
         {open === "cfg" && (
-          <Popover onClose={() => setOpen(null)} at={cfgAt ?? undefined} className="w-80 p-3">
+          <Popover onClose={() => setOpen(null)} at={cfgAt ?? undefined} className={`w-80 p-3 ${cfgAt ? "" : "right-0"}`}>
             <button
               onClick={() => {
                 const name = window.prompt("Nuevo nombre de la vista:", view.name);
@@ -497,25 +509,23 @@ export function DbToolbar({
             >
               <Trash2 size={14} /> Borrar vista
             </button>
+            {/* Importar y exportar, aquí y no como dos iconos sueltos en la barra. */}
+            <div className="mt-1 border-t border-[var(--border)] pt-1">
+              <button
+                onClick={async () => {
+                  setOpen(null);
+                  const { name, csv } = await utils.db.exportCsv.fetch({ collectionId });
+                  downloadText(`${nombreSeguro(name)}.csv`, csv, "text/csv");
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+              >
+                <Download size={14} /> Exportar a CSV
+              </button>
+              <ImportarCsvButton pageId={pageId} collectionId={collectionId} />
+            </div>
           </Popover>
         )}
       </div>
-
-      {/* Exportar CSV */}
-      <button
-        onClick={async () => {
-          const { name, csv } = await utils.db.exportCsv.fetch({ collectionId });
-          downloadText(`${name}.csv`, csv, "text/csv");
-        }}
-        className="toque flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-        title="Exportar a CSV"
-        aria-label="Exportar a CSV"
-      >
-        <Download size={15} />
-      </button>
-
-      <ImportarCsvButton pageId={pageId} collectionId={collectionId} />
-
     </div>
   );
 }
@@ -542,11 +552,10 @@ function ImportarCsvButton({ pageId, collectionId }: { pageId: string; collectio
       <button
         onClick={() => fileRef.current?.click()}
         disabled={importar.isPending}
-        className="toque flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] disabled:opacity-50"
-        title="Importar CSV a esta base de datos (las cabeceras casan con las columnas por nombre)"
-        aria-label="Importar CSV"
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
+        title="Las cabeceras del CSV casan con las columnas por nombre; las que no, crean columna"
       >
-        <Upload size={15} />
+        <Upload size={14} /> {importar.isPending ? "Importando…" : "Importar CSV"}
       </button>
       <input
         ref={fileRef}

@@ -523,3 +523,10 @@ td input[type="tel"] {
     print-color-adjust: exact;
   }
 }
+
+/* Celda sin valor (<Vacio/> en Cell.tsx): en la tabla, nada, como Notion; en la
+   ficha de una fila, «Vacío» en gris, que invita a pulsar. */
+.ficha .vacio::before {
+  content: "Vacío";
+  opacity: 0.7;
+}

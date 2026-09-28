@@ -83,15 +83,15 @@ export function Cell({
     const txt =
       d && !isNaN(d.getTime())
         ? d.toLocaleString("es-ES", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-        : "—";
-    return <span className="block px-1 py-0.5 text-sm text-[var(--muted)]">{txt}</span>;
+        : null;
+    return <span className="block px-1 py-0.5 text-sm text-[var(--muted)]">{txt ?? <Vacio />}</span>;
   }
 
   if (field.type === "rollup" || field.type === "formula") {
     const v = rollupValue;
     return (
       <span className="block px-1 py-0.5 text-sm text-[var(--muted)]">
-        {v === undefined || v === null || v === "" ? "—" : String(v)}
+        {v === undefined || v === null || v === "" ? <Vacio /> : String(v)}
       </span>
     );
   }
@@ -100,7 +100,7 @@ export function Cell({
     const n = Array.isArray(value) ? value.length : 0;
     return (
       <span className="block px-1 py-0.5 text-sm text-[var(--muted)]">
-        {n ? `${n} vinculado${n > 1 ? "s" : ""}` : "—"}
+        {n ? `${n} vinculado${n > 1 ? "s" : ""}` : <Vacio />}
       </span>
     );
   }
@@ -633,7 +633,7 @@ function TagCell({ field, value, onCommit }: { field: FieldLite; value: unknown;
             return o ? pill(o) : null;
           })
         ) : (
-          <span className="text-sm text-[var(--muted)]">—</span>
+          <Vacio />
         )}
       </button>
       {open && (
@@ -843,7 +843,7 @@ function PersonCell({ value, onCommit }: { value: unknown; onCommit: (v: unknown
             </span>
           ))
         ) : (
-          <span className="text-sm text-[var(--muted)]">—</span>
+          <Vacio />
         )}
       </button>
       {open && (
@@ -980,7 +980,7 @@ function AuthorCell({ userId }: { userId?: string | null }) {
           {name}
         </>
       ) : (
-        "—"
+        <Vacio />
       )}
     </span>
   );
@@ -1046,4 +1046,13 @@ function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown
       )}
     </div>
   );
+}
+
+/**
+ * Una celda sin valor. En la tabla no enseña nada, como Notion (antes un «—» en
+ * cada hueco); en la ficha de una fila dice «Vacío», que es donde hace falta saber
+ * que ahí se puede pulsar. Lo decide el CSS según dónde esté (`.vacio`).
+ */
+export function Vacio() {
+  return <span className="vacio text-sm text-[var(--muted)]" />;
 }
