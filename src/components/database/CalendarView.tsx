@@ -254,7 +254,7 @@ export function CalendarView({
                           onDragStart={() => setDragId(r.id)}
                           onDragEnd={() => setDragId(null)}
                           onClick={() => abrir(r)}
-                          className={`block w-full cursor-grab truncate rounded bg-[var(--border)]/30 px-1.5 py-0.5 text-left text-xs hover:bg-brand/10 active:cursor-grabbing ${
+                          className={`block w-full cursor-grab truncate rounded bg-[var(--border)]/30 px-1 py-0.5 text-left text-[11px] hover:bg-brand/10 active:cursor-grabbing md:px-1.5 md:text-xs ${
                             dragId === r.id ? "opacity-50" : ""
                           }`}
                           title={recTitle(r)}

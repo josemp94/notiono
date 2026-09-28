@@ -15,13 +15,16 @@ export async function ensureWorkspace(db: DB, user: { id: string; name: string |
     await db.page.create({
       data: {
         workspaceId: ws.id,
-        title: "Inicio",
-        icon: "🏠",
+        // «Primeros pasos» y no «Inicio»: Inicio ya es la pantalla de la fila de
+        // arriba del panel, y dos «Inicio» seguidos confundían (Notion la llama
+        // igual, «Getting started»).
+        title: "Primeros pasos",
+        icon: "👋",
         order: generateKeyBetween(null, null),
         content: [
           { type: "heading", props: { level: 1 }, content: "Bienvenido a Notiono 🧡" },
           { type: "paragraph", content: "Este es tu espacio. Escribe, organiza y crea bases de datos." },
-          { type: "paragraph", content: 'Pulsa "+ Página" o "+ BD" en la barra lateral para empezar.' },
+          { type: "paragraph", content: "Crea una página con el lápiz de arriba del panel, o una base de datos desde «Nueva base de datos», abajo." },
         ],
       },
     });
