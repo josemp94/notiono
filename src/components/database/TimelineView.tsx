@@ -203,6 +203,27 @@ export function TimelineView({
   });
   const goToday = () => setCursor({ y: today.getFullYear(), m: today.getMonth() });
 
+  // Ancho de la columna de títulos: 180 px, y 120 en el móvil, donde 180 se comía
+  // media pantalla. En JS y no solo en CSS porque las flechas lo necesitan.
+  const [etq, setEtq] = useState(180);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 768px)");
+    const f = () => setEtq(m.matches ? 180 : 120);
+    f();
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, []);
+
+  // Con el mes de hoy a la vista, se abre ya desplazado hasta hoy, como en Notion:
+  // en un móvil, empezar en el día 1 dejaba las barras de esta semana fuera.
+  const lienzo = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const hoy = lienzo.current?.querySelector<HTMLElement>("[data-hoy]");
+    const cont = lienzo.current?.parentElement;
+    if (!hoy || !cont) return;
+    cont.scrollLeft += hoy.getBoundingClientRect().left - cont.getBoundingClientRect().left - etq - DAY_W * 3;
+  }, [cursor.y, cursor.m, DAY_W, etq]);
+
   const hoyOff = today >= winStart && today <= winEnd ? díasEntre(winStart, new Date(today.getFullYear(), today.getMonth(), today.getDate())) : null;
   const titulo =
     zoom.meses === 1
@@ -276,17 +297,20 @@ export function TimelineView({
         </div>
       </div>
 
+      {/* La columna de títulos mide --etq: 180 px en escritorio, 120 en el móvil,
+          donde con 180 se comía media pantalla. */}
       <ScrollHorizontal className="rounded-lg border border-[var(--border)]">
-        <div style={{ width: 180 + gridW }}>
+        <div ref={lienzo} style={{ width: etq + gridW, ["--etq" as string]: `${etq}px` }}>
           {/* Cabecera. La columna de títulos va sticky: es la «tabla lateral» que
               se queda quieta mientras el gantt se desplaza en horizontal. */}
           <div className="flex border-b border-[var(--border)] bg-[var(--background)]">
-            <div className="sticky left-0 z-20 w-[180px] shrink-0 border-r border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs font-medium text-[var(--muted)]">Registro</div>
+            <div className="sticky left-0 z-20 w-[var(--etq)] shrink-0 border-r border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs font-medium text-[var(--muted)]">Registro</div>
             {zoom.meses === 1 ? (
               <div className="flex">
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
                   <div
                     key={d}
+                    data-hoy={hoyOff === d - 1 ? "" : undefined}
                     className={`shrink-0 border-l border-[var(--border)] py-1.5 text-center text-[10px] ${
                       hoyOff === d - 1 ? "font-bold text-brand" : "text-[var(--muted)]"
                     }`}
@@ -323,7 +347,7 @@ export function TimelineView({
               <div key={rec.id} className="group/fila flex h-[37px] items-center border-b border-[var(--border)] last:border-0 hover:bg-[var(--border)]/15">
                 <button
                   onClick={() => (openIn === "full" ? openFull?.(rec.id) : setOpenRec(rec))}
-                  className="sticky left-0 z-10 w-[180px] shrink-0 self-stretch truncate border-r border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-sm hover:text-brand"
+                  className="sticky left-0 z-10 w-[var(--etq)] shrink-0 self-stretch truncate border-r border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-sm hover:text-brand"
                   title={recTitle(rec)}
                 >
                   <RichText texto={recTitle(rec)} />
@@ -357,7 +381,7 @@ export function TimelineView({
                     }}
                     title={`${recTitle(rec)} — arrastra para mover; el borde derecho, para cambiar la duración`}
                   >
-                    <RichText texto={recTitle(rec)} />
+                    {span * DAY_W >= 90 && <RichText texto={recTitle(rec)} />}
                     {/* Tirador de redimensionar (solo ratón, como el ancho de columna) */}
                     <span
                       onMouseDown={(e) => {
@@ -368,6 +392,15 @@ export function TimelineView({
                       className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize rounded-r bg-white/25"
                     />
                   </div>
+                  {/* Barra corta: el nombre va a su derecha, como en Notion, en vez de «C…». */}
+                  {span * DAY_W < 90 && (
+                    <span
+                      className="pointer-events-none absolute top-1/2 max-w-60 -translate-y-1/2 truncate text-xs"
+                      style={{ left: off * DAY_W + Math.max(DAY_W - 4, span * DAY_W - 4) + (depFieldId ? 20 : 8) }}
+                    >
+                      <RichText texto={recTitle(rec)} />
+                    </span>
+                  )}
                   {/* Puntito de enlazar: arrastra hasta otra barra para crear la dependencia (de ratón). */}
                   {depFieldId && !drag && (
                     <span
@@ -399,9 +432,9 @@ export function TimelineView({
                   if (ai === undefined || ai === bi) continue;
                   const a = bars[ai];
                   flechas.push({
-                    x1: 180 + (a.off + a.span) * DAY_W - 2,
+                    x1: etq + (a.off + a.span) * DAY_W - 2,
                     y1: ai * ROW_H + ROW_H / 2,
-                    x2: 180 + b.off * DAY_W + 2,
+                    x2: etq + b.off * DAY_W + 2,
                     y2: bi * ROW_H + ROW_H / 2,
                   });
                 }
@@ -412,7 +445,7 @@ export function TimelineView({
               return (
                 <svg
                   className="pointer-events-none absolute left-0 top-0"
-                  width={180 + gridW}
+                  width={etq + gridW}
                   height={bars.length * ROW_H}
                 >
                   <defs>
@@ -432,7 +465,7 @@ export function TimelineView({
                   ))}
                   {link && src && srcIdx !== undefined && (
                     <line
-                      x1={180 + (src.off + src.span) * DAY_W}
+                      x1={etq + (src.off + src.span) * DAY_W}
                       y1={srcIdx * ROW_H + ROW_H / 2}
                       x2={link.x}
                       y2={link.y}
