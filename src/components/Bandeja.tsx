@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Bell, X } from "lucide-react";
+import { Inbox, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { emojiIcono } from "@/components/PageIcon";
 
@@ -59,14 +59,15 @@ export function BandejaHost() {
       {open &&
         mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setOpen(false)}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 md:p-4" onClick={() => setOpen(false)}>
+            {/* En el móvil, a pantalla completa como la bandeja de la app de Notion. */}
             <div
-              className="flex max-h-[70vh] w-full max-w-md flex-col rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-2xl"
+              className="pt-[env(safe-area-inset-top)] flex h-dvh w-full max-w-md flex-col bg-[var(--background)] md:h-auto md:max-h-[70vh] md:rounded-xl md:border md:border-[var(--border)] md:pt-0 md:shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 pb-2 pt-4">
                 <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-                  <Bell size={18} /> Notificaciones
+                  <Inbox size={18} /> Bandeja de entrada
                 </h2>
                 <div className="flex items-center gap-2">
                   {!!unread && (

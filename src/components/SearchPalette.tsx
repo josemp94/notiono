@@ -94,13 +94,16 @@ export function SearchPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 p-4 pt-[15vh]"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 md:p-4 md:pt-[15vh]"
       onClick={() => setOpen(false)}
     >
+      {/* En el móvil ocupa toda la pantalla, como la búsqueda de la app de Notion;
+          en escritorio, la ventanita centrada de siempre. */}
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-2xl"
+        className="pt-[env(safe-area-inset-top)] flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-[var(--background)] md:h-auto md:rounded-xl md:border md:border-[var(--border)] md:pt-0 md:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="flex items-center border-b border-[var(--border)]">
         <input
           ref={inputRef}
           value={query}
@@ -117,10 +120,15 @@ export function SearchPalette() {
             }
           }}
           placeholder="Buscar en títulos y contenido…"
-          className="w-full border-b border-[var(--border)] bg-transparent px-4 py-3 text-sm outline-none placeholder:text-[var(--muted)]"
+          className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-[var(--muted)]"
         />
+          {/* Sin Escape a mano en el móvil: un «Cancelar» como el de Notion. */}
+          <button onClick={() => setOpen(false)} className="shrink-0 px-4 py-3 text-sm text-brand md:hidden">
+            Cancelar
+          </button>
+        </div>
         {/* Filtros: tipo y editado recientemente. Solo tocan los resultados de búsqueda. */}
-        <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border)] px-3 py-1.5 text-xs">
+        <div className="sin-barra flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--border)] px-3 py-1.5 text-xs md:flex-wrap">
           {(
             [
               ["all", "Todo"],
@@ -158,7 +166,7 @@ export function SearchPalette() {
             </button>
           ))}
         </div>
-        <div className="max-h-80 overflow-y-auto p-1">
+        <div className="min-h-0 flex-1 overflow-y-auto p-1 md:max-h-80 md:flex-none">
           {items.map((p, i) => (
             <button
               key={p.id}

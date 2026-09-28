@@ -171,7 +171,9 @@ export function CommentThread({
 /** Panel lateral derecho con el hilo de comentarios de una página. */
 export function CommentsPanel({ pageId, onClose }: { pageId: string; onClose: () => void }) {
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-80 flex-col border-l border-[var(--border)] bg-[var(--background)] shadow-xl md:static md:z-auto md:shadow-none">
+    // En el móvil, a pantalla completa: con 320 px quedaba una franja de página
+    // asomando a la izquierda que no servía para nada.
+    <aside className="pt-[env(safe-area-inset-top)] fixed inset-0 z-40 flex w-full flex-col bg-[var(--background)] md:static md:z-auto md:w-80 md:border-l md:border-[var(--border)] md:pt-0">
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <h2 className="flex items-center gap-2 font-display text-sm font-bold">
           <MessageSquare size={16} /> Comentarios
