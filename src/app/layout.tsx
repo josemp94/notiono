@@ -47,7 +47,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
+    // suppressHydrationWarning: el script de abajo pone data-theme en <html> antes de
+    // que React hidrate; sin esto, cada carga dejaba un aviso de hidratación.
+    <html lang="es" suppressHydrationWarning>
       <body
         className={`${display.variable} ${sans.variable} ${mono.variable} antialiased`}
       >
