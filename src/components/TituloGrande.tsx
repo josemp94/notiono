@@ -18,6 +18,7 @@ export function TituloGrande({
   readOnly,
   className = "",
   inputRef,
+  autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -26,6 +27,8 @@ export function TituloGrande({
   className?: string;
   /** Para quien necesita saber si el título tiene el foco. */
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  /** Una página recién creada empieza con el cursor en el título, como en Notion. */
+  autoFocus?: boolean;
 }) {
   const propio = useRef<HTMLTextAreaElement>(null);
   const ref = inputRef ?? propio;
@@ -41,6 +44,7 @@ export function TituloGrande({
       ref={ref}
       value={value}
       rows={1}
+      autoFocus={autoFocus}
       onChange={(e) => {
         const v = e.target.value;
         if (v.includes("\n")) {

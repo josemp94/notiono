@@ -298,6 +298,7 @@ export function Editor({
           onChange={onTitleChange}
           onEnter={alCuerpo}
           readOnly={!canEdit}
+          autoFocus={canEdit && !initialTitle && !initial}
           className="mb-2 text-[2rem] md:text-[2.5rem]"
         />
       </div>

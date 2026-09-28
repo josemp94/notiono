@@ -535,3 +535,12 @@ td input[type="tel"] {
   content: "Vacío";
   opacity: 0.7;
 }
+
+/* El tirador de bloque (⠿ y «+») es cosa de ratón: en táctil salía medio cortado
+   en el borde de la pantalla y la app de Notion no lo enseña. Los bloques se
+   convierten desde la barra de formato, que en táctil va sobre el teclado. */
+@media (pointer: coarse) {
+  .bn-side-menu {
+    display: none !important;
+  }
+}

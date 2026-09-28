@@ -15,6 +15,14 @@ import { setTheme } from "@/lib/theme";
 
 const COLLAPSED_KEY = "notiono.sidebar-collapsed";
 
+/** El nombre de cada pantalla que no es una página, para su barra superior. */
+const TITULOS: Record<string, string> = {
+  "/": "Inicio",
+  "/settings": "Ajustes",
+  "/trash": "Papelera",
+  "/my-tasks": "Mis tareas",
+};
+
 type Panel = {
   plegado: boolean;
   alternar: () => void;
@@ -187,6 +195,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {!barraPropia && (
           <div className={`no-imprimir flex h-11 shrink-0 items-center px-3 ${collapsed ? "" : "md:hidden"}`}>
             <BotonPanel />
+            <span className="ml-1 truncate text-sm">{TITULOS[pathname] ?? ""}</span>
           </div>
         )}
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
