@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Check, FileArchive, FileCode, FileText, Folder, FolderInput, Link as LinkIcon, Lock, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Bell, Check, FileArchive, FileCode, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -13,11 +13,14 @@ import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory"
 import { ShareButton } from "@/components/SharePublish";
 import { MovePageModal } from "@/components/MovePage";
 import { toast } from "@/components/Toast";
+import { BotonPanel } from "@/components/AppShell";
 import { usePeople } from "@/components/database/Cell";
 import { IconoPagina } from "@/components/PageIcon";
 import { exportaZipConEditor } from "@/components/editor/exportarZip";
 import { exportaHtml } from "@/components/editor/exportarHtml";
-import type { PaginaExport } from "@/lib/exportZip";
+import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
+import { editorParaExport } from "@/components/editor/bloquesExport";
+import { downloadText } from "@/lib/download";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
 function haceCuanto(d: Date | string): string {
@@ -72,10 +75,14 @@ export default function PageView() {
   return (
     <div className="relative flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="no-imprimir flex h-10 shrink-0 items-center gap-1 px-3">
+        <div className="no-imprimir flex h-11 shrink-0 items-center gap-1 px-3">
+          <BotonPanel />
           <Breadcrumbs pageId={page.id} />
+          {/* Aquí pinta el editor quién más está en la página y si la conexión falla
+              (ver Editor.tsx): Notion enseña los avatares en esta misma barra. */}
+          <div id="barra-editor" className="ml-auto flex shrink-0 items-center gap-2 text-xs text-[var(--muted)]" />
           {!comments && (
-            <div className="ml-auto flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {/* «Editado por X hace Y», como Notion en su barra superior. */}
               <span
                 className="hidden whitespace-nowrap px-1 text-xs text-[var(--muted)] lg:block"
@@ -85,12 +92,20 @@ export default function PageView() {
                 {haceCuanto(page.updatedAt)}
               </span>
               {page.locked && <LockedPill pageId={page.id} canEdit={canEdit} />}
-              <FollowButton pageId={page.id} siguiendo={page.siguiendo} />
-              {canEdit && <FavoriteButton pageId={page.id} />}
               {nivel === "full" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
-              {page.type !== "database" && <HistoryButton onClick={() => setHistory(true)} />}
-              <CommentsButton pageId={page.id} onClick={() => setComments(true)} />
-              {canEdit && <PageMenu page={page} />}
+              {/* En el móvil no caben: van dentro del «⋯», como en la app de Notion. */}
+              <div className="hidden items-center gap-1 md:flex">
+                <CommentsButton pageId={page.id} onClick={() => setComments(true)} />
+                {page.type !== "database" && <HistoryButton onClick={() => setHistory(true)} />}
+                {canEdit && <FavoriteButton pageId={page.id} />}
+                <FollowButton pageId={page.id} siguiendo={page.siguiendo} />
+              </div>
+              <PageMenu
+                page={page}
+                canEdit={canEdit}
+                onComments={() => setComments(true)}
+                onHistory={() => setHistory(true)}
+              />
             </div>
           )}
         </div>
@@ -136,7 +151,6 @@ export default function PageView() {
 
 /** Miga de pan: Espacio ▸ ancestros ▸ página actual, resuelta desde el árbol ya cargado. */
 function Breadcrumbs({ pageId }: { pageId: string }) {
-  const { data: me } = trpc.auth.me.useQuery();
   const { data: tree } = trpc.pages.tree.useQuery();
 
   const byId = new Map((tree ?? []).map((p) => [p.id, p]));
@@ -147,19 +161,14 @@ function Breadcrumbs({ pageId }: { pageId: string }) {
     cur = cur.parentId ? byId.get(cur.parentId) : undefined;
   }
 
-  const sep = <span className="shrink-0 text-[var(--border)]">▸</span>;
+  // Como en Notion: solo las páginas, separadas por «/», sin el espacio delante. En el
+  // móvil, solo la página actual: no cabe más y el cajón ya enseña dónde cuelga.
+  const sep = <span className="hidden shrink-0 text-[var(--muted)] opacity-60 md:inline">/</span>;
   return (
     <nav className="flex min-w-0 items-center gap-1 text-sm text-[var(--muted)]">
-      <Link
-        href="/"
-        className="flex shrink-0 items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-      >
-        <Folder size={13} />
-        <span className="max-w-32 truncate">{me?.workspace?.name ?? "Espacio"}</span>
-      </Link>
       {chain.map((p, i) => (
-        <span key={p.id} className="flex min-w-0 items-center gap-1">
-          {sep}
+        <span key={p.id} className={`min-w-0 items-center gap-1 ${i === chain.length - 1 ? "flex" : "hidden md:flex"}`}>
+          {i > 0 && sep}
           {i === chain.length - 1 ? (
             <span className="flex min-w-0 items-center gap-1 px-1 py-0.5 text-[var(--foreground)]">
               {p.icon ? <span className="shrink-0"><IconoPagina icon={p.icon} size={14} /></span> : <FileText size={13} className="shrink-0" />}
@@ -199,8 +208,23 @@ function LockedPill({ pageId, canEdit }: { pageId: string; canEdit: boolean }) {
   );
 }
 
-/** Menú "⋯" de la cabecera: Ancho completo, Estilo (solo docs) y Mover a…. */
-function PageMenu({ page }: { page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string; icon?: string | null; content?: unknown } }) {
+const itemMenu = "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
+
+/**
+ * Menú «⋯» de la cabecera. En el móvil recoge además lo que en escritorio va suelto
+ * en la barra (comentarios, historial, favorito, seguir), que ahí no cabe.
+ */
+function PageMenu({
+  page,
+  canEdit,
+  onComments,
+  onHistory,
+}: {
+  page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string; icon?: string | null; content?: unknown; siguiendo?: boolean };
+  canEdit: boolean;
+  onComments: () => void;
+  onHistory: () => void;
+}) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -210,6 +234,20 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
   const setLocked = trpc.pages.setLocked.useMutation();
   const setFont = trpc.pages.setFont.useMutation();
   const people = usePeople();
+  const { data: favs } = trpc.favorites.list.useQuery();
+  const esFavorita = (favs ?? []).some((f) => f.id === page.id);
+  const favorita = trpc.pages.toggleFavorite.useMutation({ onSuccess: () => utils.favorites.list.invalidate() });
+  const seguir = trpc.pages.toggleFollow.useMutation({
+    onSuccess: (r) => utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, siguiendo: r.siguiendo } : p)),
+  });
+
+  async function exportarMarkdown() {
+    setOpen(false);
+    // Lo último guardado (el editor guarda a los 800 ms): la caché podría ir por detrás.
+    const fresca = await utils.pages.get.fetch({ id: page.id }, { staleTime: 0 });
+    const ed = editorParaExport(fresca.content);
+    downloadText(`${nombreSeguro(page.title || "Sin titulo")}.md`, ed.blocksToMarkdownLossy(ed.document), "text/markdown");
+  }
 
   async function exportarZip() {
     setOpen(false);
@@ -253,18 +291,43 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
         <MoreHorizontal size={16} />
       </button>
       {open && (
-        <div data-menu="" className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+        <div data-menu="" className="absolute right-0 top-full z-30 mt-1 max-h-[calc(100dvh-4rem)] w-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+          <div className="md:hidden">
+            <button onClick={() => { setOpen(false); onComments(); }} className={itemMenu}>
+              <MessageSquare size={16} />
+              Comentarios
+            </button>
+            {page.type !== "database" && (
+              <button onClick={() => { setOpen(false); onHistory(); }} className={itemMenu}>
+                <History size={16} />
+                Historial de versiones
+              </button>
+            )}
+            {canEdit && (
+              <button onClick={() => favorita.mutate({ pageId: page.id })} className={itemMenu}>
+                <Star size={16} fill={esFavorita ? "currentColor" : "none"} className={esFavorita ? "text-brand" : ""} />
+                {esFavorita ? "Quitar de favoritos" : "Añadir a favoritos"}
+              </button>
+            )}
+            <button onClick={() => seguir.mutate({ pageId: page.id })} className={itemMenu}>
+              <Bell size={16} fill={page.siguiendo ? "currentColor" : "none"} className={page.siguiendo ? "text-brand" : ""} />
+              {page.siguiendo ? "Dejar de seguir" : "Seguir los cambios"}
+            </button>
+            <div className="my-1 border-t border-[var(--border)]" />
+          </div>
           <button
             onClick={() => {
               navigator.clipboard.writeText(`${location.origin}/p/${page.id}`);
               setOpen(false);
               toast("Enlace copiado");
             }}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+            className={itemMenu}
           >
             <LinkIcon size={16} />
             Copiar enlace
           </button>
+          {canEdit && (
+          <>
           <button
             onClick={() => {
               const value = !page.locked;
@@ -272,7 +335,7 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
               setLocked.mutate({ id: page.id, value });
               setOpen(false);
             }}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+            className={itemMenu}
           >
             <Lock size={16} />
             {page.type === "database" ? "Bloquear base de datos" : "Bloquear página"}
@@ -281,7 +344,7 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
           {page.type !== "database" && (
             <button
               onClick={toggleFullWidth}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+              className={itemMenu}
             >
               <MoveHorizontal size={16} />
               Ancho completo
@@ -313,38 +376,49 @@ function PageMenu({ page }: { page: { id: string; title: string; type: string; f
               </div>
             </div>
           )}
+          </>
+          )}
+          <div className="my-1 border-t border-[var(--border)]" />
           <button
             onClick={exportarZip}
             disabled={exportando}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-60"
+            className={`${itemMenu} disabled:opacity-60`}
           >
             <FileArchive size={16} />
             {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
           </button>
           {/* Solo docs: una BD ya exporta a CSV desde su barra. */}
           {page.type !== "database" && (
+            <button onClick={exportarMarkdown} className={itemMenu}>
+              <FileDown size={16} />
+              Exportar Markdown
+            </button>
+          )}
+          {page.type !== "database" && (
             <button
               onClick={() => {
                 setOpen(false);
                 exportaHtml({ titulo: page.title, icon: page.icon, content: page.content });
               }}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
+              className={itemMenu}
               title="Un .html que se abre en cualquier navegador; para PDF, imprime la página (Ctrl+P)"
             >
               <FileCode size={16} />
               Exportar HTML
             </button>
           )}
-          <button
-            onClick={() => {
-              setOpen(false);
-              setMoving(true);
-            }}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)]"
-          >
-            <FolderInput size={16} />
-            Mover a…
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                setMoving(true);
+              }}
+              className={itemMenu}
+            >
+              <FolderInput size={16} />
+              Mover a…
+            </button>
+          )}
         </div>
       )}
       {moving && <MovePageModal pageId={page.id} onClose={() => setMoving(false)} />}

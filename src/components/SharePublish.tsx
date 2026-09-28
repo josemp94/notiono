@@ -146,7 +146,10 @@ export function ShareButton({ pageId, publicToken }: { pageId: string; publicTok
         }`}
         title="Compartir / Publicar en la web"
       >
-        <Globe size={16} />
+        {/* Como Notion: «Compartir» con palabra en escritorio; en el móvil no cabe. */}
+        <Globe size={16} className="md:hidden" />
+        <span className="hidden md:inline">Compartir</span>
+        {publicToken && <Globe size={13} className="ml-1 hidden md:inline" />}
       </button>
       {open && (
         <div data-menu=""

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, Columns2, Columns3, Database, Download, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquare, Sigma, X } from "lucide-react";
+import { Columns2, Columns3, Database, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquareQuote, Sigma, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
   BlockColorsItem,
@@ -38,14 +39,10 @@ import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } fro
 import { emptyColumn } from "./columnBlock";
 import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
-import { downloadText } from "@/lib/download";
-import { editorParaExport } from "./bloquesExport";
 import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
 import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
-
-type SaveState = "saved" | "saving" | "idle";
 
 /**
  * Item del menú del tirador: copia /p/<página>#<bloque>. Mismo patrón que los
@@ -96,14 +93,14 @@ export function Editor({
   const [title, setTitle] = useState(initialTitle);
   const [icon, setIcon] = useState<string | null>(initialIcon ?? null);
   const [cover, setCover] = useState<string | null>(initialCover ?? null);
-  const [saveState, setSaveState] = useState<SaveState>("saved");
   const [showThreads, setShowThreads] = useState(false);
+  // El hueco de la barra superior de la página donde va la presencia (page.tsx).
+  const [barra, setBarra] = useState<HTMLElement | null>(null);
+  useEffect(() => setBarra(document.getElementById("barra-editor")), []);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const saveContent = trpc.pages.updateContent.useMutation({
-    onSuccess: () => setSaveState("saved"),
-  });
+  const saveContent = trpc.pages.updateContent.useMutation();
   const rename = trpc.pages.rename.useMutation({
     onSuccess: () => utils.pages.tree.invalidate(),
   });
@@ -200,7 +197,6 @@ export function Editor({
     // En modo colaborativo el estado vive en el servidor de Yjs; aquí solo se
     // refresca la copia legible (Page.content) que usan búsqueda, publicación y
     // export. Todos los editores abiertos guardan lo mismo, así que es inocuo.
-    setSaveState("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveContent.mutate({ id: pageId, content: editor.document });
@@ -208,18 +204,30 @@ export function Editor({
   }
 
   function persist(nextTitle: string, nextIcon: string | null) {
-    setSaveState("saving");
-    rename.mutate(
-      { id: pageId, title: nextTitle, icon: nextIcon },
-      { onSuccess: () => setSaveState("saved") },
-    );
+    rename.mutate({ id: pageId, title: nextTitle, icon: nextIcon });
   }
 
   function onTitleChange(v: string) {
     setTitle(v);
-    setSaveState("saving");
     if (titleTimer.current) clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(() => persist(v, icon), 600);
+  }
+
+  // El título crece con el texto (field-sizing aún no llega a Safari).
+  const tituloRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const t = tituloRef.current;
+    if (!t) return;
+    t.style.height = "auto";
+    t.style.height = `${t.scrollHeight}px`;
+  }, [title]);
+
+  /** Del título al primer bloque del cuerpo, como Enter en Notion. */
+  function alCuerpo() {
+    if (!canEdit) return;
+    const primero = editor.document[0];
+    if (primero) editor.setTextCursorPosition(primero, "start");
+    editor.focus();
   }
 
   function onIconChange(next: string | null) {
@@ -258,45 +266,28 @@ export function Editor({
   return (
     <div>
       {cover && <CoverBand cover={cover} onChange={onCoverChange} editable={canEdit} />}
-      <div className={`mx-auto ${fullWidth ? "max-w-none" : "max-w-3xl"} px-4 pb-6 md:px-12 md:pb-14 ${cover ? "pt-3" : "pt-6 md:pt-14"}`}>
-      <div className={`mb-3 flex h-6 items-center gap-2 font-mono text-[11px] text-[var(--muted)] ${cover ? "justify-end" : ""}`}>
-        {/* Quién más está en la página ahora mismo, y si la conexión falla. */}
-        {collab && <Presence provider={collab.provider} />}
-        {(collab || collabFallo) && <CollabStatus provider={collab?.provider ?? null} />}
-        {collab && (
-          <button
-            onClick={() => setShowThreads((v) => !v)}
-            className={`flex items-center gap-1 rounded px-1.5 hover:bg-[var(--hover)] ${showThreads ? "text-brand" : ""}`}
-            title="Comentarios del texto"
-          >
-            <MessageSquare size={12} />
-          </button>
+      <div className={`mx-auto ${fullWidth ? "max-w-none" : "max-w-3xl"} px-4 pb-6 md:px-12 md:pb-14 ${cover ? "pt-3" : "pt-8 md:pt-20"}`}>
+      {/* Sin la fila de «Guardado ✓ · MD» de antes: Notion guarda sin avisar, y
+          exportar a Markdown vive en el menú «⋯» de la página. Lo que sí importa
+          —quién más está y si la conexión se ha caído— va a la barra superior. */}
+      {barra &&
+        createPortal(
+          <>
+            {collab && <Presence provider={collab.provider} />}
+            {(collab || collabFallo) && <CollabStatus provider={collab?.provider ?? null} />}
+            {!canEdit && <span>Solo lectura</span>}
+            {collab && (
+              <button
+                onClick={() => setShowThreads((v) => !v)}
+                className={`toque hidden items-center justify-center rounded-md px-2 py-1 hover:bg-[var(--hover)] md:flex ${showThreads ? "text-brand" : ""}`}
+                title="Comentarios en el texto"
+              >
+                <MessageSquareQuote size={16} />
+              </button>
+            )}
+          </>,
+          barra,
         )}
-        {canEdit ? (
-          saveState === "saving" ? (
-            "Guardando…"
-          ) : (
-            <span className="flex items-center gap-1">
-              Guardado <Check size={12} />
-            </span>
-          )
-        ) : (
-          "Solo lectura"
-        )}
-        <button
-          onClick={() =>
-            (() => {
-              // Por el aplanador: columnas en secuencia y BD embebidas como enlace.
-              const ed = editorParaExport(editor.document);
-              downloadText(`${title.trim() || "Sin título"}.md`, ed.blocksToMarkdownLossy(ed.document), "text/markdown");
-            })()
-          }
-          className="flex items-center gap-1 rounded px-1.5 hover:bg-[var(--hover)]"
-          title="Exportar a Markdown"
-        >
-          <Download size={12} /> MD
-        </button>
-      </div>
 
       <div className="group/header">
         {icon && (
@@ -310,12 +301,30 @@ export function Editor({
             {!cover && <AddCoverButton onChange={onCoverChange} />}
           </div>
         )}
-        <input
+        {/* Área de texto y no input: un título largo hace salto de línea, como en
+            Notion, en vez de cortarse. Enter no parte el título: baja al cuerpo. */}
+        <textarea
+          ref={tituloRef}
           value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
+          rows={1}
+          onChange={(e) => {
+            const v = e.target.value;
+            // En Android el Enter del teclado puede llegar como un salto dentro del
+            // texto y no como tecla: se trata igual.
+            if (v.includes("\n")) {
+              onTitleChange(v.replace(/\n/g, ""));
+              alCuerpo();
+            } else onTitleChange(v);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              alCuerpo();
+            }
+          }}
           placeholder="Sin título"
           readOnly={!canEdit}
-          className="font-display mb-3 w-full bg-transparent text-4xl font-extrabold outline-none placeholder:text-[var(--border)] md:text-5xl"
+          className="font-display mb-2 block w-full resize-none overflow-hidden bg-transparent text-[2rem] font-bold leading-tight outline-none placeholder:text-[var(--border)] md:text-[2.5rem]"
         />
       </div>
 

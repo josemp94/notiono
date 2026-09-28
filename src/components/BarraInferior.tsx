@@ -1,18 +1,19 @@
 "use client";
 
-import { CircleCheck, House, Menu, Plus, Search } from "lucide-react";
+import { CircleCheck, House, Inbox, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { openSearchPalette } from "@/components/SearchPalette";
+import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 import { NEW_PAGE_EVENT } from "@/lib/shortcuts";
 
 /**
  * La barra de abajo del móvil.
  *
  * Es lo que más separa «una web en el móvil» de «una app»: lo que se usa cada dos
- * minutos —volver, buscar, crear— cae donde llega el pulgar, y no detrás de un menú
- * en la esquina de arriba. El árbol de páginas sigue en el cajón lateral, que ahora
- * se abre desde aquí.
+ * minutos —volver, buscar, crear, ver los avisos— cae donde llega el pulgar. El árbol
+ * de páginas va en el cajón lateral, que se abre con el botón de arriba a la
+ * izquierda de cada pantalla, como en Notion (abajo a la derecha no lo buscaba nadie).
  *
  * Solo móvil: en escritorio manda el panel lateral y esto estorbaría.
  */
@@ -20,8 +21,9 @@ import { NEW_PAGE_EVENT } from "@/lib/shortcuts";
  *  si no, ese botón crece y desalinea las etiquetas de al lado. */
 const HUECO = "flex h-8 w-10 items-center justify-center";
 
-export function BarraInferior({ onMenu }: { onMenu: () => void }) {
+export function BarraInferior() {
   const ruta = usePathname();
+  const noLeidas = useNoLeidas();
   // «Inicio» es donde vive el contenido: la portada redirige a la primera página, así
   // que estando en una página el sitio marcado tiene que ser ese.
   const enPaginas = ruta === "/" || ruta.startsWith("/p/");
@@ -46,7 +48,20 @@ export function BarraInferior({ onMenu }: { onMenu: () => void }) {
         etiqueta="Tareas"
         activo={ruta === "/my-tasks"}
       />
-      <Boton onClick={onMenu} icono={<Menu size={20} />} etiqueta="Menú" />
+      <Boton
+        onClick={abrirBandeja}
+        icono={
+          <span className="relative">
+            <Inbox size={20} />
+            {!!noLeidas && (
+              <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-semibold leading-4 text-white">
+                {noLeidas > 9 ? "9+" : noLeidas}
+              </span>
+            )}
+          </span>
+        }
+        etiqueta="Bandeja"
+      />
     </nav>
   );
 }

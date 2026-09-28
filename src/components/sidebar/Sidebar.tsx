@@ -5,9 +5,9 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BlockNoteEditor } from "@blocknote/core";
-import { Bell, ChevronDown, ChevronRight, CircleCheck, Copy, Database, FilePlus, FileText, Folder, FolderInput, House, Keyboard, Link2, Loader2, Moon, MoreHorizontal, PanelLeftClose, Plus, Search, Settings, Sparkles, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, ChevronsLeft, CircleCheck, Copy, Database, FileText, FolderInput, House, Inbox, Keyboard, Link2, Loader2, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sparkles, SquarePen, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
-import { emojiIcono, IconoPagina } from "@/components/PageIcon";
+import { IconoPagina } from "@/components/PageIcon";
 import { openShortcuts } from "@/components/Shortcuts";
 import { NEW_PAGE_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
 import { parseCsv } from "@/lib/csv";
@@ -16,6 +16,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openSearchPalette } from "@/components/SearchPalette";
 import { MovePageModal } from "@/components/MovePage";
+import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 
 type Node = {
   id: string;
@@ -46,6 +47,7 @@ export function Sidebar() {
   const { data: pages } = trpc.pages.tree.useQuery();
   const canEdit = me?.wsRole !== "viewer";
   const [showTemplates, setShowTemplates] = useState(false);
+  const noLeidas = useNoLeidas();
 
   const create = trpc.pages.create.useMutation({
     onSuccess: async (page) => {
@@ -161,135 +163,187 @@ export function Sidebar() {
     parentById.set(p.id, p.parentId);
   }
 
+  const input = (
+    <input
+      ref={importInput}
+      type="file"
+      accept=".md,.markdown,.csv,.zip"
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        e.target.value = ""; // permite reimportar el mismo archivo
+        if (f) onImportFile(f);
+      }}
+    />
+  );
+
   return (
-    <aside className="relative flex h-dvh flex-col border-r border-[var(--border)] bg-[var(--surface)]" style={{ width: ancho }}>
+    <aside className="group/panel relative flex h-dvh flex-col border-r border-[var(--border)] bg-[var(--surface)]" style={{ width: ancho }}>
       {/* Tirador para redimensionar (de ratón, como el ancho de columna). */}
       <div
         onMouseDown={empezarArrastre}
         className="absolute inset-y-0 -right-0.5 z-10 w-1.5 cursor-ew-resize hover:bg-brand/40"
         title="Arrastra para cambiar el ancho"
       />
-      <div className="zona-segura-arriba flex items-center justify-between px-3">
-        <Link href="/" className="font-display text-lg font-bold">
-          No<span className="text-brand">tio</span>no
-        </Link>
-        {/* Plegar el panel: también para quien solo mira, que también quiere sitio. */}
+      {/* Arriba, como en Notion: el espacio (con su menú de cuenta) y, a su lado,
+          plegar el panel y escribir una página nueva. */}
+      <div className="zona-segura-arriba flex items-center gap-0.5 px-2 pb-1">
+        <WorkspaceMenu me={me} />
         <button
           onClick={() => window.dispatchEvent(new Event(TOGGLE_SIDEBAR_EVENT))}
-          className={`hidden md:block ${accionPanel}`}
+          className={`hidden opacity-0 group-hover/panel:opacity-100 focus-visible:opacity-100 md:flex ${accionPanel}`}
           data-pista="Plegar el panel"
           data-atajo="Ctrl+\"
-          data-pista-der=""
           aria-label="Plegar el panel"
         >
-          <PanelLeftClose size={16} />
+          <ChevronsLeft size={18} />
         </button>
-      </div>
-
-      <WorkspaceBar me={me} />
-
-      {/* Acciones del panel: solo iconos, el nombre va en el título emergente. */}
-      <div className="mx-2 mb-1 flex items-center gap-0.5">
-        <button onClick={openSearchPalette} className={accionPanel} data-pista="Buscar" data-atajo="Ctrl+K" aria-label="Buscar">
-          <Search size={16} />
-        </button>
-        <NotificationsBell />
         {canEdit && (
           <button
-            onClick={() => setShowTemplates(true)}
+            onClick={() => create.mutate({ parentId: null })}
             className={accionPanel}
-            data-pista="Crear desde una plantilla"
-            aria-label="Plantillas"
+            data-pista="Nueva página"
+            data-atajo="Ctrl+Alt+N"
+            data-pista-der=""
+            aria-label="Nueva página"
           >
-            <Sparkles size={16} />
+            <SquarePen size={16} />
           </button>
         )}
-        <span className="flex-1" />
-        {canEdit && (
-          <>
-            <button
-              onClick={() => create.mutate({ parentId: null })}
-              className={accionPanel}
-              data-pista="Nueva página"
-              data-atajo="Ctrl+Alt+N"
-              aria-label="Nueva página"
-            >
-              <FilePlus size={16} />
-            </button>
-            <button
-              onClick={() => createDb.mutate({ parentId: null })}
-              className={accionPanel}
-              data-pista="Nueva base de datos"
-              aria-label="Nueva base de datos"
-            >
-              <Database size={16} />
-            </button>
-            <button
-              onClick={() => importInput.current?.click()}
-              disabled={!!importando}
-              className={`${accionPanel} disabled:opacity-50`}
-              data-pista={importando ?? "Importar Markdown (página), CSV (base de datos) o ZIP de Notion"}
-              aria-label="Importar"
-            >
-              {importando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-            </button>
-            <input
-              ref={importInput}
-              type="file"
-              accept=".md,.markdown,.csv,.zip"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = ""; // permite reimportar el mismo archivo
-                if (f) onImportFile(f);
-              }}
-            />
-          </>
-        )}
       </div>
-      {showTemplates && <TemplatesGallery onClose={() => setShowTemplates(false)} />}
 
-      <nav className="flex-1 overflow-y-auto px-2 pb-6">
-        {/* Inicio: el Home con saludo, recientes y mis tareas, como en Notion. */}
-        <Link
-          href="/"
-          className="toque-estrecho mb-1 flex items-center gap-2 rounded px-2 py-1 text-sm font-medium text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-        >
-          <House size={15} /> Inicio
-        </Link>
-        <Favorites />
-        <Tree nodes={byParent.get(null) ?? []} byParent={byParent} parentById={parentById} depth={0} canEdit={canEdit} />
+      <nav className="zona-segura-abajo flex-1 overflow-y-auto px-2">
+        <FilaPanel icono={<Search size={16} />} onClick={openSearchPalette}>
+          Buscar
+        </FilaPanel>
+        <FilaPanel icono={<House size={16} />} href="/">
+          Inicio
+        </FilaPanel>
+        <FilaPanel icono={<Inbox size={16} />} onClick={abrirBandeja} contador={noLeidas}>
+          Bandeja de entrada
+        </FilaPanel>
+        <FilaPanel icono={<CircleCheck size={16} />} href="/my-tasks">
+          Mis tareas
+        </FilaPanel>
+
+        <div className="mt-4">
+          <Favorites />
+          <Section
+            title="Páginas"
+            accion={
+              canEdit && (
+                <button
+                  onClick={() => create.mutate({ parentId: null })}
+                  className="al-pasar toque flex items-center justify-center rounded p-0.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                  aria-label="Nueva página"
+                  title="Nueva página"
+                >
+                  <Plus size={14} />
+                </button>
+              )
+            }
+          >
+            <Tree nodes={byParent.get(null) ?? []} byParent={byParent} parentById={parentById} depth={0} canEdit={canEdit} />
+            {pages && pages.length === 0 && (
+              <p className="px-2 py-1 text-xs text-[var(--muted)]">Aún no hay páginas.</p>
+            )}
+          </Section>
+        </div>
+
+        <div className="mb-2 mt-4">
+          <FilaPanel icono={<Settings size={16} />} href="/settings">
+            Ajustes
+          </FilaPanel>
+          {canEdit && (
+            <>
+              <FilaPanel icono={<Sparkles size={16} />} onClick={() => setShowTemplates(true)}>
+                Plantillas
+              </FilaPanel>
+              <FilaPanel icono={<Database size={16} />} onClick={() => createDb.mutate({ parentId: null })}>
+                Nueva base de datos
+              </FilaPanel>
+              <FilaPanel
+                icono={importando ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                onClick={() => importInput.current?.click()}
+                pista="Markdown (página), CSV (base de datos) o el ZIP que exporta Notion"
+              >
+                {importando ?? "Importar"}
+              </FilaPanel>
+              {input}
+            </>
+          )}
+          <FilaPanel icono={<Trash2 size={16} />} href="/trash">
+            Papelera
+          </FilaPanel>
+        </div>
       </nav>
-      <Link
-        href="/my-tasks"
-        className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-2.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-      >
-        <CircleCheck size={16} /> Mis tareas
-      </Link>
-      <Link
-        href="/trash"
-        className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-      >
-        <Trash2 size={16} /> Papelera
-      </Link>
-      <AccountFooter me={me} />
+      {showTemplates && <TemplatesGallery onClose={() => setShowTemplates(false)} />}
     </aside>
   );
 }
 
-/** Sección plegable del sidebar (Favoritos / Recientes). */
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+/**
+ * Una fila del panel con icono y nombre (Buscar, Inicio, Ajustes…), como las de
+ * Notion. Antes eran seis iconos sueltos en fila que había que adivinar.
+ */
+function FilaPanel({
+  icono,
+  href,
+  onClick,
+  contador,
+  pista,
+  children,
+}: {
+  icono: React.ReactNode;
+  href?: string;
+  onClick?: () => void;
+  contador?: number;
+  pista?: string;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const activo = href !== undefined && pathname === href;
+  const clase = `toque-estrecho flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm font-medium ${
+    activo ? "bg-[var(--active)] text-[var(--foreground)]" : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+  }`;
+  const dentro = (
+    <>
+      <span className="flex w-5 shrink-0 justify-center">{icono}</span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {!!contador && (
+        <span className="shrink-0 rounded-full bg-brand px-1.5 text-[11px] font-semibold leading-4 text-white">
+          {contador > 99 ? "99+" : contador}
+        </span>
+      )}
+    </>
+  );
+  return href ? (
+    <Link href={href} className={clase} aria-current={activo ? "page" : undefined}>
+      {dentro}
+    </Link>
+  ) : (
+    <button onClick={onClick} className={clase} title={pista}>
+      {dentro}
+    </button>
+  );
+}
+
+/** Sección plegable del panel (Favoritos / Páginas): se pliega pinchando el título, como en Notion. */
+function Section({ title, accion, children }: { title: string; accion?: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="mb-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1 rounded-md px-1 py-0.5 text-[11px] font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
-      >
-        {icon}
-        {title}
-        <span className="ml-auto">{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
-      </button>
+    <div className="group mb-3">
+      <div className="flex items-center pr-1">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium text-[var(--muted)] hover:bg-[var(--hover)]"
+          aria-expanded={open}
+        >
+          {title}
+          <ChevronDown size={12} className={`al-pasar transition-transform ${open ? "" : "-rotate-90"}`} />
+        </button>
+        {accion}
+      </div>
       {open && children}
     </div>
   );
@@ -322,7 +376,7 @@ function Favorites() {
   const [drop, setDrop] = useState<{ id: string; pos: "before" | "after" } | null>(null);
   if (!favs?.length) return null;
   return (
-    <Section icon={<Star size={12} />} title="Favoritos">
+    <Section title="Favoritos">
       {favs.map((p) => (
         <div
           key={p.id}
@@ -364,11 +418,6 @@ function Favorites() {
   );
 }
 
-function when(d: Date) {
-  return d.toLocaleString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-/** Campana con contador de no leídas y bandeja de notificaciones (menciones @persona). */
 /**
  * Botón de la barra de acciones del panel: solo icono. El nombre y el atajo van en
  * el título emergente, para que la barra no se llene de texto; todos los atajos
@@ -376,139 +425,6 @@ function when(d: Date) {
  */
 const accionPanel =
   "toque flex items-center justify-center rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]";
-
-function NotificationsBell() {
-  const utils = trpc.useUtils();
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const { data: unread } = trpc.notifications.unreadCount.useQuery();
-  const { data: items } = trpc.notifications.list.useQuery(undefined, { enabled: open });
-  const refresh = () =>
-    Promise.all([utils.notifications.list.invalidate(), utils.notifications.unreadCount.invalidate()]);
-  const markRead = trpc.notifications.markRead.useMutation({ onSuccess: refresh });
-  const markAll = trpc.notifications.markAllRead.useMutation({ onSuccess: refresh });
-
-  // Al abrir la app se buscan vencimientos (como la purga de la papelera: sin cron).
-  const checkDue = trpc.notifications.checkDue.useMutation({
-    onSuccess: (r) => {
-      if (r.created > 0) refresh();
-    },
-    onError: () => {},
-  });
-  const checkDueMutate = checkDue.mutate;
-  useEffect(() => checkDueMutate(), [checkDueMutate]);
-
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className={`relative ${accionPanel}`}
-        data-pista={unread ? `Notificaciones (${unread} sin leer)` : "Notificaciones"}
-        aria-label="Notificaciones"
-      >
-        <Bell size={16} />
-        {!!unread && (
-          <span className="absolute right-0.5 top-0.5 min-w-3 rounded-full bg-brand px-1 text-[9px] font-semibold leading-3 text-white">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
-      </button>
-
-      {open &&
-        mounted &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setOpen(false)}>
-            <div
-              className="flex max-h-[70vh] w-full max-w-md flex-col rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 pb-2 pt-4">
-                <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-                  <Bell size={18} /> Notificaciones
-                </h2>
-                <div className="flex items-center gap-2">
-                  {!!unread && (
-                    <button
-                      onClick={() => markAll.mutate()}
-                      disabled={markAll.isPending}
-                      className="rounded px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--hover)] disabled:opacity-50"
-                    >
-                      Marcar todas como leídas
-                    </button>
-                  )}
-                  <button onClick={() => setOpen(false)} className="text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-              <div className="overflow-y-auto px-2 pb-3">
-                {(items ?? []).length === 0 && (
-                  <p className="px-3 py-6 text-center text-sm text-[var(--muted)]">Nada por aquí: ni menciones ni vencimientos.</p>
-                )}
-                {(items ?? []).map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => {
-                      if (!n.read) markRead.mutate({ id: n.id });
-                      setOpen(false);
-                      if (n.page) router.push(`/p/${n.page.id}`);
-                    }}
-                    className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--border)]/30"
-                  >
-                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-brand"}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className={n.read ? "text-[var(--muted)]" : ""}>
-                        {n.type === "due" ? (
-                          <>
-                            Te toca: <span className="font-medium">{n.title || "una tarea"}</span> en «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
-                          </>
-                        ) : n.type === "comment" ? (
-                          <>
-                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> comentó en «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}»
-                            {n.title ? <>: «{n.title}»</> : null}
-                          </>
-                        ) : n.type === "assign" ? (
-                          <>
-                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te asignó{" "}
-                            <span className="font-medium">{n.title || "una tarea"}</span> en «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
-                          </>
-                        ) : n.type === "form" ? (
-                          // Sin actor: quien envía el formulario público es anónimo.
-                          <>
-                            Nueva respuesta del formulario de «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
-                            {n.title ? <>: «{n.title}»</> : null}
-                          </>
-                        ) : n.type === "follow" ? (
-                          <>
-                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> editó «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}», que sigues
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te mencionó en «
-                            {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una página borrada"}»
-                          </>
-                        )}
-                      </span>
-                      <span className="block text-xs text-[var(--muted)]">{when(n.createdAt)}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </>
-  );
-}
 
 /** Galería de plantillas: tarjetas con icono + nombre + descripción; crea la página en el servidor. */
 function TemplatesGallery({ onClose }: { onClose: () => void }) {
@@ -568,84 +484,127 @@ type Me = {
   workspace: { id: string; name: string; icon: string | null } | null;
 } | null | undefined;
 
-function WorkspaceBar({ me }: { me: Me }) {
+/**
+ * El espacio, arriba del panel, y su menú: cambiar de espacio, compartirlo, y lo de
+ * la cuenta (atajos, tema, cerrar sesión). Es donde lo pone Notion; antes estaba
+ * repartido entre una fila con el rol, otra de iconos y un pie.
+ */
+function WorkspaceMenu({ me }: { me: Me }) {
   const utils = trpc.useUtils();
   const { data: spaces } = trpc.workspace.list.useQuery();
-  const [openList, setOpenList] = useState(false);
+  const [open, setOpen] = useState(false);
   const [share, setShare] = useState(false);
+  const theme = useTheme();
   const switchWs = trpc.workspace.switch.useMutation({
     onSuccess: () => window.location.reload(),
+  });
+  const logout = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      window.location.href = "/login";
+    },
   });
 
   const current = me?.workspace;
   const roleLabel =
     me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Editor" : me?.wsRole === "viewer" ? "Solo lectura" : "";
+  const nombre = current?.name ?? "Espacio";
 
-  // Clic fuera cierra el selector, como el resto de menús del sidebar.
-  const barRef = useRef<HTMLDivElement>(null);
+  // Clic fuera cierra el menú, como el resto de menús del panel.
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!openList) return;
+    if (!open) return;
     const h = (e: MouseEvent) => {
-      if (barRef.current && !barRef.current.contains(e.target as globalThis.Node)) setOpenList(false);
+      if (ref.current && !ref.current.contains(e.target as globalThis.Node)) setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, [openList]);
+  }, [open]);
 
+  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   return (
-    <div ref={barRef} className="relative px-3 pb-2 pt-1">
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => setOpenList((o) => !o)}
-          className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-2 py-1 text-left text-xs text-[var(--muted)] hover:bg-[var(--hover)]"
-          title="Cambiar de espacio"
-        >
-          <span className="truncate">
-            <Folder size={13} className="mr-1 inline align-[-2px]" />
-            {current?.name ?? "Espacio"}
-          </span>
-          <span className="ml-auto shrink-0"><ChevronDown size={14} /></span>
-        </button>
-        {me?.wsRole === "owner" && (
-          <button
-            onClick={() => setShare(true)}
-            className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--hover)]"
-            title="Compartir este espacio"
-          >
-            <Users size={14} />
-          </button>
-        )}
-      </div>
-      {roleLabel && <div className="px-2 text-[10px] text-[var(--muted)]">{roleLabel}</div>}
+    <div ref={ref} className="relative min-w-0 flex-1">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="toque-estrecho flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--hover)]"
+        aria-expanded={open}
+      >
+        <InicialEspacio nombre={nombre} />
+        <span className="truncate text-sm font-semibold">{nombre}</span>
+        <ChevronDown size={14} className="shrink-0 text-[var(--muted)]" />
+      </button>
 
-      {openList && (
-        <div className="absolute left-3 right-3 z-20 mt-1 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-lg">
+      {open && (
+        <div
+          data-menu=""
+          className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl"
+        >
+          <div className="px-2 pb-1 pt-1.5 text-xs text-[var(--muted)]">
+            <div className="truncate">{me?.email}</div>
+            {roleLabel && <div>{roleLabel}</div>}
+          </div>
           {(spaces ?? []).map((s) => (
             <button
               key={s.id}
               onClick={async () => {
-                setOpenList(false);
+                setOpen(false);
                 if (s.id === current?.id) return;
                 await switchWs.mutateAsync({ workspaceId: s.id });
               }}
-              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-[var(--hover)] ${
-                s.id === current?.id ? "text-brand" : ""
-              }`}
+              className={item}
             >
-              <span className="truncate">
-                <Folder size={13} className="mr-1 inline align-[-2px]" />
-                {s.name}
-              </span>
-              {!s.isOwner && (
-                <span className="ml-auto shrink-0 text-[10px] text-[var(--muted)]">de {s.ownerName}</span>
-              )}
+              <InicialEspacio nombre={s.name} />
+              <span className="min-w-0 flex-1 truncate">{s.name}</span>
+              {!s.isOwner && <span className="shrink-0 text-[10px] text-[var(--muted)]">de {s.ownerName}</span>}
+              {s.id === current?.id && <Check size={14} className="shrink-0 text-brand" />}
             </button>
           ))}
+          {me?.wsRole === "owner" && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                setShare(true);
+              }}
+              className={item}
+            >
+              <Users size={16} className="text-[var(--muted)]" />
+              Compartir el espacio
+            </button>
+          )}
+          <div className="my-1 border-t border-[var(--border)]" />
+          <button
+            onClick={() => {
+              setOpen(false);
+              openShortcuts();
+            }}
+            className={item}
+          >
+            <Keyboard size={16} className="text-[var(--muted)]" />
+            Atajos de teclado
+          </button>
+          <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={item}>
+            {theme === "dark" ? <Sun size={16} className="text-[var(--muted)]" /> : <Moon size={16} className="text-[var(--muted)]" />}
+            {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            <span className="ml-auto text-[10px] text-[var(--muted)]">Ctrl+Mayús+L</span>
+          </button>
+          <div className="my-1 border-t border-[var(--border)]" />
+          <button onClick={() => logout.mutate()} className={item}>
+            <LogOut size={16} className="text-[var(--muted)]" />
+            Cerrar sesión
+          </button>
         </div>
       )}
 
       {share && <ShareDialog onClose={() => setShare(false)} onChange={() => utils.workspace.members.invalidate()} />}
     </div>
+  );
+}
+
+/** El cuadradito con la inicial del espacio, como el icono de espacio de Notion. */
+function InicialEspacio({ nombre }: { nombre: string }) {
+  return (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--active)] text-[11px] font-semibold text-[var(--foreground)]">
+      {nombre.trim().charAt(0).toUpperCase() || "·"}
+    </span>
   );
 }
 
@@ -755,65 +714,6 @@ function ShareDialog({ onClose, onChange }: { onClose: () => void; onChange: () 
       </div>
     </div>,
     document.body,
-  );
-}
-
-function AccountFooter({ me }: { me: Me }) {
-  const logout = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      window.location.href = "/login";
-    },
-  });
-  return (
-    <div className="zona-segura-abajo flex items-center justify-between gap-2 border-t border-[var(--border)] px-4 pt-3">
-      <Link
-        href="/settings"
-        className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-        title={me?.email ?? ""}
-      >
-        <Settings size={14} />
-        <span className="truncate">{me?.name || me?.email || "Cuenta"}</span>
-      </Link>
-      {/* Los atajos, a un clic: si solo se pueden descubrir tecleando «?», no se
-          descubren. */}
-      <button
-        onClick={openShortcuts}
-        className="shrink-0 rounded p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-        data-pista="Atajos de teclado"
-        data-atajo="?"
-        data-pista-arriba=""
-        aria-label="Atajos"
-      >
-        <Keyboard size={14} />
-      </button>
-      <ThemeToggle />
-      <button
-        onClick={() => logout.mutate()}
-        className="shrink-0 rounded px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-        data-pista="Cerrar sesión"
-        data-pista-arriba=""
-        data-pista-der=""
-      >
-        Salir
-      </button>
-    </div>
-  );
-}
-
-/** Conmutador de tema claro/oscuro (persistido en localStorage). */
-function ThemeToggle() {
-  const theme = useTheme();
-  return (
-    <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="shrink-0 rounded px-1.5 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-      data-pista={theme === "dark" ? "Tema claro" : "Tema oscuro"}
-      data-atajo="Ctrl+Mayús+L"
-      data-pista-arriba=""
-      aria-label="Cambiar el tema"
-    >
-      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-    </button>
   );
 }
 
@@ -958,8 +858,10 @@ function TreeItem({
           {node.icon ? <><IconoPagina icon={node.icon} size={14} />{" "}</> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
           {node.title || "Sin título"}
         </Link>
+        {/* Con ratón, las acciones solo existen al pasar por encima (sin reservar
+            su hueco, que cortaba los títulos); en táctil se ven siempre. */}
         {canEdit && (
-          <div className="flex items-center al-pasar">
+          <div className={`items-center ${menu ? "flex" : "flex pointer-fine:hidden pointer-fine:group-hover:flex"}`}>
             <button
               onClick={() => addSub.mutate({ parentId: node.id })}
               className="rounded px-1 text-[var(--muted)] hover:text-[var(--foreground)]"
