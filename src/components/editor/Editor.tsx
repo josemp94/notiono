@@ -188,8 +188,8 @@ export function Editor({
     if (!collab || !bloques?.length) return;
     const sembrar = () => {
       // Puede que ya no esté vacío: la copia local del navegador lo habrá llenado.
-      if (collab.fragment.length > 0) return;
-      editor.replaceBlocks(editor.document, bloques as never);
+      if (collab.fragment.length === 0) editor.replaceBlocks(editor.document, bloques as never);
+      collab.semillaUsada();
     };
     if (collab.provider.isSynced) sembrar();
     collab.provider.on("synced", sembrar);

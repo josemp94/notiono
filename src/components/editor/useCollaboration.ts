@@ -30,7 +30,36 @@ export type Collaboration = {
    * necesita el esquema del editor, que no se puede cargar en el servidor.
    */
   seed: unknown[] | null;
+  /** Ya está sembrado (o no hacía falta): la semilla guardada sobra. */
+  semillaUsada: () => void;
 };
+
+/**
+ * El servidor entrega el contenido para estrenar la página UNA sola vez (es lo
+ * que evita que dos pestañas lo dupliquen). Si el editor se vuelve a montar
+ * antes de sembrar —React lo hace, y también al volver atrás o reconectar—, la
+ * segunda petición recibe null y la página se abría vacía, con el riesgo de que
+ * lo primero que se escribiera pisara el contenido de verdad. Por eso la
+ * semilla se guarda aquí hasta que se usa, y la petición en curso se comparte.
+ */
+const semillas = new Map<string, unknown[]>();
+const preparando = new Map<string, Promise<unknown[] | null>>();
+function preparar(
+  pageId: string,
+  pedir: (i: { id: string }) => Promise<{ seed: unknown }>,
+): Promise<unknown[] | null> {
+  let p = preparando.get(pageId);
+  if (!p) {
+    p = pedir({ id: pageId })
+      .then((r) => {
+        if (Array.isArray(r.seed) && r.seed.length) semillas.set(pageId, r.seed);
+        return semillas.get(pageId) ?? null;
+      })
+      .finally(() => preparando.delete(pageId));
+    preparando.set(pageId, p);
+  }
+  return p;
+}
 
 /**
  * Conecta la página al servidor de edición simultánea, si la instalación tiene uno
@@ -62,8 +91,8 @@ export function useCollaboration(
     let cancelled = false;
     setInicio(null);
     setFallo(false);
-    ensureMutate({ id: pageId })
-      .then((r) => !cancelled && setInicio({ seed: (r.seed as unknown[] | null) ?? null }))
+    preparar(pageId, ensureMutate)
+      .then((seed) => !cancelled && setInicio({ seed }))
       // El editor sigue funcionando con su autosave, pero a solas: eso hay que
       // decirlo. Callarlo fue justo lo que dejó la colaboración rota sin que se
       // notara, con cada pestaña escribiendo en su propia copia.
@@ -71,7 +100,7 @@ export function useCollaboration(
     return () => {
       cancelled = true;
     };
-  }, [url, me, pageId, ensureMutate, tokenMutate]);
+  }, [url, me, pageId, ensureMutate]);
 
   const collab = useMemo(() => {
     if (!url || !inicio || !me) return null;
@@ -116,6 +145,7 @@ export function useCollaboration(
       ),
       userStore,
       seed: inicio.seed,
+      semillaUsada: () => semillas.delete(pageId),
     };
   }, [url, inicio, me, pageId, utils, tokenMutate]);
 

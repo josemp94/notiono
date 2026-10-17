@@ -161,17 +161,32 @@ export const pagesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await ctx.db.page.findFirst({
         where: { id: input.id, workspaceId: ctx.workspace.id },
-        select: { id: true, ydoc: true, content: true },
+        select: { id: true, ydoc: true, content: true, updatedAt: true },
       });
       if (!page) throw new TRPCError({ code: "NOT_FOUND" });
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "edit");
-      if (page.ydoc) return { seed: null };
 
       const Y = await import("yjs");
       // Documento vacío: sirve de "reserva" para que solo una pestaña siembre.
       const vacio = Buffer.from(Y.encodeStateAsUpdate(new Y.Doc()));
+      let libre: object = { ydoc: null };
+      if (page.ydoc) {
+        // Reserva abandonada: la pestaña que se llevó el contenido se cerró sin
+        // sembrarlo y la página se quedaba vacía para siempre. Pasado un rato
+        // (lo escrito se guarda en segundos) se vuelve a dar el turno, y el
+        // updatedAt hace de cerrojo para que solo se lo lleve una pestaña.
+        const d = new Y.Doc();
+        Y.applyUpdate(d, new Uint8Array(page.ydoc));
+        const abandonada =
+          d.getXmlFragment("document-store").length === 0 &&
+          Array.isArray(page.content) &&
+          page.content.length > 0 &&
+          Date.now() - page.updatedAt.getTime() > 2 * 60_000;
+        if (!abandonada) return { seed: null };
+        libre = { updatedAt: page.updatedAt };
+      }
       const nuestro = await ctx.db.page.updateMany({
-        where: { id: page.id, ydoc: null },
+        where: { id: page.id, ...libre },
         data: { ydoc: vacio },
       });
       if (nuestro.count === 0) return { seed: null };
