@@ -7,6 +7,9 @@
 >
 > Regla al actualizar este doc: marca ✅ solo lo que exista en el código, con el nombre real
 > del fichero o del símbolo. Si dudas, ábrelo y míralo.
+>
+> **17-oct-2026:** hay un estudio más reciente, [`ESTUDIO-2026-10.md`](ESTUDIO-2026-10.md), con los huecos
+> verificados contra el código de octubre y el plan por tandas. Para planificar, manda ese.
 
 ---
 
