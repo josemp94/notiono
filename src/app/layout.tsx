@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: "Notiono",
   description: "Tu espacio: notas, bases de datos y gráficas reales. Self-hosted.",
   appleWebApp: { capable: true, title: "Notiono", statusBarStyle: "default" },
+  // Es un espacio familiar: ni lo de dentro ni las páginas publicadas (que se
+  // comparten por enlace) tienen que salir en Google.
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
