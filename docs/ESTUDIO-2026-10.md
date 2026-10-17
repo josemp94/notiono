@@ -18,7 +18,7 @@ historial con diff, publicación con contraseña y caducidad, API REST, webhooks
 Lo que más se echa en falta, por orden de lo que se nota al usarlo:
 
 1. **Arrastrar en el Kanban** (no funcionaba en móvil) y el **selector de icono** (32 emojis fijos). → Hecho en esta tanda.
-2. **Agujeros de seguridad** que rompen los permisos por página (API v1, tokens, notificaciones).
+2. **Agujeros de seguridad** que rompen los permisos por página (API v1, tokens, notificaciones). → Hecho en la tanda 2.
 3. **El menú de bloque** es pobre (solo Borrar / Colores / Copiar enlace) y **en móvil no existe**.
 4. **Pegar un enlace** no ofrece nada (Notion pregunta: mención / marcador / insertar).
 5. **Automatizaciones** (cuando cambie X → haz Y): no hay ninguna.
@@ -36,16 +36,16 @@ Lo que más se echa en falta, por orden de lo que se nota al usarlo:
 Probado en PC y móvil (toque real por CDP): cruzar columnas, reordenar, mover grupos, vista ordenada,
 columna vacía, carriles y recarga.
 
-## 3. Seguridad (prioridad alta, tanda 2)
+## 3. Seguridad (tanda 2, hecho)
 
-| # | Problema | Riesgo | Arreglo | Esf. |
+| # | Problema | Riesgo | Arreglo | Estado |
 |---|---|---|---|---|
-| S1 | La **API REST v1** solo mira el espacio de trabajo: ignora las páginas restringidas | Alto | pasar `nivelDePagina`/`exigeNivel` en cada handler de `src/app/api/v1/*` | M |
-| S2 | Cualquier miembro (no lector) puede **crear tokens de API** | Alto (amplifica S1) | `apiTokens.create` solo dueño/admin | S |
-| S3 | Las notificaciones de **mención, asignación y vencimiento** llegan a quien no puede ver la página (título + enlace) | Medio | filtrar destinatarios por `nivelDePagina` (`comments.ts`, `db.ts` assign, `notifications.ts` checkDue) | S |
-| S4 | **SSRF** en la vista previa de enlaces: sigue redirecciones sin revalidar la IP | Medio | `redirect: "manual"` y revalidar cada salto | S |
-| S5 | Páginas publicadas **indexables** por buscadores, sin opción | Medio (privacidad familiar) | `robots: noindex` por defecto + interruptor «Permitir buscadores» | S |
-| S6 | `publicAuth.ts` usa un secreto de desarrollo si falta `AUTH_SECRET` | Bajo | fallar en producción en vez de usar el secreto fijo | S |
+| S1 | La **API REST v1** solo mira el espacio de trabajo: ignora las páginas restringidas | Alto | pasar `nivelDePagina`/`exigeNivel` en cada handler de `src/app/api/v1/*` | ✅ `exigeApi`/`paginaDe` en `apiAuth.ts`; restringida sin invitación = 404, sin nivel = 403; el listado filtra |
+| S2 | Cualquier miembro (no lector) puede **crear tokens de API** | Alto (amplifica S1) | `apiTokens.create` solo dueño/admin | ✅ de otra forma: el token actúa con el rol y los permisos de quien lo creó (y deja de valer si sale del espacio), así que no amplía nada; cada uno ve sus tokens, dueño/admin todos con su autor |
+| S3 | Las notificaciones de **mención, asignación y vencimiento** llegan a quien no puede ver la página (título + enlace) | Medio | filtrar destinatarios por `nivelDePagina` (`comments.ts`, `db.ts` assign, `notifications.ts` checkDue) | ✅ `filtraQuienesVen` (también seguidores y `notifyMention`) |
+| S4 | **SSRF** en la vista previa de enlaces: sigue redirecciones sin revalidar la IP | Medio | `redirect: "manual"` y revalidar cada salto | ✅ cada salto se revalida y la IP comprobada es la que se conecta (sin DNS rebinding); cuerpo tope 200 KB |
+| S5 | Páginas publicadas **indexables** por buscadores, sin opción | Medio (privacidad familiar) | `robots: noindex` por defecto + interruptor «Permitir buscadores» | ✅ noindex en todo (meta, `X-Robots-Tag`, `robots.txt`); el interruptor queda para cuando alguien lo pida |
+| S6 | `publicAuth.ts` usa un secreto de desarrollo si falta `AUTH_SECRET` | Bajo | fallar en producción en vez de usar el secreto fijo | ✅ `authSecret.ts` (sesión pública y token de colaboración) |
 
 ## 4. Huecos frente a Notion, por zonas
 
@@ -109,7 +109,7 @@ Pensadas para el uso real de la familia (tareas, casa, recetas, viajes), sin ser
 ## 6. Plan por tandas
 
 1. ✅ **Peticiones de Yago** (tablas, iconos, Kanban).
-2. **Seguridad** S1–S6.
+2. ✅ **Seguridad** S1–S6.
 3. **BD baratos**: cálculos del pie, altura de fila, vista por defecto, bloquear vista.
 4. **Editor**: menú de bloque completo (también en móvil), pegar URL, embeds, código en línea, renombrar/duplicar.
 5. **Rendimiento**: carga diferida y actualizaciones optimistas en lo más usado.
