@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { faltanObligatorios, FieldInput } from "@/components/database/FormFields";
 import type { FieldLite } from "@/lib/cellText";
+import { IconoPagina } from "@/components/PageIcon";
 
 /** Formulario público: envía a /api/form/<token>, sin sesión ni tRPC. */
 export function PublicForm({
@@ -69,7 +70,7 @@ export function PublicForm({
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
       <h1 className="mb-6 text-2xl font-bold">
-        {icon ? `${icon} ` : ""}
+        {icon ? <><IconoPagina icon={icon} size={24} /><span className="mr-1" /></> : ""}
         {title}
       </h1>
       <div className="rounded-2xl border border-[var(--border)] p-6 shadow-sm">

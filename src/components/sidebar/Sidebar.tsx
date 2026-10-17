@@ -360,7 +360,7 @@ function SectionLink({ page }: { page: { id: string; title: string; icon: string
       }`}
     >
       <span className="truncate">
-        {page.icon ? <><IconoPagina icon={page.icon} size={14} />{" "}</> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
+        {page.icon ? <><IconoPagina icon={page.icon} size={14} /><span className="mr-1" /></> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
         {page.title || "Sin título"}
       </span>
     </Link>
@@ -855,7 +855,7 @@ function TreeItem({
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <Link href={`/p/${node.id}`} className="toque flex flex-1 items-center truncate py-1" draggable={false}>
-          {node.icon ? <><IconoPagina icon={node.icon} size={14} />{" "}</> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
+          {node.icon ? <><IconoPagina icon={node.icon} size={14} /><span className="mr-1" /></> : <FileText size={13} className="mr-1 inline align-[-2px]" />}
           {node.title || "Sin título"}
         </Link>
         {/* Con ratón, las acciones solo existen al pasar por encima (sin reservar

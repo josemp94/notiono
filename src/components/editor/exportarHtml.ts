@@ -4,7 +4,7 @@
  * editor) + una hoja mínima a juego con la app. La mitad PDF del export es
  * imprimir la propia página (Ctrl+P / guardar como PDF).
  */
-import { esIconoImagen } from "@/components/PageIcon";
+import { emojiIcono } from "@/components/PageIcon";
 import { downloadText } from "@/lib/download";
 import { editorParaExport } from "./bloquesExport";
 
@@ -15,7 +15,7 @@ export function exportaHtml(args: { titulo: string; icon?: string | null; conten
   const cuerpo = ed.blocksToHTMLLossy(ed.document);
   const titulo = args.titulo || "Sin título";
   // El icono solo si es emoji: una imagen subida no viaja en un .html suelto.
-  const icono = args.icon && !esIconoImagen(args.icon) ? `${args.icon} ` : "";
+  const icono = emojiIcono(args.icon);
   const html = `<!doctype html>
 <html lang="es">
 <meta charset="utf-8">

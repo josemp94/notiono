@@ -69,6 +69,32 @@
   --tag-red: #6e3630;
 }
 
+/* Los colores de los iconos de página (pestaña «Iconos»): los tonos de texto de
+   Notion, algo más claros en oscuro para que no se pierdan sobre el fondo. */
+:root {
+  --ico-gray: #787774;
+  --ico-brown: #9f6b53;
+  --ico-orange: #d9730d;
+  --ico-yellow: #cb912f;
+  --ico-green: #448361;
+  --ico-blue: #337ea9;
+  --ico-purple: #9065b0;
+  --ico-pink: #c14c8a;
+  --ico-red: #d44c47;
+}
+
+:root[data-theme="dark"] {
+  --ico-gray: #9b9b9b;
+  --ico-brown: #ba856f;
+  --ico-orange: #c77d48;
+  --ico-yellow: #ca9849;
+  --ico-green: #529e72;
+  --ico-blue: #379ad3;
+  --ico-purple: #9d68d3;
+  --ico-pink: #d15796;
+  --ico-red: #df5452;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
