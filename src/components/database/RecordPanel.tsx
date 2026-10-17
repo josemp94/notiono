@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BookmarkPlus, ChevronDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react";
 import { es } from "@blocknote/core/locales";
-import { useCreateBlockNote } from "@blocknote/react";
+import { filterSuggestionItems } from "@blocknote/core";
+import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "@/components/editor/mention";
+import { itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "@/components/editor/menuBarra";
 import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
@@ -87,6 +89,7 @@ export function RecordCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record.id]);
   const editor = useCreateBlockNote({ dictionary: es, schema: editorSchema, initialContent: initial, uploadFile: subirArchivo });
+  const linkPreview = trpc.pages.linkPreview.useMutation();
 
   const onBodyChange = () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -174,8 +177,25 @@ export function RecordCard({
       </div>
 
       <div className="mt-6 border-t border-[var(--border)] pt-4">
-        <BlockNoteView editor={editor} onChange={onBodyChange} theme={theme}>
+        <BlockNoteView editor={editor} onChange={onBodyChange} theme={theme} slashMenu={false}>
           <MentionMenu editor={editor} pageId={pageId} />
+          {/* El mismo menú "/" que en las páginas, menos lo que cuelga de una página (subpáginas, BD). */}
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) =>
+              filterSuggestionItems(
+                [
+                  ...getDefaultReactSlashMenuItems(editor),
+                  itemLlamada(editor),
+                  itemEnlaceWeb(editor, (url) => linkPreview.mutateAsync({ url })),
+                  ...itemsColumnas(editor),
+                  itemEcuacion(editor),
+                  itemIndice(editor),
+                ],
+                query,
+              )
+            }
+          />
         </BlockNoteView>
       </div>
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Columns2, Columns3, Database, FileText, Lightbulb, Link as LinkIcon, Link2, ListTree, MessageSquareQuote, Sigma, X } from "lucide-react";
+import { Database, FileText, Lightbulb, Link2, MessageSquareQuote, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
   BlockColorsItem,
@@ -36,7 +36,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "./mention";
-import { emptyColumn } from "./columnBlock";
+import { itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
 import { trpc } from "@/trpc/react";
 import { toast } from "@/components/Toast";
 import { instalarDropDeColumnas } from "./columnDrop";
@@ -383,46 +383,9 @@ export function Editor({
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
-                {
-                  title: "Llamada",
-                  subtext: "Bloque destacado con icono",
-                  aliases: ["callout", "llamada", "destacado", "aviso", "nota"],
-                  group: "Bloques básicos",
-                  icon: <Lightbulb size={18} />,
-                  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "callout" }),
-                },
-                {
-                  title: "Enlace web",
-                  subtext: "Tarjeta con la vista previa, o el vídeo incrustado",
-                  aliases: ["enlace", "link", "bookmark", "marcador", "youtube", "video", "vídeo", "embed"],
-                  group: "Bloques básicos",
-                  icon: <LinkIcon size={18} />,
-                  onItemClick: async () => {
-                    const url = prompt("Pega la dirección del enlace o del vídeo");
-                    if (!url?.trim()) return;
-                    // Si la vista previa falla (sitio caído o que bloquea bots), se inserta igual con la URL.
-                    const preview = await linkPreview
-                      .mutateAsync({ url: url.trim() })
-                      .catch(() => ({ url: url.trim(), title: url.trim(), description: "", image: "", siteName: "" }));
-                    insertOrUpdateBlockForSlashMenu(editor, { type: "bookmark", props: preview });
-                  },
-                },
-                ...[2, 3].map((n) => ({
-                  title: n === 2 ? "Dos columnas" : "Tres columnas",
-                  subtext: "Reparte el ancho de la página",
-                  aliases: ["columna", "columnas", "column", "lado", n === 2 ? "dos" : "tres"],
-                  group: "Bloques básicos",
-                  icon: n === 2 ? <Columns2 size={18} /> : <Columns3 size={18} />,
-                  onItemClick: () => {
-                    const lista = insertOrUpdateBlockForSlashMenu(editor, {
-                      type: "columnList",
-                      children: Array.from({ length: n }, emptyColumn),
-                    });
-                    // El cursor al primer hueco, para poder escribir sin buscarlo.
-                    const primero = lista.children?.[0]?.children?.[0];
-                    if (primero) editor.setTextCursorPosition(primero, "end");
-                  },
-                })),
+                itemLlamada(editor),
+                itemEnlaceWeb(editor, (url) => linkPreview.mutateAsync({ url })),
+                ...itemsColumnas(editor),
                 {
                   title: "Subpágina",
                   subtext: "Crea una página hija y la enlaza aquí",
@@ -439,22 +402,8 @@ export function Editor({
                     });
                   },
                 },
-                {
-                  title: "Ecuación",
-                  subtext: "Fórmula matemática en TeX (KaTeX)",
-                  aliases: ["ecuacion", "ecuación", "formula", "fórmula", "matematicas", "matemáticas", "latex", "katex", "math"],
-                  group: "Bloques básicos",
-                  icon: <Sigma size={18} />,
-                  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "equation" }),
-                },
-                {
-                  title: "Tabla de contenidos",
-                  subtext: "Índice de los encabezados de la página",
-                  aliases: ["toc", "indice", "índice", "contenidos", "tabla de contenidos"],
-                  group: "Bloques básicos",
-                  icon: <ListTree size={18} />,
-                  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "toc" }),
-                },
+                itemEcuacion(editor),
+                itemIndice(editor),
                 {
                   title: "Base de datos",
                   subtext: "Tabla embebida en esta página",
