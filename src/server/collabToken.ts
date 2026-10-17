@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { authSecret } from "./authSecret";
 
 /**
  * Permiso de corta vida para entrar en una sala de edición simultánea.
@@ -10,7 +11,7 @@ import crypto from "node:crypto";
  */
 const TTL_SECONDS = 60 * 60; // una hora: suficiente para una sesión de edición
 
-const secret = () => process.env.AUTH_SECRET ?? "dev-secret-cambiar-en-prod";
+const secret = () => authSecret();
 
 const sign = (data: string) => crypto.createHmac("sha256", secret()).update(data).digest("base64url");
 
