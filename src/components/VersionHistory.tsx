@@ -47,7 +47,8 @@ export function VersionHistoryModal({
   pageId: string;
   canEdit: boolean;
   onClose: () => void;
-  onRestored: () => void | Promise<void>;
+  /** Recibe los bloques de la versión restaurada. */
+  onRestored: (snapshot: unknown) => void | Promise<void>;
 }) {
   const { data: versions } = trpc.pages.versions.list.useQuery({ pageId });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,8 +59,8 @@ export function VersionHistoryModal({
   const anterior = idx >= 0 ? versions?.[idx + 1] : undefined;
 
   const restore = trpc.pages.versions.restore.useMutation({
-    onSuccess: async () => {
-      await onRestored();
+    onSuccess: async (_r, { versionId }) => {
+      await onRestored(versions?.find((v) => v.id === versionId)?.snapshot ?? []);
       onClose();
     },
   });

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Check, FileArchive, FileCode, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
 import { pushRecent } from "@/lib/recents";
-import { Editor } from "@/components/editor/Editor";
+import { Editor, type EditorApi } from "@/components/editor/Editor";
 import { Database } from "@/components/database/Database";
 import { CommentsButton, CommentsPanel } from "@/components/CommentsPanel";
 import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory";
@@ -41,8 +41,13 @@ export default function PageView() {
   const { data: me } = trpc.auth.me.useQuery();
   const [comments, setComments] = useState(false);
   const [history, setHistory] = useState(false);
-  // Remonta el editor tras restaurar una versión (initialContent solo se lee al montar).
+  // Remonta el editor tras restaurar una versión si no hay editor al que
+  // pasársela (initialContent solo se lee al montar).
   const [editorEpoch, setEditorEpoch] = useState(0);
+  const editorApi = useRef<EditorApi | null>(null);
+  const onEditorApi = useCallback((api: EditorApi | null) => {
+    editorApi.current = api;
+  }, []);
   // El nivel por página viene del servidor con pages.get; el rol viewer sigue mandando.
   const nivel = page?.nivel ?? "edit";
   const canEdit = me?.wsRole !== "viewer" && (nivel === "edit" || nivel === "full");
@@ -129,6 +134,7 @@ export default function PageView() {
               initialCover={page.cover}
               fullWidth={page.fullWidth}
               canEdit={editable}
+              onApi={onEditorApi}
             />
           )}
         </div>
@@ -139,9 +145,10 @@ export default function PageView() {
           pageId={page.id}
           canEdit={canEdit}
           onClose={() => setHistory(false)}
-          onRestored={async () => {
+          onRestored={async (snapshot) => {
             await utils.pages.get.invalidate({ id: pageId });
-            setEditorEpoch((e) => e + 1);
+            if (editorApi.current && Array.isArray(snapshot)) editorApi.current.reemplazar(snapshot);
+            else setEditorEpoch((e) => e + 1);
           }}
         />
       )}

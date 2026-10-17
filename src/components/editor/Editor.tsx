@@ -72,6 +72,9 @@ function CopiarEnlaceBloqueItem({ pageId }: { pageId: string }) {
   );
 }
 
+/** Lo que la página puede pedirle al editor desde fuera (restaurar una versión). */
+export type EditorApi = { reemplazar: (bloques: unknown[]) => void };
+
 export function Editor({
   pageId,
   initialTitle,
@@ -80,6 +83,7 @@ export function Editor({
   initialCover,
   fullWidth = false,
   canEdit = true,
+  onApi,
 }: {
   pageId: string;
   initialTitle: string;
@@ -88,6 +92,7 @@ export function Editor({
   initialCover?: string | null;
   fullWidth?: boolean;
   canEdit?: boolean;
+  onApi?: (api: EditorApi | null) => void;
 }) {
   const utils = trpc.useUtils();
   const theme = useTheme();
@@ -192,6 +197,16 @@ export function Editor({
       collab.provider.off("synced", sembrar);
     };
   }, [collab, editor]);
+
+  // Restaurar una versión pasa por el editor: con edición simultánea el
+  // documento vive en Yjs y cambiar solo Page.content no se veía (al volver a
+  // montar, el editor cargaba el estado compartido de antes y el siguiente
+  // guardado pisaba la restauración). Así llega a todos y se guarda solo.
+  useEffect(() => {
+    if (!onApi) return;
+    onApi({ reemplazar: (bloques) => editor.replaceBlocks(editor.document, bloques as never) });
+    return () => onApi(null);
+  }, [onApi, editor]);
 
   function scheduleSave() {
     if (!canEdit) return;
