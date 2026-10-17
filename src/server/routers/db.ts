@@ -12,7 +12,7 @@ import { calculaComputados, necesitaComputados } from "../services/computados";
 import { cellToText, peopleOf } from "../services/cells";
 import { sendPush } from "../push";
 import { jsonLimpio } from "../jsonLimpio";
-import { alcanza, exigeNivel, mapaDeNiveles, type Nivel } from "../services/perms";
+import { alcanza, exigeNivel, filtraQuienesVen, mapaDeNiveles, type Nivel } from "../services/perms";
 import { infiereColumnas } from "@/lib/csvTipos";
 import { agregaRollup, ROLLUP_AGGS } from "@/lib/rollup";
 import { limpiaReferencias, sincronizaEspejo } from "../services/relations";
@@ -26,8 +26,8 @@ export const RECORD_TRASH_TTL_DAYS = 30;
 // crea; aquí solo se validan las entradas contra ella.
 export { FIELD_TYPES } from "../services/db";
 
-// Los permisos por página se imponen aquí, en la capa de sesión: la API REST va con
-// token de espacio completo y no pasa por estos helpers (documentado en docs/api.md).
+// Los permisos por página se imponen aquí, en la capa de sesión. La API REST no pasa
+// por estos helpers: aplica los mismos niveles con los suyos (exigeApi en apiAuth.ts).
 type CtxPerms = { db: typeof import("@/lib/db").db; workspace: { id: string }; user: { id: string }; role?: string };
 
 async function assertPage(ctx: CtxPerms, pageId: string, min: Nivel = "view") {
@@ -464,11 +464,9 @@ export const dbRouter = router({
             const titulo = titleField
               ? cellToText(titleField, (updated.cells as Record<string, unknown>)[titleField.id], rec)
               : "";
-            const miembros = await ctx.db.member.findMany({
-              where: { workspaceId: ctx.workspace.id, userId: { in: nuevos } },
-              select: { userId: true },
-            });
-            for (const { userId } of miembros) {
+            // Solo a quien puede ver la base de datos: asignar no abre una página restringida.
+            const avisar = await filtraQuienesVen(ctx.db, ctx.workspace.id, field.collection.pageId, nuevos);
+            for (const userId of avisar) {
               await ctx.db.notification.create({
                 data: {
                   userId,

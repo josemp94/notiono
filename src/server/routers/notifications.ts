@@ -3,6 +3,7 @@ import { router, workspaceProcedure, authedProcedure } from "../trpc";
 import { cellToText } from "../services/cells";
 import { dayOf } from "@/lib/cellText";
 import { sendPush } from "../push";
+import { alcanza, filtraQuienesVen, mapaDeNiveles, nivelDePagina } from "../services/perms";
 
 export const notificationsRouter = router({
   /** Bandeja del usuario en el espacio activo (más recientes primero). */
@@ -49,14 +50,16 @@ export const notificationsRouter = router({
    */
   checkDue: authedProcedure.mutation(async ({ ctx }) => {
     const workspaceId = ctx.workspace?.id;
-    if (!workspaceId) return { created: 0 };
+    if (!workspaceId || !ctx.role) return { created: 0 };
+    // Una fila asignada en una base de datos que ya no puedo ver no me avisa.
+    const nivel = await mapaDeNiveles(ctx.db, workspaceId, ctx.user.id, ctx.role);
 
     const fields = await ctx.db.field.findMany({
       where: {
         type: { in: ["date", "person"] },
         collection: { page: { workspaceId, archivedAt: null } },
       },
-      select: { id: true, name: true, type: true, config: true, collectionId: true },
+      select: { id: true, name: true, type: true, config: true, collectionId: true, collection: { select: { pageId: true } } },
     });
     // Solo tiene sentido avisar en bases de datos que tengan fecha Y responsable.
     const byCollection = new Map<string, typeof fields>();
@@ -75,6 +78,7 @@ export const notificationsRouter = router({
     const pending: { userId: string; workspaceId: string; type: string; key: string; title: string; pageId: string }[] = [];
 
     for (const [collectionId, fs] of usable) {
+      if (!alcanza(nivel(fs[0].collection.pageId), "view")) continue;
       const personFields = fs.filter((f) => f.type === "person");
       const dateFields = fs.filter((f) => f.type === "date");
       const records = await ctx.db.record.findMany({
@@ -131,11 +135,13 @@ export const notificationsRouter = router({
         select: { id: true },
       });
       if (!page) return { ok: false };
-      const member = await ctx.db.member.findUnique({
-        where: { workspaceId_userId: { workspaceId: ctx.workspace.id, userId: input.userId } },
-        select: { id: true },
-      });
-      if (!member) return { ok: false }; // solo se notifica a miembros del espacio
+      // Quien menciona tiene que poder ver la página, y el mencionado también: si no,
+      // el aviso le enseñaría el título de una página a la que no está invitado.
+      if (!alcanza(await nivelDePagina(ctx.db, page.id, ctx.user.id, ctx.role ?? "viewer"), "view")) {
+        return { ok: false };
+      }
+      const [puedeVer] = await filtraQuienesVen(ctx.db, ctx.workspace.id, page.id, [input.userId]);
+      if (!puedeVer) return { ok: false }; // solo miembros del espacio que vean la página
       // Anti-duplicados (autosave): si ya tiene una sin leer del mismo actor en la misma página, no crea otra.
       const dup = await ctx.db.notification.findFirst({
         where: { userId: input.userId, pageId: input.pageId, actorId: ctx.user.id, type: "mention", read: false },

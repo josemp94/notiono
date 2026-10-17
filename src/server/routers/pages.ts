@@ -12,7 +12,7 @@ import { sendPush } from "../push";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage } from "../services/pages";
 import { jsonLimpio } from "../jsonLimpio";
-import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
+import { alcanza, exigeNivel, filtraQuienesVen, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
 const TRASH_TTL_DAYS = 30;
@@ -445,12 +445,16 @@ export const pagesRouter = router({
         where: { pageId: input.id, userId: { not: ctx.user.id } },
         select: { userId: true },
       });
+      const pendientes: string[] = [];
       for (const { userId } of seguidores) {
         const dup = await ctx.db.notification.findFirst({
           where: { userId, pageId: input.id, actorId: ctx.user.id, type: "follow", read: false },
           select: { id: true },
         });
-        if (dup) continue;
+        if (!dup) pendientes.push(userId);
+      }
+      // Quien siguió la página antes de que se restringiera deja de recibir avisos.
+      for (const userId of await filtraQuienesVen(ctx.db, ctx.workspace.id, input.id, pendientes)) {
         await ctx.db.notification.create({
           data: { userId, workspaceId: ctx.workspace.id, type: "follow", pageId: input.id, actorId: ctx.user.id },
         });

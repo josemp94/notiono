@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure } from "../trpc";
 import { sendPush } from "../push";
-import { exigeNivel, type Nivel } from "../services/perms";
+import { exigeNivel, filtraQuienesVen, type Nivel } from "../services/perms";
 
 async function assertPage(
   ctx: { db: typeof import("@/lib/db").db; workspace: { id: string }; user: { id: string }; role?: string },
@@ -67,7 +67,8 @@ export const commentsRouter = router({
           const nombres = [m.user.name, m.user.name?.split(/\s+/)[0], m.user.email].filter(Boolean) as string[];
           if (nombres.some((n) => cuerpo.includes("@" + llano(n)))) mencionados.add(m.userId);
         }
-        for (const userId of mencionados) {
+        // Mencionar a quien no puede ver la página no le avisa: el aviso lleva el título.
+        for (const userId of await filtraQuienesVen(ctx.db, ctx.workspace.id, input.pageId, mencionados)) {
           await ctx.db.notification.create({
             data: {
               userId,
@@ -95,7 +96,8 @@ export const commentsRouter = router({
         distinct: ["authorId"],
       });
       if (previos.length) {
-        for (const { authorId } of previos.filter((p) => !mencionados.has(p.authorId))) {
+        const otros = previos.map((p) => p.authorId).filter((id) => !mencionados.has(id));
+        for (const authorId of await filtraQuienesVen(ctx.db, ctx.workspace.id, input.pageId, otros)) {
           const dup = await ctx.db.notification.findFirst({
             where: { userId: authorId, pageId: input.pageId, actorId: ctx.user.id, type: "comment", read: false },
             select: { id: true },
