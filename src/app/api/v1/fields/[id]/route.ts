@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonError, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonError, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { deleteField, FIELD_TYPES, setFieldType, updateField } from "@/server/services/db";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (name === undefined && type === undefined && config === undefined) {
     return jsonError(400, "Indica al menos uno: name, type o config.");
   }
+  const veto = await exigeApi(auth, await paginaDe.campo(auth, id), "edit", "Columna no encontrada.");
+  if (veto) return veto;
 
   const scope = { db, workspaceId: auth.workspaceId, userId: auth.userId };
   try {
@@ -55,6 +57,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const auth = await authApiRequest(req);
   if (auth instanceof Response) return auth;
   const { id } = await params;
+  const veto = await exigeApi(auth, await paginaDe.campo(auth, id), "edit", "Columna no encontrada.");
+  if (veto) return veto;
   try {
     await deleteField({ db, workspaceId: auth.workspaceId, userId: auth.userId }, { id });
     return NextResponse.json({ ok: true });

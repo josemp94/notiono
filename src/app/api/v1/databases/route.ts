@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, exigeEscritor, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { createDatabase, FIELD_TYPES, VIEW_TYPES } from "@/server/services/db";
+import { alcanza, mapaDeNiveles } from "@/server/services/perms";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/v1/databases — bases de datos del workspace del token. */
+/** GET /api/v1/databases — bases de datos del espacio que puede ver quien creó el token. */
 export async function GET(req: Request) {
   const auth = await authApiRequest(req);
   if (auth instanceof Response) return auth;
   const cols = await db.collection.findMany({
     where: { page: { workspaceId: auth.workspaceId, archivedAt: null } },
-    select: { id: true, page: { select: { title: true, icon: true } } },
+    select: { id: true, pageId: true, page: { select: { title: true, icon: true } } },
   });
+  const nivel = await mapaDeNiveles(db, auth.workspaceId, auth.userId, auth.role);
   return NextResponse.json(
-    cols.map((c) => ({ id: c.id, title: c.page.title, icon: c.page.icon })),
+    cols
+      .filter((c) => alcanza(nivel(c.pageId), "view"))
+      .map((c) => ({ id: c.id, title: c.page.title, icon: c.page.icon })),
   );
 }
 
@@ -40,6 +44,11 @@ export async function POST(req: Request) {
   if (auth instanceof Response) return auth;
   const body = await readJson(req, nuevaBd);
   if (body instanceof Response) return body;
+  const { parentId } = body.data;
+  const veto = parentId
+    ? await exigeApi(auth, await paginaDe.pagina(auth, parentId), "edit", "Página padre no encontrada.")
+    : exigeEscritor(auth);
+  if (veto) return veto;
 
   try {
     const { page, collection, fields, views } = await createDatabase(

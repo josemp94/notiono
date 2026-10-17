@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonError } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonError, paginaDe } from "@/server/apiAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const auth = await authApiRequest(req);
   if (auth instanceof Response) return auth;
   const { id } = await params;
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "view", "Base de datos no encontrada.");
+  if (veto) return veto;
   const col = await db.collection.findFirst({
     where: { id, page: { workspaceId: auth.workspaceId } },
     select: {

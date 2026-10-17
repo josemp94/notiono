@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonError, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { createRecord } from "@/server/services/db";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +22,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const limit = Math.min(500, Math.max(1, Number(q.get("limit")) || 100));
   const cursor = q.get("cursor");
 
-  const col = await db.collection.findFirst({
-    where: { id, page: { workspaceId: auth.workspaceId } },
-    select: { id: true },
-  });
-  if (!col) return jsonError(404, "Base de datos no encontrada.");
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "view", "Base de datos no encontrada.");
+  if (veto) return veto;
 
   // Se pide uno de más para saber si hay otra página sin contar toda la tabla.
   const filas = await db.record.findMany({
@@ -63,6 +60,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await readJson(req, nuevoRegistro);
   if (body instanceof Response) return body;
   const { id } = await params;
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "edit", "Base de datos no encontrada.");
+  if (veto) return veto;
 
   try {
     const rec = await createRecord(

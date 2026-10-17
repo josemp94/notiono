@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonError, paginaDe, readJson } from "@/server/apiAuth";
 import { applyViewConfig, conComputados, filterFieldIds, type DbField, type DbRecord, type FilterNode } from "@/lib/viewData";
 import { calculaComputados, necesitaComputados } from "@/server/services/computados";
 
@@ -31,6 +31,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body instanceof Response) return body;
   const { id } = await params;
   const { filters, filterOp, sorts, cursor, limit } = body.data;
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "view", "Base de datos no encontrada.");
+  if (veto) return veto;
 
   const col = await db.collection.findFirst({
     where: { id, page: { workspaceId: auth.workspaceId } },
@@ -57,7 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const base = necesitaComputados(col.fields, usados)
     ? conComputados(all, (await calculaComputados(db, auth.workspaceId, col)).rollups)
     : all;
-  const filtradas = applyViewConfig(base, fields, { filters, filterOp, sorts }, auth.userId ?? undefined);
+  const filtradas = applyViewConfig(base, fields, { filters, filterOp, sorts }, auth.userId);
 
   const desde = cursor ? filtradas.findIndex((r) => r.id === cursor) + 1 : 0;
   if (cursor && desde === 0) return jsonError(400, "Cursor desconocido (¿cambió el filtro entre páginas?).");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, exigeEscritor, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { createPage } from "@/server/services/pages";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,11 @@ export async function POST(req: Request) {
   if (auth instanceof Response) return auth;
   const body = await readJson(req, nuevaPagina);
   if (body instanceof Response) return body;
+  const { parentId } = body.data;
+  const veto = parentId
+    ? await exigeApi(auth, await paginaDe.pagina(auth, parentId), "edit", "Página padre no encontrada.")
+    : exigeEscritor(auth);
+  if (veto) return veto;
 
   try {
     const p = await createPage(

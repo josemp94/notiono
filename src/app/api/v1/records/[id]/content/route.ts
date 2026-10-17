@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonError, paginaDe, readJson } from "@/server/apiAuth";
 import { markdownABloques } from "@/lib/mdBloques";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +29,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   const rec = await findRecord(id, auth.workspaceId);
   if (!rec) return jsonError(404, "Registro no encontrado.");
+  const veto = await exigeApi(auth, await paginaDe.registro(auth, id), "edit", "Registro no encontrado.");
+  if (veto) return veto;
 
   const body = await readJson(req, putSchema);
   if (body instanceof Response) return body;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { addField, FIELD_TYPES } from "@/server/services/db";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +20,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await readJson(req, nuevaColumna);
   if (body instanceof Response) return body;
   const { id } = await params;
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "edit", "Base de datos no encontrada.");
+  if (veto) return veto;
 
   try {
-    // El servicio comprueba que la base de datos sea del espacio del token.
     const f = await addField(
       { db, workspaceId: auth.workspaceId, userId: auth.userId },
       { collectionId: id, name: body.data.name, type: body.data.type, afterFieldId: body.data.afterFieldId },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { authApiRequest, jsonFromDbError, readJson } from "@/server/apiAuth";
+import { authApiRequest, exigeApi, jsonFromDbError, paginaDe, readJson } from "@/server/apiAuth";
 import { addView, VIEW_TYPES } from "@/server/services/db";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await readJson(req, nuevaVista);
   if (body instanceof Response) return body;
   const { id } = await params;
+  const veto = await exigeApi(auth, await paginaDe.coleccion(auth, id), "edit", "Base de datos no encontrada.");
+  if (veto) return veto;
 
   try {
     const v = await addView(

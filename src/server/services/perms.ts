@@ -98,3 +98,39 @@ export async function mapaDeNiveles(
   };
   return nivel;
 }
+
+/**
+ * De una lista de usuarios, los que pueden ver la página. Para avisos (menciones,
+ * asignaciones, vencimientos, seguidores): el aviso lleva el título y el enlace, y a
+ * quien no está invitado a una página restringida no le debe llegar ni eso.
+ */
+export async function filtraQuienesVen(
+  db: Db,
+  workspaceId: string,
+  pageId: string,
+  userIds: Iterable<string>,
+): Promise<string[]> {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return [];
+  const ven: string[] = [];
+  for (const userId of ids) {
+    const role = await rolEnEspacio(db, workspaceId, userId);
+    if (role && alcanza(await nivelDePagina(db, pageId, userId, role), "view")) ven.push(userId);
+  }
+  return ven;
+}
+
+/**
+ * Rol de un usuario en un espacio, como lo calcula la sesión (context.ts): el dueño
+ * lo es por `Workspace.ownerId`, tenga o no fila de miembro. null = no pertenece.
+ */
+export async function rolEnEspacio(db: Db, workspaceId: string, userId: string): Promise<string | null> {
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { ownerId: true } });
+  if (!ws) return null;
+  if (ws.ownerId === userId) return "owner";
+  const m = await db.member.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+    select: { role: true },
+  });
+  return m?.role ?? null;
+}

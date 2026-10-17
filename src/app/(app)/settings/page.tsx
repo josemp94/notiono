@@ -101,8 +101,8 @@ function ApiTokensSection() {
     <section className="mt-8">
       <h2 className="font-display mb-1 font-bold">API</h2>
       <p className="mb-3 text-xs text-[var(--muted)]">
-        Tokens para la API REST (<code>/api/v1</code>), scopeados a este espacio. Ver{" "}
-        <code>docs/api.md</code>.
+        Tokens para la API REST (<code>/api/v1</code>) de este espacio. Cada token puede lo mismo que
+        tú: no ve las páginas restringidas a las que no te han invitado. Ver <code>docs/api.md</code>.
       </p>
       <div className="flex gap-2">
         <input
@@ -142,7 +142,10 @@ function ApiTokensSection() {
             key={t.id}
             className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
           >
-            <span className="min-w-0 flex-1 truncate">{t.name}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {t.name}
+              {t.autor && <span className="text-xs text-[var(--muted)]"> · de {t.autor}</span>}
+            </span>
             <span className="shrink-0 text-xs text-[var(--muted)]">
               creado {fmt(t.createdAt)} · usado {fmt(t.lastUsed)}
             </span>
