@@ -399,12 +399,11 @@ export function Editor({
                   group: "Bloques básicos",
                   icon: n === 2 ? <Columns2 size={18} /> : <Columns3 size={18} />,
                   onItemClick: () => {
-                    insertOrUpdateBlockForSlashMenu(editor, {
+                    const lista = insertOrUpdateBlockForSlashMenu(editor, {
                       type: "columnList",
                       children: Array.from({ length: n }, emptyColumn),
                     });
                     // El cursor al primer hueco, para poder escribir sin buscarlo.
-                    const lista = editor.getTextCursorPosition().block;
                     const primero = lista.children?.[0]?.children?.[0];
                     if (primero) editor.setTextCursorPosition(primero, "end");
                   },

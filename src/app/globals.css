@@ -113,12 +113,13 @@ h1, h2, h3, .font-display {
 
 /* --- Columnas del editor ---------------------------------------------------
    Los bloques `columnList` y `column` los ponemos nosotros (BlockNote solo los
-   trae en su paquete de pago), pero SUS clases y su flex ya vienen en la hoja de
-   estilos de BlockNote. Lo que falta es que los hijos de un `columnList` —que
-   BlockNote saca en un `.bn-block-group` aparte del contenido del bloque— se
-   repartan el ancho en vez de apilarse. El `:has()` con y sin `.react-renderer`
-   es porque los bloques hechos en React llevan ese envoltorio de por medio; la
-   propia hoja de BlockNote hace lo mismo con el bloque plegable. */
+   trae en su paquete de pago; ver columnBlock.tsx). Lo que hace falta es que los
+   hijos de un `columnList` —que BlockNote saca en un `.bn-block-group` aparte del
+   contenido del bloque— se repartan el ancho en vez de apilarse. El `:has()` con
+   y sin `.react-renderer` es porque los bloques hechos en React llevan ese
+   envoltorio de por medio; la propia hoja de BlockNote hace lo mismo con el
+   bloque plegable. El ancho de cada columna (flex-grow) lo pone el editor en el
+   `style` de su `.bn-block-outer`. */
 .bn-block:has(> .bn-block-content[data-content-type="columnList"]) > .bn-block-group,
 .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="columnList"]) > .bn-block-group {
   display: flex;
@@ -144,6 +145,25 @@ h1, h2, h3, .font-display {
     flex-direction: column;
     gap: 0;
   }
+  /* Apiladas, el ancho guardado de cada una no pinta nada. */
+  .bn-block:has(> .bn-block-content[data-content-type="columnList"]) > .bn-block-group > .bn-block-outer,
+  .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="columnList"]) > .bn-block-group > .bn-block-outer {
+    flex: none !important;
+  }
+}
+/* Ni las columnas ni lo de dentro llevan la raya vertical de los bloques anidados:
+   para BlockNote son hijos de otro bloque, pero aquí no hay sangría que marcar. */
+.bn-block:has(> .bn-block-content[data-content-type="columnList"]) > .bn-block-group > .bn-block-outer::before,
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="columnList"]) > .bn-block-group > .bn-block-outer::before,
+.bn-block:has(> .bn-block-content[data-content-type="column"]) > .bn-block-group > .bn-block-outer::before,
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="column"]) > .bn-block-group > .bn-block-outer::before {
+  display: none !important;
+}
+/* BlockNote pone su «línea final» fantasma también en lo que se llame `column`
+   (pensada para las suyas): en las nuestras sale como un hueco encima de cada
+   columna. La buena, la del final de la página, cuelga del grupo y no del bloque. */
+.bn-block > .bn-trailing-block {
+  display: none;
 }
 /* Los dos bloques no pintan nada por sí mismos: lo que se ve son sus hijos. */
 .bn-block-content[data-content-type="columnList"],

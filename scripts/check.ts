@@ -680,9 +680,164 @@ import { faltanObligatorios } from "../src/components/database/FormFields";
   assert.equal(faltanObligatorios(["a"], campos, { a: "Jose" }).length, 0);
 }
 
+// --- Columnas en ProseMirror (normalización, anchos y teclado) ----------------
+// Esquema mínimo con la misma forma que el de BlockNote: blockGroup > blockContainer > [contenido, blockGroup?].
+import { Schema, type Node as PMNode } from "prosemirror-model";
+import { EditorState, NodeSelection, TextSelection, type Transaction } from "prosemirror-state";
+import {
+  decorarAnchos,
+  desindentarEnColumna,
+  indentarTrasColumnas,
+  introEnColumna,
+  normalizarColumnas,
+  retrocesoEnColumna,
+} from "../src/components/editor/columnas";
+{
+  const esq = new Schema({
+    nodes: {
+      doc: { content: "blockGroup" },
+      blockGroup: { content: "blockContainer+" },
+      blockContainer: { content: "blockContent blockGroup?", attrs: { id: { default: null } } },
+      paragraph: { group: "blockContent", content: "inline*" },
+      heading: { group: "blockContent", content: "inline*" },
+      bulletListItem: { group: "blockContent", content: "inline*" },
+      codeBlock: { group: "blockContent", content: "text*", marks: "", code: true },
+      image: { group: "blockContent" },
+      column: { group: "blockContent", attrs: { ancho: { default: 1 } } },
+      columnList: { group: "blockContent" },
+      text: { group: "inline" },
+    },
+  });
+  const bloque = (c: PMNode, hijos: PMNode[]) =>
+    esq.node("blockContainer", null, hijos.length ? [c, esq.node("blockGroup", null, hijos)] : [c]);
+  const de = (tipo: string) => (t = "", ...hijos: PMNode[]) => bloque(esq.node(tipo, null, t ? esq.text(t) : []), hijos);
+  const P = de("paragraph");
+  const H = de("heading");
+  const LI = de("bulletListItem");
+  const CODE = de("codeBlock");
+  const IMG = () => bloque(esq.node("image"), []);
+  const COLA = (ancho: number, ...hijos: PMNode[]) => bloque(esq.node("column", { ancho }), hijos);
+  const COL = (...hijos: PMNode[]) => COLA(1, ...hijos);
+  const LISTA = (...cols: PMNode[]) => bloque(esq.node("columnList"), cols);
+  const DOC = (...bs: PMNode[]) => esq.node("doc", null, esq.node("blockGroup", null, bs));
+
+  const corto: Record<string, string> = { column: "col", columnList: "cols", paragraph: "p", bulletListItem: "li", image: "img" };
+  const resumen = (n: PMNode): string => {
+    if (n.type.name === "doc") return resumen(n.firstChild!);
+    if (n.type.name === "blockGroup") {
+      const out: string[] = [];
+      n.forEach((c) => out.push(resumen(c)));
+      return out.join(",");
+    }
+    const c = n.firstChild!;
+    const g = n.childCount > 1 ? n.lastChild! : null;
+    return (corto[c.type.name] ?? c.type.name) + (c.isTextblock ? `:${c.textContent}` : "") + (g ? `(${resumen(g)})` : "");
+  };
+  const normalizado = (doc: PMNode) => {
+    const tr = EditorState.create({ doc }).tr;
+    const cambio = normalizarColumnas(tr);
+    return { cambio, doc: tr.doc, txt: resumen(tr.doc) };
+  };
+
+  // Una estructura sana no se toca.
+  const sano = DOC(LISTA(COL(P("a")), COL(P("b"))), P("c"));
+  assert.equal(normalizado(sano).cambio, false);
+  // Un bloque suelto entre columnas (p. ej. soltado ahí) pasa a ser su propia columna.
+  assert.equal(normalizado(DOC(LISTA(COL(P("a")), P("x"), COL(P("b"))))).txt, "cols(col(p:a),col(p:x),col(p:b))");
+  // Una columna fuera de un columnList se deshace y su contenido se queda en su sitio.
+  assert.equal(normalizado(DOC(P("a"), COL(P("b"), P("c")))).txt, "p:a,p:b,p:c");
+  assert.equal(normalizado(DOC(P("a", COL(P("b"))))).txt, "p:a(p:b)");
+  // Columnas vacías fuera; con una sola columna ya no hay columnas.
+  assert.equal(normalizado(DOC(LISTA(COL(P("a")), COL(), COL(P("b"))))).txt, "cols(col(p:a),col(p:b))");
+  assert.equal(normalizado(DOC(LISTA(COL(P("a"), P("b"))), P("c"))).txt, "p:a,p:b,p:c");
+  assert.equal(normalizado(DOC(LISTA(COL(P("a")), COL()))).txt, "p:a");
+  // Si no queda nada, la página se queda con una línea vacía (un grupo no puede estar vacío).
+  assert.equal(normalizado(DOC(LISTA(COL(), COL()))).txt, "p:");
+  // Y normalizar lo normalizado no cambia nada (si no, appendTransaction no pararía).
+  for (const d of [DOC(LISTA(COL(P("a")), P("x"))), DOC(COL(P("b"))), DOC(LISTA(COL(), COL(P("a")), COL(P("b"))))]) {
+    assert.equal(normalizado(normalizado(d).doc).cambio, false);
+  }
+
+  // Anchos: una decoración solo en las columnas que no tienen el de por defecto, sobre su blockContainer.
+  const decos = decorarAnchos(DOC(LISTA(COLA(2.5, P("a")), COL(P("b"))))).find();
+  assert.equal(decos.length, 1);
+  assert.equal(decos[0].from, 4); // blockGroup(+1) > blockContainer(+1) > columnList (hoja, 1) > blockGroup(+1) → la 1.ª columna en 4
+  assert.equal((decos[0] as unknown as { type: { attrs: { style: string } } }).type.attrs.style, "flex-grow: 2.5");
+  assert.equal(decorarAnchos(sano).find().length, 0);
+
+  // Teclas: el cursor al principio de la n-ésima línea de texto (o desplazado).
+  const inicio = (doc: PMNode, n: number) => {
+    let i = 0;
+    let pos = -1;
+    doc.descendants((node, p) => {
+      if (pos >= 0) return false;
+      if (node.isTextblock && i++ === n) pos = p + 1;
+      return true;
+    });
+    return pos;
+  };
+  type Cmd = (s: EditorState, d?: (tr: Transaction) => void) => boolean;
+  const tecla = (cmd: Cmd, doc: PMNode, n: number, desplaza = 0) => {
+    const st = EditorState.create({ doc, selection: TextSelection.create(doc, inicio(doc, n) + desplaza) });
+    let fin = st;
+    const ok = cmd(st, (tr) => (fin = st.apply(tr)));
+    return { ok, st: fin, txt: resumen(fin.doc), sel: fin.selection };
+  };
+  const nada: Cmd = () => false;
+
+  // Retroceso: une con la línea de arriba SIN salir de la columna.
+  let t = tecla(retrocesoEnColumna, DOC(LISTA(COL(P("ab"), P("cd")), COL(P("x")))), 1);
+  assert.equal(t.ok, true);
+  assert.equal(t.txt, "cols(col(p:abcd),col(p:x))");
+  assert.equal(t.sel.$from.parent.textContent, "abcd");
+  assert.equal(t.sel.$from.parentOffset, 2);
+  // …los hijos del bloque unido se quedan a su altura, y se une con lo último de arriba (lo que se ve encima).
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("ab"), P("cd", P("e"))), COL(P("x")))), 1).txt, "cols(col(p:abcd,p:e),col(p:x))");
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("ab", P("n")), P("cd")), COL(P("x")))), 2).txt, "cols(col(p:ab(p:ncd)),col(p:x))");
+  // Una línea vacía se borra y el cursor sube al final de la de arriba.
+  t = tecla(retrocesoEnColumna, DOC(LISTA(COL(P("ab"), P("")), COL(P("x")))), 1);
+  assert.equal(t.txt, "cols(col(p:ab),col(p:x))");
+  assert.equal(t.sel.$from.parent.textContent, "ab");
+  assert.equal(t.sel.$from.parentOffset, 2);
+  // Primera línea con texto: no hace nada (ni sale de la columna ni se come la de al lado).
+  t = tecla(retrocesoEnColumna, DOC(LISTA(COL(P("ab")), COL(P("x")))), 0);
+  assert.equal(t.ok, true);
+  assert.equal(t.txt, "cols(col(p:ab),col(p:x))");
+  // Primera línea vacía con más debajo: se borra.
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P(""), P("b")), COL(P("x")))), 0).txt, "cols(col(p:b),col(p:x))");
+  // Lo único de la columna: se va la columna; y si queda una sola, la normalización deshace el columnList.
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("a")), COL(P("")), COL(P("c")))), 1).txt, "cols(col(p:a),col(p:c))");
+  t = tecla(retrocesoEnColumna, DOC(LISTA(COL(P("a")), COL(P(""))), P("z")), 1);
+  assert.equal(normalizado(t.st.doc).txt, "p:a,p:z");
+  // Encima hay una imagen: se selecciona, como fuera de las columnas.
+  t = tecla(retrocesoEnColumna, DOC(LISTA(COL(IMG(), P("cd")), COL(P("x")))), 0);
+  assert.ok(t.sel instanceof NodeSelection && t.sel.node.type.name === "image");
+  assert.equal(t.txt, "cols(col(img,p:cd),col(p:x))");
+  // Lo demás es de BlockNote: títulos/listas (los pasa a párrafo), cursor a media línea, fuera de columnas, nietos.
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("a"), H("t")), COL(P("x")))), 1).ok, false);
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("a"), P("cd")), COL(P("x")))), 1, 1).ok, false);
+  assert.equal(tecla(retrocesoEnColumna, DOC(P("a"), P("b")), 1).ok, false);
+  assert.equal(tecla(retrocesoEnColumna, DOC(LISTA(COL(P("a", P("b"))), COL(P("x")))), 1).ok, false);
+
+  // Intro en una línea vacía de una columna: otra línea debajo, dentro.
+  t = tecla(introEnColumna, DOC(LISTA(COL(P("a"), P("")), COL(P("x")))), 1);
+  assert.equal(t.txt, "cols(col(p:a,p:,p:),col(p:x))");
+  assert.equal(t.sel.from, inicio(t.st.doc, 2));
+  // Una lista vacía pasa a párrafo; con texto, o en un bloque de código, manda BlockNote.
+  assert.equal(tecla(introEnColumna, DOC(LISTA(COL(P("a"), LI("")), COL(P("x")))), 1).txt, "cols(col(p:a,p:),col(p:x))");
+  assert.equal(tecla(introEnColumna, DOC(LISTA(COL(P("a"), P("b")), COL(P("x")))), 1).ok, false);
+  assert.equal(tecla(introEnColumna, DOC(LISTA(COL(P("a"), CODE("")), COL(P("x")))), 1).ok, false);
+
+  // Mayús+Tab no saca de la columna; Tab no mete el bloque de debajo como otra columna.
+  assert.equal(desindentarEnColumna(tecla(nada, DOC(LISTA(COL(P("a")), COL(P("x")))), 0).st), true);
+  assert.equal(desindentarEnColumna(tecla(nada, DOC(P("a", P("b"))), 1).st), false);
+  assert.equal(indentarTrasColumnas(tecla(nada, DOC(LISTA(COL(P("a")), COL(P("x"))), P("z")), 2).st), true);
+  assert.equal(indentarTrasColumnas(tecla(nada, DOC(P("a"), P("z")), 1).st), false);
+}
+
 compruebaColaboracion()
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración e import de Notion");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas e import de Notion");
     process.exit(0);
   })
   .catch((e) => {

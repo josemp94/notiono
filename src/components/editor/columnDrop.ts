@@ -20,6 +20,7 @@ type EditorLike = {
   removeBlocks: (ids: string[]) => void;
   replaceBlocks: (ids: string[], blocks: unknown[]) => void;
   insertBlocks: (blocks: unknown[], refId: string, pos: "before" | "after") => void;
+  transact?: <T>(fn: () => T) => T;
 };
 
 const FRANJA = 48; // px desde el borde que cuentan como «al lado»
@@ -129,7 +130,11 @@ export function instalarDropDeColumnas(editor: EditorLike, raiz: HTMLElement): (
     if (!m) return;
     e.preventDefault();
     e.stopPropagation();
-    aplicarDrop(editor, m[1], obj.id, obj.lado);
+    // En una sola transacción: un solo paso de deshacer, y la normalización de
+    // columnas (columnas.ts) ve el resultado final y no los pasos intermedios.
+    const mover = () => aplicarDrop(editor, m[1], obj.id, obj.lado);
+    if (editor.transact) editor.transact(mover);
+    else mover();
   };
 
   const fuera = (e: DragEvent) => {
