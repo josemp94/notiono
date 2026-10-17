@@ -233,7 +233,7 @@ export function groupBy<R extends RecordLite>(
   people: Map<string, string>,
 ): { key: string; label: string; records: R[] }[] {
   if (!field) return [];
-  const empty = `Sin ${field.name.toLowerCase()}`;
+  const empty = field.name.trim() ? `Sin ${field.name.toLowerCase()}` : "Sin valor";
   const buckets = new Map<string, R[]>();
   for (const r of records) {
     const label = displayValue(field, r.cells?.[field.id], people) || empty;
@@ -257,6 +257,22 @@ export function groupBy<R extends RecordLite>(
  * solaparían al desplazar en horizontal.
  */
 export const FROZEN_WIDTH = 180;
+
+/**
+ * Lo más estrecha que puede quedar una columna al arrastrar su borde: lo justo para
+ * una casilla o un icono, como en Notion. Antes eran 80 y una columna de casillas
+ * se quedaba con medio hueco vacío.
+ */
+export const MIN_COL_WIDTH = 32;
+
+/**
+ * El nombre de una columna para enseñarlo en listas y menús. Una columna puede
+ * llamarse «» (la cabecera solo con su icono, como deja Notion), y en un desplegable
+ * eso sería una opción en blanco imposible de distinguir.
+ */
+export function nombreCampo(f: { name: string }): string {
+  return f.name.trim() || "Sin nombre";
+}
 
 /**
  * Ancho del margen izquierdo de la tabla (el de arrastrar y abrir la ficha).

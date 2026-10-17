@@ -11,6 +11,7 @@ import { IconoPagina } from "@/components/PageIcon";
 import { Popover } from "./Popover";
 import type { FieldLite } from "@/lib/cellText";
 import { ROLLUP_AGG_LABELS, type RollupAgg } from "@/lib/rollup";
+import { nombreCampo } from "@/lib/cellText";
 
 export const FIELD_LABELS: Record<string, string> = {
   text: "Texto",
@@ -189,7 +190,7 @@ export function AddFieldButton({
                       onClick={() => setExpr((x) => `${x}prop("${f.name}")`)}
                       className="mr-1 rounded bg-[var(--border)]/40 px-1 hover:text-[var(--foreground)]"
                     >
-                      {f.name}
+                      {nombreCampo(f)}
                     </button>
                   ))}
               </div>
@@ -249,7 +250,7 @@ export function AddFieldButton({
                   onClick={() => setRelField(rf)}
                   className="block w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
                 >
-                  {rf.name}
+                  {nombreCampo(rf)}
                 </button>
               ))}
             </>
@@ -299,7 +300,7 @@ export function AddFieldButton({
                     }
                     className="block w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-[var(--hover)]"
                   >
-                    {tf.name}
+                    {nombreCampo(tf)}
                   </button>
                 ))}
               {(targetOf(relField)?.fields ?? []).length === 0 && (

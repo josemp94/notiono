@@ -116,7 +116,7 @@ export function GalleryView({
                 if (!txt) return null;
                 return (
                   <div key={f.id} className="flex gap-2 text-xs">
-                    <span className="shrink-0 text-[var(--muted)]">{f.name}:</span>
+                    {f.name.trim() && <span className="shrink-0 text-[var(--muted)]">{f.name}:</span>}
                     <span className="truncate">{txt}</span>
                   </div>
                 );

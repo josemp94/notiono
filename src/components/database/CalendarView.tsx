@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
-import { dateValue, dayOf, endDayOf, shiftDateValue } from "@/lib/cellText";
+import { dateValue, dayOf, endDayOf, shiftDateValue, nombreCampo } from "@/lib/cellText";
 import type { FieldLite } from "@/lib/cellText";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
@@ -200,7 +200,7 @@ export function CalendarView({
           >
             {dateFields.map((f) => (
               <option key={f.id} value={f.id}>
-                Por: {f.name}
+                Por: {nombreCampo(f)}
               </option>
             ))}
           </select>

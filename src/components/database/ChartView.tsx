@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import ReactECharts from "echarts-for-react";
 import { trpc } from "@/trpc/react";
 import type { FieldLite } from "@/lib/cellText";
+import { nombreCampo } from "@/lib/cellText";
 
 const BRAND = "#ff5c28";
 const PALETTE = ["#ff5c28", "#2d9d78", "#4a5568", "#e2b93b", "#9f7aea", "#38b2ac", "#ed64a6"];
@@ -125,7 +126,7 @@ export function ChartView({
             onChange={(v) => save({ xFieldId: v || undefined })}
             // Con opción vacía: sin ella, con xFieldId null el navegador pintaba
             // el primer campo como elegido aunque la gráfica no lo estaba usando.
-            options={[["", "Elegir campo…"], ...fields.map((f) => [f.id, f.name] as [string, string])]}
+            options={[["", "Elegir campo…"], ...fields.map((f) => [f.id, nombreCampo(f)] as [string, string])]}
           />
         )}
         {chartType !== "number" && DATE_TYPES.includes(fields.find((f) => f.id === cfg.xFieldId)?.type ?? "") && (
@@ -160,7 +161,7 @@ export function ChartView({
             label="Campo"
             value={cfg.yFieldId ?? ""}
             onChange={(v) => save({ yFieldId: v || null })}
-            options={[["", "Elegir campo…"], ...numberFields.map((f) => [f.id, f.name] as [string, string])]}
+            options={[["", "Elegir campo…"], ...numberFields.map((f) => [f.id, nombreCampo(f)] as [string, string])]}
           />
         )}
         {["bar", "bar_h", "line"].includes(chartType) && (
@@ -172,7 +173,7 @@ export function ChartView({
               ["", "Sin desglose"],
               ...fields
                 .filter((f) => BREAKDOWN_TYPES.includes(f.type) && f.id !== cfg.xFieldId)
-                .map((f) => [f.id, f.name] as [string, string]),
+                .map((f) => [f.id, nombreCampo(f)] as [string, string]),
             ]}
           />
         )}

@@ -6,7 +6,7 @@ import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { ScrollHorizontal } from "./ScrollHorizontal";
-import { dayOf, endDayOf, shiftDateValue, stretchDateValue } from "@/lib/cellText";
+import { dayOf, endDayOf, shiftDateValue, stretchDateValue, nombreCampo } from "@/lib/cellText";
 import type { FieldLite } from "@/lib/cellText";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
@@ -259,7 +259,7 @@ export function TimelineView({
               onChange={(e) => updateView.mutate({ id: view.id, config: { ...cfg, dateFieldId: e.target.value } })}
               className="rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs outline-none"
             >
-              {dateFields.map((f) => <option key={f.id} value={f.id}>Inicio: {f.name}</option>)}
+              {dateFields.map((f) => <option key={f.id} value={f.id}>Inicio: {nombreCampo(f)}</option>)}
             </select>
           )}
           {dateFields.length > 1 && (
@@ -269,7 +269,7 @@ export function TimelineView({
               className="rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs outline-none"
             >
               <option value="">Fin: (1 día)</option>
-              {dateFields.filter((f) => f.id !== startFieldId).map((f) => <option key={f.id} value={f.id}>Fin: {f.name}</option>)}
+              {dateFields.filter((f) => f.id !== startFieldId).map((f) => <option key={f.id} value={f.id}>Fin: {nombreCampo(f)}</option>)}
             </select>
           )}
           <select
@@ -290,7 +290,7 @@ export function TimelineView({
           >
             <option value="">Dependencias: no</option>
             {relSelf.map((f) => (
-              <option key={f.id} value={f.id}>Dependencias: {f.name}</option>
+              <option key={f.id} value={f.id}>Dependencias: {nombreCampo(f)}</option>
             ))}
             <option value="__crear__">+ Crear campo «Bloqueada por»</option>
           </select>

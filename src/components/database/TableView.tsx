@@ -6,7 +6,7 @@ import { confirmar } from "@/components/Confirmar";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
 import { Cell, usePeople, type AccionBoton } from "./Cell";
-import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
+import { frozenOffsets, FROZEN_WIDTH, GUTTER_WIDTH, groupBy, MIN_COL_WIDTH, nombreCampo, NUMBER_FORMATS, OPTION_COLORS, optionsOf, rowColor, type FieldLite } from "@/lib/cellText";
 import { CALC_OPTS, computeCalc } from "@/lib/calc";
 import { colorByRules, opsFor, wrapOf, WRAP_TYPES, type DbField, type DbRecord, type Sort } from "@/lib/viewData";
 import { FILTER_MENU_EVENT, isTyping, type FilterMenuDetail } from "@/lib/shortcuts";
@@ -162,6 +162,13 @@ export function TableView({
   const margen = { width: GUTTER_WIDTH, minWidth: GUTTER_WIDTH, maxWidth: GUTTER_WIDTH, ["--min-col" as string]: `${GUTTER_WIDTH}px` };
   // Una columna congelada necesita ancho fijo; si no se le ha puesto, se le supone uno.
   const anchoDe = (i: number) => (lefts[i] !== null ? (widthOf(fields[i].id) ?? FROZEN_WIDTH) : widthOf(fields[i].id));
+  // Una casilla sin ancho fijo se queda en lo que ocupe (su cabecera o la propia
+  // casilla), en vez de en los 160 de mínimo de las demás.
+  const estrecha = (f: DbField) => f.type === "checkbox";
+  // Rayas verticales entre columnas, como las de Notion (se quitan en las opciones
+  // de la vista). Van de sombra interior y no de borde: con border-collapse, el
+  // borde de una celda congelada se queda atrás al desplazar en horizontal.
+  const lineaV = cfg.verticalLines === false ? "" : "shadow-[inset_-1px_0_0_var(--border)]";
 
   // El arrastre se sigue en window para que no se pierda al salir de la cabecera.
   const dragRef = useRef(drag);
@@ -171,7 +178,7 @@ export function TableView({
     const move = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
-      setDrag({ ...d, w: Math.max(80, Math.round(d.startW + (e.clientX - d.startX))) });
+      setDrag({ ...d, w: Math.max(MIN_COL_WIDTH, Math.round(d.startW + (e.clientX - d.startX))) });
     };
     const up = () => {
       const d = dragRef.current;
@@ -404,7 +411,7 @@ export function TableView({
               key={f.id}
               data-celda={`${r.id}:${f.id}`}
               onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-              className={`px-2 py-1.5 align-top ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+              className={`px-2 py-1.5 align-top ${lineaV} ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
               style={style}
             >
               {cell}
@@ -428,7 +435,7 @@ export function TableView({
               abrir(r);
             }}
             onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
-            className={`px-2 py-1.5 align-top ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
+            className={`px-2 py-1.5 align-top ${lineaV} ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
             style={style}
           >
             <div className="relative flex items-center" style={{ paddingLeft: depth * 20 }}>
@@ -504,7 +511,7 @@ export function TableView({
             {fields.map((f, i) => (
               <th
                 key={f.id}
-                className={`group relative px-2 py-1 font-medium ${anchoDe(i) ? "" : "min-w-40"} ${
+                className={`group relative px-2 py-1 font-medium ${lineaV} ${anchoDe(i) || estrecha(f) ? "" : "min-w-40"} ${
                   lefts[i] === null ? "" : "sticky z-20 bg-[var(--background)]"
                 } ${
                   dropCol?.id === f.id
@@ -514,11 +521,13 @@ export function TableView({
                     : ""
                 }`}
                 style={{
-                  ...(anchoDe(i) ? { width: anchoDe(i), minWidth: anchoDe(i), maxWidth: anchoDe(i) } : {}),
+                  // Ancho 1px = «lo mínimo que quepa»: así la columna de casillas no
+                  // se lleva su parte del sobrante cuando la tabla llena la página.
+                  ...(anchoDe(i) ? { width: anchoDe(i), minWidth: anchoDe(i), maxWidth: anchoDe(i) } : estrecha(f) ? { width: 1 } : {}),
                   ...(lefts[i] === null ? {} : { left: lefts[i] }),
                   // El mínimo también como variable: dentro de una página, la hoja de
                   // BlockNote pisa el min-width de toda celda (ver .tabla-bd en globals.css).
-                  ["--min-col" as string]: `${anchoDe(i) ?? 160}px`,
+                  ["--min-col" as string]: `${anchoDe(i) ?? (estrecha(f) ? MIN_COL_WIDTH : 160)}px`,
                 }}
                 onDragOver={(e) => {
                   if (!dragCol || dragCol === f.id) return;
@@ -560,7 +569,7 @@ export function TableView({
                   {/* El tipo, con su icono delante del nombre como en Notion (antes, la
                       palabra «TEXTO» en mayúsculas detrás, que se comía el nombre). */}
                   <FieldTypeIcon type={f.type} className="shrink-0 opacity-70" />
-                  <span className="truncate">{f.name}</span>
+                  <span className={anchoDe(i) || !estrecha(f) ? "truncate" : "whitespace-nowrap"}>{f.name}</span>
                   {(f.config as { description?: string })?.description && (
                     <Info size={12} className="shrink-0 text-[var(--muted)]" />
                   )}
@@ -629,13 +638,13 @@ export function TableView({
                     allFields={fields}
                     onConfig={(config) => updateField.mutate({ id: f.id, config: { ...(f.config as object), ...config } })}
                     onType={async (type) => {
-                      if (await confirmar(`Cambiar «${f.name}» a ${FIELD_LABELS[type] ?? type}. Los valores se convertirán y lo que no se pueda convertir se perderá. ¿Seguir?`, "Cambiar")) {
+                      if (await confirmar(`Cambiar «${nombreCampo(f)}» a ${FIELD_LABELS[type] ?? type}. Los valores se convertirán y lo que no se pueda convertir se perderá. ¿Seguir?`, "Cambiar")) {
                         setFieldType.mutate({ id: f.id, type });
                         setMenuField(null);
                       }
                     }}
                     onDelete={async () => {
-                      if (await confirmar(`¿Borrar la columna "${f.name}"?`)) deleteField.mutate({ id: f.id });
+                      if (await confirmar(`¿Borrar la columna «${nombreCampo(f)}»?`)) deleteField.mutate({ id: f.id });
                       setMenuField(null);
                     }}
                   />
@@ -725,8 +734,13 @@ export function TableView({
             {fields.map((f, i) => (
               <td
                 key={f.id}
-                className={`px-2 py-1 ${lefts[i] === null ? "" : "sticky z-10 bg-[var(--background)]"}`}
-                style={lefts[i] === null ? undefined : { left: lefts[i] }}
+                className={`overflow-hidden px-2 py-1 ${lefts[i] === null ? "" : "sticky z-10 bg-[var(--background)]"}`}
+                style={{
+                  // El pie también respeta el ancho: si no, su desplegable de «Calcular»
+                  // (ancho como su opción más larga) no deja estrechar la columna.
+                  ...(anchoDe(i) ? { width: anchoDe(i), maxWidth: anchoDe(i) } : {}),
+                  ...(lefts[i] === null ? {} : { left: lefts[i] }),
+                }}
               >
                 <CalcCell field={f} calc={calcs[f.id] ?? ""} records={records} onChange={(c) => setCalc(f.id, c)} />
               </td>
@@ -854,18 +868,24 @@ function CalcCell({
   const val = computeCalc(calc, field, records);
   const label = CALC_OPTS.find((o) => o[0] === calc)?.[1] ?? "Calcular";
   return (
-    <div className="group/calc flex items-center justify-end gap-1">
-      {calc && (
-        <span className="tabular-nums">
+    // El desplegable va invisible y estirado encima de la celda: como elemento
+    // normal mide lo que su opción más larga y no dejaba estrechar la columna.
+    <div className="group/calc relative flex min-h-5 items-center justify-end gap-1">
+      {calc ? (
+        <span className="truncate tabular-nums">
           {label}: <b className="text-[var(--foreground)]">{val}</b>
+        </span>
+      ) : (
+        // Como en Notion: «Calcular» solo asoma al pasar por la fila del pie (antes
+        // se veía siempre en todas las columnas). En táctil, tenue pero a la vista.
+        <span className="truncate opacity-0 group-hover/pie:opacity-60 group-hover/calc:!opacity-100 pointer-coarse:opacity-40">
+          Calcular ▾
         </span>
       )}
       <select
         value={calc}
         onChange={(e) => onChange(e.target.value)}
-        // Como en Notion: «Calcular» solo asoma al pasar por la fila del pie (antes
-        // se veía siempre en todas las columnas). En táctil, tenue pero a la vista.
-        className={`cursor-pointer rounded bg-transparent text-xs outline-none ${calc ? "opacity-0 group-hover/calc:opacity-100" : "opacity-0 group-hover/pie:opacity-60 hover:!opacity-100 pointer-coarse:opacity-40"}`}
+        className="absolute inset-0 w-full cursor-pointer opacity-0"
         title="Calcular"
       >
         {CALC_OPTS.map(([v, l]) => (
@@ -909,7 +929,7 @@ function BulkEditButton({ fields, onApply }: { fields: FieldLite[]; onApply: (fi
             editable.map((f) => (
               <button key={f.id} onClick={() => setFieldId(f.id)} className={item}>
                 <FieldTypeIcon type={f.type} className="shrink-0 text-[var(--muted)]" />
-                <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                <span className="min-w-0 flex-1 truncate">{nombreCampo(f)}</span>
               </button>
             ))
           ) : field.type === "checkbox" ? (
@@ -989,11 +1009,14 @@ function FieldMenu({
     <Popover onClose={onClose} className="left-0 w-64 p-2 font-normal normal-case">
       {/* El nombre se edita aquí mismo, como en Notion (sin autoFocus: en el
           móvil abriría el teclado nada más tocar la cabecera). */}
+      {/* Vacío también vale: la cabecera se queda solo con el icono, como deja
+          Notion (útil en columnas estrechas de casillas). */}
       <input
         defaultValue={field.name}
+        placeholder="Sin nombre"
         onBlur={(e) => {
           const v = e.target.value.trim();
-          if (v && v !== field.name) onRename(v);
+          if (v !== field.name) onRename(v);
         }}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         className="mb-1 w-full rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm outline-none focus:border-brand"
@@ -1308,7 +1331,7 @@ function BotonConfig({
         if (!f) return null;
         return (
           <div key={i} className="flex items-center gap-1 text-xs">
-            <span className="max-w-[40%] shrink-0 truncate" title={f.name}>{f.name} =</span>
+            <span className="max-w-[40%] shrink-0 truncate" title={nombreCampo(f)}>{nombreCampo(f)} =</span>
             {f.type === "checkbox" ? (
               <select value={String(a.value)} onChange={(e) => setValor(i, e.target.value === "true")} className={input}>
                 <option value="true">Sí</option>
@@ -1356,7 +1379,7 @@ function BotonConfig({
       >
         <option value="">+ Añadir acción…</option>
         {elegibles.map((f) => (
-          <option key={f.id} value={f.id}>{f.name}</option>
+          <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
         ))}
       </select>
       {/* Y después, opcionalmente, navegar a una página (el «Open page» de Notion). */}

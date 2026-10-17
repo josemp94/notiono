@@ -25,7 +25,7 @@ import {
   type FilterNode,
   type Sort,
 } from "@/lib/viewData";
-import { STATUS_GROUPS } from "@/lib/cellText";
+import { STATUS_GROUPS, nombreCampo } from "@/lib/cellText";
 
 type View = { id: string; name: string; type: string; config: any };
 
@@ -206,7 +206,7 @@ export function DbToolbar({
                     className="min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-1 text-xs"
                   >
                     {fields.map((fl) => (
-                      <option key={fl.id} value={fl.id}>{fl.name}</option>
+                      <option key={fl.id} value={fl.id}>{nombreCampo(fl)}</option>
                     ))}
                   </select>
                   <select
@@ -269,7 +269,7 @@ export function DbToolbar({
                     onClick={() => toggleHidden(f.id)}
                     className="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm hover:bg-[var(--hover)]"
                   >
-                    <span className={visible ? "" : "opacity-40"}>{f.name}</span>
+                    <span className={visible ? "" : "opacity-40"}>{nombreCampo(f)}</span>
                     <span className="ml-auto text-[var(--muted)]">{visible ? <Eye size={14} /> : <EyeOff size={14} />}</span>
                   </button>
                 );
@@ -357,7 +357,7 @@ export function DbToolbar({
                             ),
                       )
                       .map((f) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
+                        <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
                       ))}
                   </select>
                 </label>
@@ -381,7 +381,7 @@ export function DbToolbar({
                               ),
                         )
                         .map((f) => (
-                          <option key={f.id} value={f.id}>{f.name}</option>
+                          <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
                         ))}
                     </select>
                   </label>
@@ -399,6 +399,18 @@ export function DbToolbar({
                 />
               </label>
             )}
+            {/* El «Show vertical lines» de Notion: encendido salvo que se quite. */}
+            {view.type === "table" && (
+              <label className="my-1 flex items-center justify-between gap-2 px-2 text-sm">
+                <span>Líneas verticales</span>
+                <input
+                  type="checkbox"
+                  checked={view.config?.verticalLines !== false}
+                  onChange={(e) => saveConfig({ verticalLines: e.target.checked })}
+                  className="size-4 accent-[var(--color-brand,#ff5c28)]"
+                />
+              </label>
+            )}
             {(view.type === "table" || view.type === "gallery") && (
               <div className="my-1 border-t border-[var(--border)] pt-1">
                 <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
@@ -412,7 +424,7 @@ export function DbToolbar({
                     {fields
                       .filter((f) => f.type === "select" || f.type === "status" || f.type === "multiselect")
                       .map((f) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
+                        <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
                       ))}
                   </select>
                 </label>
@@ -447,7 +459,7 @@ export function DbToolbar({
                   >
                     <option value="none">Ninguna</option>
                     {fields.map((f) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
+                      <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
                     ))}
                   </select>
                 </label>
@@ -464,7 +476,7 @@ export function DbToolbar({
                       {fields
                         .filter((f) => f.type === "number")
                         .map((f) => (
-                          <option key={f.id} value={f.id}>Suma de {f.name}</option>
+                          <option key={f.id} value={f.id}>Suma de {nombreCampo(f)}</option>
                         ))}
                     </select>
                   </label>
@@ -749,7 +761,7 @@ function ConditionRow({
         className="min-w-[90px] flex-1 rounded border border-[var(--border)] bg-transparent px-1 py-1 text-xs"
       >
         {fields.map((fl) => (
-          <option key={fl.id} value={fl.id}>{fl.name}</option>
+          <option key={fl.id} value={fl.id}>{nombreCampo(fl)}</option>
         ))}
       </select>
       <select
@@ -959,7 +971,7 @@ function ChipLabel({ node, fields }: { node: FilterNode; fields: DbField[] }) {
   if (!field) return <>?</>;
   const opLabel = opsFor(field.type).find((o) => o.value === node.op)?.label ?? node.op;
   const valueText = chipValueText(field, node.op, node.value, people, relOpts);
-  return <>{`${field.name}: ${opLabel}${valueText ? ` ${valueText}` : ""}`}</>;
+  return <>{`${nombreCampo(field)}: ${opLabel}${valueText ? ` ${valueText}` : ""}`}</>;
 }
 
 /**
