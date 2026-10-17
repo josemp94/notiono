@@ -835,6 +835,34 @@ import {
   assert.equal(indentarTrasColumnas(tecla(nada, DOC(P("a"), P("z")), 1).st), false);
 }
 
+// --- Guardar Page.content: una tabla deja `undefined` en columnWidths y Prisma lo rechazaba entero ---
+import { jsonLimpio } from "../src/server/jsonLimpio";
+{
+  const tabla = [{ type: "table", props: { textColor: undefined }, content: { type: "tableContent", columnWidths: [undefined, 120, undefined], rows: [] } }];
+  assert.deepEqual(jsonLimpio(tabla), [{ type: "table", props: {}, content: { type: "tableContent", columnWidths: [null, 120, null], rows: [] } }]);
+  assert.deepEqual(jsonLimpio(undefined), []);
+}
+
+// --- Modo seguro: una página que se quedó colgada se abre sin editor la siguiente vez ---
+import { seColgo } from "../src/components/editor/ModoSeguro";
+{
+  const almacen = new Map<string, string>();
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.window = g;
+  g.localStorage = { getItem: (k: string) => almacen.get(k) ?? null, setItem: (k: string, v: string) => almacen.set(k, v), removeItem: (k: string) => almacen.delete(k) };
+  const ahora = 1_800_000_000_000;
+  assert.equal(seColgo("p1", ahora), false); // sin marca: cerró bien
+  almacen.set("notiono:abierta:p1", String(ahora - 3_000));
+  assert.equal(seColgo("p1", ahora), false); // latido de hace 3 s: otra pestaña viva con la página
+  almacen.set("notiono:abierta:p1", String(ahora - 60_000));
+  assert.equal(seColgo("p1", ahora), true); // el latido se paró hace un minuto: se colgó
+  almacen.set("notiono:abierta:p1", String(ahora - 3 * 3600_000));
+  assert.equal(seColgo("p1", ahora), false); // hace horas: cierre raro, no cuelgue que se repite
+  assert.equal(seColgo("otra", ahora), false);
+  delete g.window;
+  delete g.localStorage;
+}
+
 compruebaColaboracion()
   .then(() => {
     console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas e import de Notion");

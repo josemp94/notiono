@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
 import { pushRecent } from "@/lib/recents";
 import { Editor, type EditorApi } from "@/components/editor/Editor";
+import { EditorProtegido } from "@/components/editor/ModoSeguro";
 import { Database } from "@/components/database/Database";
 import { CommentsButton, CommentsPanel } from "@/components/CommentsPanel";
 import { HistoryButton, VersionHistoryModal } from "@/components/VersionHistory";
@@ -125,17 +126,19 @@ export default function PageView() {
               canEdit={editable}
             />
           ) : (
-            <Editor
-              key={`${page.id}:${editorEpoch}`}
-              pageId={page.id}
-              initialTitle={page.title}
-              initialContent={page.content}
-              initialIcon={page.icon}
-              initialCover={page.cover}
-              fullWidth={page.fullWidth}
-              canEdit={editable}
-              onApi={onEditorApi}
-            />
+            <EditorProtegido key={page.id} pageId={page.id} content={page.content}>
+              <Editor
+                key={`${page.id}:${editorEpoch}`}
+                pageId={page.id}
+                initialTitle={page.title}
+                initialContent={page.content}
+                initialIcon={page.icon}
+                initialCover={page.cover}
+                fullWidth={page.fullWidth}
+                canEdit={editable}
+                onApi={onEditorApi}
+              />
+            </EditorProtegido>
           )}
         </div>
       </div>

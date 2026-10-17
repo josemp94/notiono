@@ -34,6 +34,8 @@ El inventario fiable de qué existe y qué no está en `docs/notion-parity.md`, 
 - **Iconos**: interfaz/chrome → **lucide-react** (size ~16-18, strokeWidth ~1.75, `currentColor`). Los **iconos de página que elige el usuario son emojis** (PageIcon.tsx) — eso NO se toca, es contenido, como en Notion.
 - **Nombres de archivo** al generar/enviar ficheros: SIN acentos, espacios ni caracteres especiales (guiones_bajos) — si no, se rompe el envío por WhatsApp.
 - No rompas: SSO, rutas públicas `/s/`, el editor, las BD, el árbol del sidebar.
+- **Bloques del editor a la base de datos, siempre por `jsonLimpio`** (`src/server/jsonLimpio.ts`): BlockNote deja `undefined` dentro de arrays (`columnWidths` de las tablas) y Prisma rechaza el guardado entero.
+- **Modo seguro** (`src/components/editor/ModoSeguro.tsx`): si una página se colgó la última vez o el editor revienta al pintarla, se abre con su texto sin editor y un aviso. Si cambias cómo se monta el editor en `p/[pageId]/page.tsx`, déjalo dentro de `EditorProtegido`.
 
 ## Build y DESPLIEGUE
 1. `npm run build` (compila Next y el módulo de colaboración) para verificar —mira su código de salida, no solo el «✓ Compiled»: el type-check va después y puede fallar tras compilar— y `npm run check` (asserts sobre filtros y orden de vistas, y una prueba real de la edición simultánea con dos clientes; amplíalo si tocas `src/lib/viewData.ts`).
