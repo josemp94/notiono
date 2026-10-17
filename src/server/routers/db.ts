@@ -11,6 +11,7 @@ import { applyViewConfig, cellValue, conComputados, filterFieldIds, type DbField
 import { calculaComputados, necesitaComputados } from "../services/computados";
 import { cellToText, peopleOf } from "../services/cells";
 import { sendPush } from "../push";
+import { jsonLimpio } from "../jsonLimpio";
 import { alcanza, exigeNivel, mapaDeNiveles, type Nivel } from "../services/perms";
 import { infiereColumnas } from "@/lib/csvTipos";
 import { agregaRollup, ROLLUP_AGGS } from "@/lib/rollup";
@@ -749,7 +750,7 @@ export const dbRouter = router({
       await exigeRegistro(ctx, input.id);
       return ctx.db.record.update({
         where: { id: input.id },
-        data: { content: input.content as Prisma.InputJsonValue, updatedById: ctx.user.id },
+        data: { content: jsonLimpio(input.content), updatedById: ctx.user.id },
         select: { id: true },
       });
     }),

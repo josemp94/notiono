@@ -11,6 +11,7 @@ import { createCollabToken } from "../collabToken";
 import { sendPush } from "../push";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage } from "../services/pages";
+import { jsonLimpio } from "../jsonLimpio";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
@@ -434,7 +435,7 @@ export const pagesRouter = router({
       }
       const saved = await ctx.db.page.update({
         where: { id: input.id },
-        data: { content: input.content },
+        data: { content: jsonLimpio(input.content) },
         select: { id: true, updatedAt: true, title: true },
       });
       // Avisa a quien sigue la página (menos al que edita). El autosave dispara
