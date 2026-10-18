@@ -128,6 +128,11 @@ Una versión de depuración contra un Notiono local:
     bloque con un navegador conectado, vistas, Markdown).
   - `npx tsx scripts/integracion-android.ts`: la capa de red, el editor y la sincronía
     **de la app** (Kotlin) contra ese servidor, con un cliente Yjs tecleando a la vez.
+  - `npx tsx scripts/recorrido-android.ts`: la app **recorrida como una persona** (crear
+    y escribir una página con formato, deshacer, comentar, una BD con una propiedad de cada
+    tipo, filtro, Kanban, calendario, buscar, bandeja, papelera, plantillas, compartir hacia
+    la app y los widgets) y después comprobado en el servidor con la sesión de la web. Una
+    persona nueva por pasada; capturas del recorrido en `app-android/app/build/recorrido/`.
   - `npx tsx scripts/capturas-android.ts`: capturas de cada pantalla, vista de BD y
     widget en claro y oscuro a 390 dp (`app-android/app/build/capturas/`). Míralas
     antes de publicar una versión.

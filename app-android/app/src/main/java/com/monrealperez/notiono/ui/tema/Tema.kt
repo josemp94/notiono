@@ -129,11 +129,13 @@ private val tipografia = Typography(
 @Composable
 fun TemaNotiono(oscuro: Boolean = esOscuro(), contenido: @Composable () -> Unit) {
     val c = if (oscuro) ColoresOscuros else ColoresClaros
+    // `outline` es el pulgar y el borde de un interruptor apagado: con el color de los bordes,
+    // en oscuro no se veía (el resto de bordes van con `outlineVariant` o con colores propios).
     val esquema = if (oscuro) {
         darkColorScheme(
             primary = Marca, onPrimary = Color.White, background = c.fondo, onBackground = c.texto,
             surface = c.fondo, onSurface = c.texto, surfaceVariant = c.superficie, onSurfaceVariant = c.apagado,
-            outline = c.borde, outlineVariant = c.borde, secondaryContainer = c.activo, onSecondaryContainer = c.texto,
+            outline = c.apagado, outlineVariant = c.borde, secondaryContainer = c.activo, onSecondaryContainer = c.texto,
             surfaceContainer = c.superficie, surfaceContainerHigh = Color(0xFF262625), surfaceContainerLow = c.superficie,
             surfaceContainerHighest = Color(0xFF2C2C2A), primaryContainer = c.marcaSuave, onPrimaryContainer = Marca,
         )
@@ -141,7 +143,7 @@ fun TemaNotiono(oscuro: Boolean = esOscuro(), contenido: @Composable () -> Unit)
         lightColorScheme(
             primary = Marca, onPrimary = Color.White, background = c.fondo, onBackground = c.texto,
             surface = c.fondo, onSurface = c.texto, surfaceVariant = c.superficie, onSurfaceVariant = c.apagado,
-            outline = c.borde, outlineVariant = c.borde, secondaryContainer = c.activo, onSecondaryContainer = c.texto,
+            outline = c.apagado, outlineVariant = c.borde, secondaryContainer = c.activo, onSecondaryContainer = c.texto,
             surfaceContainer = c.superficie, surfaceContainerHigh = Color(0xFFFFFFFF), surfaceContainerLow = c.superficie,
             surfaceContainerHighest = Color(0xFFF1EFEB), primaryContainer = c.marcaSuave, onPrimaryContainer = Marca,
         )
