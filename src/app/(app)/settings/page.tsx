@@ -70,8 +70,7 @@ export default function SettingsPage() {
       </section>
 
       <BackupSection />
-      <InstalarSection />
-      <AndroidSection />
+      <AppSection />
       <EstadoSection />
       <PushSection />
       <ApiTokensSection />
@@ -164,18 +163,6 @@ function ApiTokensSection() {
   );
 }
 
-/**
- * Estado de la instalación. Sirve para saber, sin entrar al servidor, si el último
- * despliegue dejó activas las piezas que dependen de la configuración.
- */
-/**
- * La app de Android, para descargar desde aquí.
- *
- * El APK viaja dentro del despliegue (`public/notiono.apk`), así que el que se baja
- * cada uno es siempre el de esta versión y no hay que ir pasándoselo por WhatsApp.
- * Lo que lleva dentro es el envoltorio —nombre, icono y dirección—; la app en sí
- * sigue siendo esta web, así que **no hay que reinstalar nada** cuando se despliega.
- */
 /** Copia de seguridad del espacio entero: páginas en Markdown, BDs en CSV, adjuntos. */
 function BackupSection() {
   const utils = trpc.useUtils();
@@ -220,23 +207,26 @@ function BackupSection() {
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: string }>;
 }
 
-function InstalarSection() {
+/**
+ * La app nativa de Android, para descargar desde aquí: el APK viaja dentro del
+ * despliegue (`public/notiono.apk`, versión en `src/lib/apk.json`), así que siempre es
+ * el de esta versión. La app avisa sola cuando hay una más nueva (`/api/app/version`).
+ * En el ordenador sigue valiendo instalar la web desde Chrome/Edge; en Android, no:
+ * ahí se instala la app (ver `SwRegister`).
+ */
+function AppSection() {
+  const mb = (apk.bytes / 1024 / 1024).toFixed(1).replace(".", ",");
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
-  const [instalada, setInstalada] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia("(display-mode: standalone)").matches) setInstalada(true);
+    if (/Android/i.test(navigator.userAgent)) return;
     const onBIP = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BIPEvent);
     };
-    const onInstalled = () => {
-      setInstalada(true);
-      setDeferred(null);
-    };
+    const onInstalled = () => setDeferred(null);
     window.addEventListener("beforeinstallprompt", onBIP);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -245,80 +235,16 @@ function InstalarSection() {
     };
   }, []);
 
-  async function instalar() {
-    if (!deferred) return;
-    await deferred.prompt();
-    setDeferred(null);
-  }
-
-  if (instalada) {
-    return (
-      <section className="mt-10">
-        <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
-          <Download size={16} /> Instalar la app
-        </h2>
-        <p className="text-sm text-[var(--muted)]">
-          Ya la tienes instalada como app. Se actualiza sola con la web.
-        </p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="mt-10">
-      <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
-        <Download size={16} /> Instalar la app
-      </h2>
-      <p className="mb-3 text-sm text-[var(--muted)]">
-        Notiono con su icono y ventana propia, sin barra del navegador. Funciona en Windows, Mac,
-        Linux y Android. Sin descargar nada ni certificados.
-      </p>
-      {deferred ? (
-        <button
-          onClick={instalar}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
-        >
-          <Download size={16} /> Instalar Notiono
-        </button>
-      ) : (
-        <div className="text-sm text-[var(--muted)]">
-          <p>
-            Para instalarla usa <b>Chrome</b> o <b>Edge</b> (en LibreWolf/Firefox no sale):
-          </p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">
-            <li>
-              Ordenador: icono <b>Instalar</b> a la derecha de la barra de direcciones (o menu ... -
-              &laquo;Instalar Notiono&raquo;).
-            </li>
-            <li>Android (Chrome): menu ... - &laquo;Instalar app&raquo;.</li>
-            <li>iPhone (Safari): Compartir - &laquo;Anadir a pantalla de inicio&raquo;.</li>
-          </ul>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function AndroidSection() {
-  const mb = (apk.bytes / 1024 / 1024).toFixed(1).replace(".", ",");
-
   return (
     <section className="mt-10">
       <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
         <Smartphone size={16} /> App de Android
       </h2>
-      {/* Quién lo está leyendo lo decide el CSS, no un efecto: dentro de la app
-          instalada `display-mode: standalone` es verdad y ahí sobra invitar a
-          descargarla. */}
       <p className="mb-3 text-sm text-[var(--muted)]">
-        <span className="[@media(display-mode:standalone)]:hidden">
-          La misma Notiono, con su icono en el móvil y sin la barra del navegador. Se
-          actualiza sola con la web.
-        </span>
-        <span className="hidden [@media(display-mode:standalone)]:inline">
-          Ya la estás usando. Se actualiza sola con la web: esto solo hace falta si cambia
-          el icono o el nombre.
-        </span>
+        Notiono nativa para el móvil: páginas, bases de datos y bandeja con avisos, widgets en la
+        pantalla de inicio (nota, tareas, acciones rápidas, páginas recientes) y «Compartir con
+        Notiono» desde otras apps. Funciona sin conexión: lo último que viste se queda en el móvil y
+        los cambios se mandan al volver la red. Cuando hay una versión nueva, la propia app avisa.
       </p>
       <a
         href="/notiono.apk"
@@ -328,7 +254,7 @@ function AndroidSection() {
         <Download size={16} /> Descargar el APK
       </a>
       <p className="mt-2 text-xs text-[var(--muted)]">
-        Versión {apk.version} · {mb} MB · Android 6 o superior
+        Versión {apk.version} · {mb} MB · Android 8 o superior
       </p>
       <details className="mt-3 text-sm text-[var(--muted)]">
         <summary className="cursor-pointer">Cómo se instala</summary>
@@ -338,17 +264,45 @@ function AndroidSection() {
             Android avisará de que viene de fuera de su tienda: dale permiso a Chrome esa vez.
             Es lo normal al instalar una app que no está en Play Store.
           </li>
+          <li>
+            Si tenías la app anterior de Notiono, se instala encima (es la misma firma) y no
+            hay que quitarla antes.
+          </li>
           <li>Entra con tu cuenta la primera vez y ya se queda.</li>
+          <li>Para los widgets: mantén pulsado el fondo de la pantalla de inicio → Widgets → Notiono.</li>
         </ol>
         <p className="mt-2">
-          En iPhone no hay APK: se abre esta web en Safari y se usa Compartir → «Añadir a
-          pantalla de inicio», que deja el mismo icono.
+          En iPhone no hay app: se abre esta web en Safari y se usa Compartir → «Añadir a
+          pantalla de inicio».
         </p>
       </details>
+      <p className="mt-3 text-sm text-[var(--muted)]">
+        En el ordenador:{" "}
+        {deferred ? (
+          <button
+            onClick={async () => {
+              await deferred.prompt();
+              setDeferred(null);
+            }}
+            className="text-brand hover:underline"
+          >
+            Instalar Notiono
+          </button>
+        ) : (
+          <>
+            «Instalar» desde <b>Chrome</b> o <b>Edge</b> (icono a la derecha de la barra de
+            direcciones).
+          </>
+        )}
+      </p>
     </section>
   );
 }
 
+/**
+ * Estado de la instalación. Sirve para saber, sin entrar al servidor, si el último
+ * despliegue dejó activas las piezas que dependen de la configuración.
+ */
 function EstadoSection() {
   const [salud, setSalud] = useState<{ collab?: string | null; ts?: string } | null>(null);
   const [error, setError] = useState(false);
