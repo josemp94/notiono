@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="fondo">#191919</color>
+    <color name="widget_fondo">#191918</color>
+    <color name="widget_superficie">#212120</color>
+    <color name="widget_texto">#EDEDEC</color>
+    <color name="widget_apagado">#9B9994</color>
 </resources>

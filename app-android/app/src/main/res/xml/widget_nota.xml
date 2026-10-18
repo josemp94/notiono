@@ -3,6 +3,8 @@
     android:configure="com.monrealperez.notiono.widgets.ConfigWidgetActivity"
     android:description="@string/widget_nota_desc"
     android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewImage="@drawable/widget_previa_nota"
+    android:previewLayout="@layout/widget_previa_nota"
     android:minWidth="180dp"
     android:minHeight="180dp"
     android:minResizeWidth="110dp"

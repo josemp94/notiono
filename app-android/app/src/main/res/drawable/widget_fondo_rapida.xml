@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo redondeado de los widgets (y de sus vistas previas): Glance solo redondea con cornerRadius desde Android 12. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/marca" />
+    <corners android:radius="18dp" />
+</shape>

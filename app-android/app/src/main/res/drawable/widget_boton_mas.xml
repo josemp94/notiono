@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El «+» de las cabeceras de los widgets: lucide «plus» sobre el círculo naranja. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp" android:height="28dp" android:viewportWidth="28" android:viewportHeight="28">
+    <path android:fillColor="#FF5C28" android:pathData="M14,0a14,14 0,1 1,0 28a14,14 0,1 1,0 -28z" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M8,14h12M14,8v12" />
+</vector>

@@ -2,4 +2,9 @@
 <resources>
     <color name="marca">#FF5C28</color>
     <color name="fondo">#FFFFFF</color>
+    <!-- Las vistas previas de los widgets (layout/widget_previa_*): los colores de ui/tema/Tema.kt. -->
+    <color name="widget_fondo">#FFFFFF</color>
+    <color name="widget_superficie">#F7F6F3</color>
+    <color name="widget_texto">#1C1B19</color>
+    <color name="widget_apagado">#7A7872</color>
 </resources>

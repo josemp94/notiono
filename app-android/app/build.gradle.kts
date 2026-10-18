@@ -73,6 +73,8 @@ android {
                 // La integración contra un Notiono de verdad (scripts/integracion-android.ts).
                 it.systemProperty("notiono.integracion", project.findProperty("notiono.integracion") ?: "")
                 it.systemProperty("notiono.pagina", project.findProperty("notiono.pagina") ?: "")
+                // Regenerar los PNG de las vistas previas de los widgets (VistasPreviasTest).
+                it.systemProperty("notiono.vistasPrevias", project.findProperty("notiono.vistasPrevias") ?: "")
             }
         }
     }

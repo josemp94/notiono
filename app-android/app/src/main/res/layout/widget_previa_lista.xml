@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa del widget en el selector (Android 12+). Los textos son los de widgets/Muestras.kt.
+     Se infla como RemoteViews (sin AppCompat): por eso android:tint y no app:tint. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" tools:ignore="UseAppTint,HardcodedText"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/widget_fondo" android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingBottom="6dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Tareas de casa"
+            android:textColor="@color/widget_texto" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" />
+        <ImageView android:layout_width="28dp" android:layout_height="28dp" android:layout_marginEnd="4dp" android:src="@drawable/widget_boton_mas" android:importantForAccessibility="no" />
+        <ImageView android:layout_width="28dp" android:layout_height="28dp" android:padding="5dp" android:src="@drawable/widget_refrescar" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingEnd="8dp">
+        <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:importantForAccessibility="no"
+                android:src="@drawable/widget_circulo" android:tint="@color/widget_apagado" />
+        </FrameLayout>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Renovar el DNI" android:textColor="@color/widget_texto"
+            android:textSize="13sp" android:maxLines="1" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="mañana"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingEnd="8dp">
+        <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:importantForAccessibility="no"
+                android:src="@drawable/widget_circulo" android:tint="@color/widget_apagado" />
+        </FrameLayout>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Pintar el salón" android:textColor="@color/widget_texto"
+            android:textSize="13sp" android:maxLines="1" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="en 2 días"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingEnd="8dp">
+        <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:importantForAccessibility="no"
+                android:src="@drawable/widget_circulo" android:tint="@color/widget_apagado" />
+        </FrameLayout>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Revisar la caldera" android:textColor="@color/widget_texto"
+            android:textSize="13sp" android:maxLines="1" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="23 oct"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingEnd="8dp">
+        <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:importantForAccessibility="no"
+                android:src="@drawable/widget_hecho" />
+        </FrameLayout>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Comprar regalo de Lucía" android:textColor="@color/widget_apagado"
+            android:textSize="13sp" android:maxLines="1" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ayer"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingEnd="8dp">
+        <FrameLayout android:layout_width="36dp" android:layout_height="36dp">
+            <ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:importantForAccessibility="no"
+                android:src="@drawable/widget_circulo" android:tint="@color/widget_apagado" />
+        </FrameLayout>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Cambiar el aceite del coche" android:textColor="@color/widget_texto"
+            android:textSize="13sp" android:maxLines="1" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="27 oct"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+</LinearLayout>

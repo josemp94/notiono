@@ -139,7 +139,11 @@ class WidgetsWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p)
     }
 }
 
-/** Los colores de la app en el widget, claro y oscuro según el sistema. */
+/**
+ * Los colores de la app en el widget, claro y oscuro según el sistema. Los fondos van en
+ * `drawable/widget_fondo*` (con los mismos colores en `values/colors.xml`): con forma
+ * redondeada también antes de Android 12, donde Glance no aplica `cornerRadius`.
+ */
 val coloresWidget = ColorProviders(
     light = lightColorScheme(
         primary = Marca, background = ColoresClaros.fondo, surface = ColoresClaros.fondo, onSurface = ColoresClaros.texto,
@@ -154,10 +158,7 @@ val coloresWidget = ColorProviders(
 /** El «+» naranja de las cabeceras (fila nueva, página nueva). */
 @Composable
 fun BotonMas(abrir: Intent, descripcion: String) {
-    Box(GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.primary).clickable(actionStartActivity(abrir)),
-        contentAlignment = Alignment.Center) {
-        Image(ImageProvider(R.drawable.widget_mas), descripcion, modifier = GlanceModifier.size(18.dp))
-    }
+    Image(ImageProvider(R.drawable.widget_boton_mas), descripcion, modifier = GlanceModifier.size(28.dp).clickable(actionStartActivity(abrir)))
     Spacer(GlanceModifier.width(4.dp))
 }
 
@@ -214,7 +215,7 @@ class NotaWidget : GlanceAppWidget() {
 @Composable
 fun ContenidoNota(context: Context, pagina: String?, titulo: String, bloques: List<JsonObject>, error: String?, configurar: () -> Intent) {
     GlanceTheme(colors = coloresWidget) {
-        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+        Column(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp)) {
             if (pagina == null) {
                 Text("Toca para elegir una página", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
                     modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(configurar())))
@@ -331,7 +332,7 @@ fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: Li
     val casilla = campos.firstOrNull { it.str("type") == "checkbox" }
     val clave = campos.firstOrNull { it.str("type") == "date" } ?: campos.firstOrNull { it.str("type") == "status" } ?: campos.firstOrNull { it.str("type") == "select" }
     GlanceTheme(colors = coloresWidget) {
-        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+        Column(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp)) {
             if (pagina == null) {
                 Text("Toca para elegir una base de datos", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
                     modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(configurar())))
@@ -423,7 +424,7 @@ class RapidaWidget : GlanceAppWidget() {
 fun ContenidoRapida(context: Context, uri: String, titulo: String?) {
     GlanceTheme(colors = coloresWidget) {
         Row(
-            GlanceModifier.fillMaxSize().background(GlanceTheme.colors.primary).cornerRadius(18.dp).padding(10.dp)
+            GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo_rapida)).cornerRadius(18.dp).padding(10.dp)
                 .clickable(actionStartActivity(Widgets.abre(context, uri))),
             verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -479,11 +480,11 @@ fun ContenidoAcciones(context: Context, bdTareas: String?) {
     // Los nombres solo caben si el widget tiene algo de alto.
     val conNombre = LocalSize.current.height >= 64.dp
     GlanceTheme(colors = coloresWidget) {
-        Row(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(18.dp).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
             botones.forEachIndexed { i, (nombre, icono, uri) ->
                 if (i > 0) Spacer(GlanceModifier.width(6.dp))
                 Column(
-                    GlanceModifier.defaultWeight().fillMaxHeight().background(GlanceTheme.colors.surfaceVariant).cornerRadius(12.dp)
+                    GlanceModifier.defaultWeight().fillMaxHeight().background(ImageProvider(R.drawable.widget_fondo_boton)).cornerRadius(12.dp)
                         .clickable(actionStartActivity(Widgets.abre(context, uri))),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -529,7 +530,7 @@ class RecientesWidget : GlanceAppWidget() {
 @Composable
 fun ContenidoRecientes(context: Context, paginas: List<PaginaWidget>) {
     GlanceTheme(colors = coloresWidget) {
-        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+        Column(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp)) {
             CabeceraWidget("Páginas recientes", Widgets.abre(context, "notiono://inicio")) {
                 BotonMas(Widgets.abre(context, "notiono://nueva"), "Nueva página")
             }

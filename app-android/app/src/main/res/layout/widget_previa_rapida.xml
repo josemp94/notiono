@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa del widget en el selector (Android 12+). Los textos son los de widgets/Muestras.kt.
+     Se infla como RemoteViews (sin AppCompat): por eso android:tint y no app:tint. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" tools:ignore="UseAppTint,HardcodedText"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:background="@drawable/widget_fondo_rapida" android:padding="10dp"
+    android:gravity="center">
+    <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/widget_nota" android:importantForAccessibility="no" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Nota rápida"
+        android:textColor="#FFFFFF" android:textSize="14sp" android:fontFamily="sans-serif-medium" android:maxLines="1" />
+</LinearLayout>
