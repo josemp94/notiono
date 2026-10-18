@@ -28,6 +28,9 @@ class Servicios private constructor(ctx: Context) {
     val repo = Repo(api, cache, cola) { ColaWorker.programa(ctx) }
     val recientes = Recientes(ctx)
 
+    /** Para lo que tiene que terminar aunque se cierre la pantalla (mandar lo pendiente al salir). */
+    val alcance = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+
     /** El espacio activo: el elegido o, si no se ha elegido ninguno, el que dio el servidor. */
     fun espacioActivo(): String? =
         sesion.espacio ?: (repo.cacheada("auth.me") as? kotlinx.serialization.json.JsonObject)

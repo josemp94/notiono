@@ -10,3 +10,7 @@ fun PantallaBD(info: PaginaInfo) {
 @Composable
 fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
 }
+
+@Composable
+fun BdEmbebida(pageId: String, viewId: String?, onVista: (String) -> Unit) {
+}

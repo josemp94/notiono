@@ -33,9 +33,9 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 ### F5 · App: editor de bloques
 - [x] Modelo de bloques ↔ JSON BlockNote (conserva lo desconocido) ↔ Spannable, y operaciones por bloque (`Diff`), con pruebas JVM.
-- [ ] EditText con InputConnection propio; teclado (Enter, Retroceso, Markdown), menú `/`, `@`, barra de formato.
-- [ ] Todos los tipos de bloque; subir archivos; tabla; ecuación; columnas apiladas; BD embebida.
-- [ ] Sincronía por operaciones (rebote 1 s), cambios remotos por bloque, indicador de estado.
+- [x] EditText con InputConnection propio; teclado (Enter, Retroceso, Markdown), menú `/`, `@`, barra de formato (pruebas en `TecladoTest`).
+- [~] Todos los tipos de bloque; subir archivos; tabla; ecuación; columnas apiladas (hecho) · BD embebida (pendiente de la fase BD).
+- [x] Sincronía por operaciones (rebote 1 s), cambios remotos por bloque, indicador de estado (`Sincro`).
 
 ### F6 · App: bases de datos
 - [ ] Tabla, Kanban, Lista, Galería, Calendario, Cronograma, Gráfica, Formulario.
@@ -59,6 +59,20 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [ ] CLAUDE.md, `docs/android.md`, este fichero.
 
 ## Bitácora (decisiones y comprobaciones)
+
+- **Editor: un EditText por bloque dentro de una LazyColumn de Compose** (AndroidView). Su
+  `Editable` ES el `SpannableStringBuilder` del modelo (fábrica de Editable propia), con
+  spans propios por estilo de BlockNote para volver a JSON sin ambigüedad. El
+  `InputConnection` envuelto intercepta `commitText("\n")` (Enter de Gboard) y
+  `deleteSurroundingText` con el cursor al principio (el Retroceso que Gboard no manda
+  como tecla). Ninguna librería mantenida de editor enriquecido para Compose lo resuelve.
+- **Sincronía**: se adopta lo de fuera solo si no hay nada local sin mandar; tras un envío,
+  si se siguió escribiendo, se queda lo local y el siguiente envío manda la diferencia.
+  Restaurar una versión va por operaciones (borrar todo + insertar), no por
+  `pages.versions.restore`, que solo cambia `Page.content` y el documento Yjs lo pisaría.
+- **Comentarios en línea (hilos de BlockNote)**: viven en el documento Yjs y la app no los
+  enseña; se conservan (el servidor vuelve a poner la marca al reescribir el bloque). Los
+  comentarios de página y de fila sí, completos.
 
 - **Integración del servidor** (`scripts/integracion-app.ts`, cabecera con cómo lanzarla):
   servidor de producción (`server.mjs`) sobre PGlite + un SSO falso. Comprobado 18-oct:
