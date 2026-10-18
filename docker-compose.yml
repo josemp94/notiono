@@ -47,7 +47,9 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: "postgresql://notely:notely@db:5432/notely"
-      AUTH_SECRET: "dev-secret-cambiar-en-prod"
+      # Secreto propio de cada servidor (en su .env, nunca en el repo): firma los
+      # permisos de colaboración y las cookies de las páginas públicas con contraseña.
+      AUTH_SECRET: "${AUTH_SECRET:?Falta AUTH_SECRET en el .env}"
       NODE_ENV: "production"
       OIDC_ISSUER: "https://monrealperez.com/sso/webman/sso"
       OIDC_CLIENT_ID: "aaffef367517843c60a650c711c87010"
