@@ -9,6 +9,8 @@ sealed interface Destino {
     data object Nueva : Destino
     data object Buscar : Destino
     data object Bandeja : Destino
+    /** Página nueva con una foto de la cámara (widget «Acciones rápidas»). */
+    data object Foto : Destino
     data class NuevaFila(val pageId: String) : Destino
     data class NotaRapida(val paginaDestino: String?) : Destino
 
@@ -19,6 +21,7 @@ sealed interface Destino {
                 uri.scheme == "notiono" && uri.host == "nueva" -> Nueva
                 uri.scheme == "notiono" && uri.host == "buscar" -> Buscar
                 uri.scheme == "notiono" && uri.host == "bandeja" -> Bandeja
+                uri.scheme == "notiono" && uri.host == "foto" -> Foto
                 uri.scheme == "notiono" && uri.host == "nuevafila" && seg.isNotEmpty() -> NuevaFila(seg[0])
                 uri.scheme == "notiono" && uri.host == "rapida" -> NotaRapida(uri.getQueryParameter("en"))
                 uri.scheme == "notiono" && uri.host == "pagina" && seg.isNotEmpty() -> Pagina(seg[0])

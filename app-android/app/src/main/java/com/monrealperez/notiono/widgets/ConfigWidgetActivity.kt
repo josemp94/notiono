@@ -45,7 +45,7 @@ import com.monrealperez.notiono.ui.tema.TemaNotiono
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
-/** Configurar un widget al añadirlo: qué página (Nota, Nota rápida) o qué vista de BD (Lista). */
+/** Configurar un widget al añadirlo: qué página (Nota, Nota rápida), qué vista de BD (Lista) o la BD de tareas (Acciones). */
 class ConfigWidgetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -58,6 +58,7 @@ class ConfigWidgetActivity : ComponentActivity() {
         val tipo = when {
             clase.endsWith("ListaReceiver") -> "lista"
             clase.endsWith("RapidaReceiver") -> "rapida"
+            clase.endsWith("AccionesReceiver") -> "acciones"
             else -> "nota"
         }
         val listo: (String?, String?, String?) -> Unit = { pagina, vista, titulo ->
@@ -76,6 +77,7 @@ class ConfigWidgetActivity : ComponentActivity() {
                     }
                     when (tipo) {
                         "lista" -> EligeVista(listo)
+                        "acciones" -> EligeVista(listo, conVista = false)
                         else -> EligePagina(
                             if (tipo == "rapida") "¿Dónde van las notas rápidas?" else "¿Qué página enseña el widget?",
                             conNueva = tipo == "rapida", listo = listo,
@@ -115,7 +117,7 @@ private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, Stri
 }
 
 @Composable
-private fun EligeVista(listo: (String?, String?, String?) -> Unit) {
+private fun EligeVista(listo: (String?, String?, String?) -> Unit, conVista: Boolean = true) {
     val s = Servicios.de(androidx.compose.ui.platform.LocalContext.current)
     val alcance = rememberCoroutineScope()
     var bds by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
@@ -124,10 +126,15 @@ private fun EligeVista(listo: (String?, String?, String?) -> Unit) {
     LaunchedEffect(Unit) { bds = runCatching { s.repo.consulta("db.listDatabases").comoLista.map { it.comoObjeto } }.getOrDefault(emptyList()) }
     val elegida = bd
     if (elegida == null) {
-        Text("¿Qué base de datos?", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = C.texto, modifier = Modifier.padding(bottom = 8.dp))
+        Text(if (conVista) "¿Qué base de datos?" else "¿En qué base de datos van las tareas nuevas?", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = C.texto, modifier = Modifier.padding(bottom = 8.dp))
+        if (!conVista) Row(Modifier.fillMaxWidth().clickable { listo(null, null, null) }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icono("x", color = C.apagado)
+            Text("Sin botón «Nueva tarea»", fontSize = 16.sp, color = C.texto, modifier = Modifier.padding(start = 12.dp))
+        }
         LazyColumn(Modifier.fillMaxSize()) {
             items(bds, key = { it.str("pageId") ?: "" }) { d ->
                 Row(Modifier.fillMaxWidth().clickable {
+                    if (!conVista) return@clickable listo(d.str("pageId"), null, d.str("title"))
                     bd = d
                     alcance.launch { vistas = runCatching { s.repo.consulta("app.vista", objeto("pageId" to d.str("pageId"))).comoObjeto.objs("views") }.getOrDefault(emptyList()) }
                 }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {

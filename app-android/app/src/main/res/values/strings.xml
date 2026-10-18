@@ -6,12 +6,16 @@
     <string name="atajo_buscar">Buscar</string>
     <string name="atajo_buscar_larga">Buscar en Notiono</string>
     <string name="compartir_con">Compartir con Notiono</string>
-    <string name="widget_nota">Nota de Notiono</string>
-    <string name="widget_nota_desc">Enseña una página y deja marcar sus casillas</string>
-    <string name="widget_lista">Lista de una base de datos</string>
-    <string name="widget_lista_desc">Las filas de una vista, con casilla y botón para añadir</string>
-    <string name="widget_rapida">Nota rápida</string>
-    <string name="widget_rapida_desc">Abre una nota nueva para escribir</string>
+    <string name="widget_nota">Notiono · Nota</string>
+    <string name="widget_nota_desc">Una página a la vista; sus casillas se marcan desde el widget</string>
+    <string name="widget_lista">Notiono · Lista de base de datos</string>
+    <string name="widget_lista_desc">Las filas de una vista (tus tareas, por ejemplo): se completan tocando el círculo</string>
+    <string name="widget_rapida">Notiono · Nota rápida</string>
+    <string name="widget_rapida_desc">Un botón para escribir una nota nueva o añadir al final de una página</string>
+    <string name="widget_acciones">Notiono · Acciones rápidas</string>
+    <string name="widget_acciones_desc">Página nueva, tarea nueva, foto y buscar, a un toque</string>
+    <string name="widget_recientes">Notiono · Páginas recientes</string>
+    <string name="widget_recientes_desc">Tus favoritas arriba y después las últimas que abriste</string>
     <string name="canal_avisos">Avisos de la bandeja</string>
     <string name="canal_avisos_desc">Menciones, asignaciones, comentarios y fechas que vencen</string>
 </resources>

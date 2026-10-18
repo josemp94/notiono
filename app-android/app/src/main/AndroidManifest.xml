@@ -102,6 +102,14 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rapida" />
         </receiver>
+        <receiver android:name=".widgets.AccionesReceiver" android:exported="true" android:label="@string/widget_acciones">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_acciones" />
+        </receiver>
+        <receiver android:name=".widgets.RecientesReceiver" android:exported="true" android:label="@string/widget_recientes">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_recientes" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

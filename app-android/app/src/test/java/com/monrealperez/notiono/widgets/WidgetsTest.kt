@@ -25,9 +25,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.monrealperez.notiono.red.comoObjeto
 import com.monrealperez.notiono.red.json
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -37,14 +35,15 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Los tres widgets pintados como los pinta el escritorio (el RemoteViews de Glance
+ * Los widgets pintados como los pinta el escritorio (el RemoteViews de Glance
  * aplicado dentro de un AppWidgetHostView), en claro y en oscuro, con datos de verdad:
- * la nota es el documento real del editor web y la lista, filas como las da `app.vista`.
+ * la nota es el documento real del editor web y la lista, filas como las da `app.vista`
+ * (las de [Muestras], las mismas de las vistas previas).
  * Salen en `app/build/capturas/<modo>/widgets.png`.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w390dp-h844dp-xxhdpi")
+@Config(qualifiers = "w390dp-h1100dp-xxhdpi")
 class WidgetsTest {
     @get:Rule val compose = createComposeRule()
     private val ctx get() = ApplicationProvider.getApplicationContext<Context>()
@@ -64,20 +63,20 @@ class WidgetsTest {
 
     private fun pinta(modo: String) {
         val nota = json.parseToJsonElement(javaClass.getResource("/bloques-todos.json")!!.readText()).jsonArray.map { it.comoObjeto }
-        val vista = json.parseToJsonElement(VISTA).jsonObject
-        val campos = vista["fields"]!!.jsonArray.map { it.jsonObject }
-        val filas = vista["filas"]!!.jsonArray.map { it.jsonObject }
         val vistas = listOf(
             Triple(300, 300, widget(300, 300) { ContenidoNota(ctx, "p", "Lista de la compra", nota, null) { error("") } }),
-            Triple(300, 240, widget(300, 240) { ContenidoLista(ctx, "bd", "Tareas de casa", campos, filas, null) { error("") } }),
+            Triple(300, 240, widget(300, 240) { ContenidoLista(ctx, "bd", Muestras.TITULO_LISTA, Muestras.campos, Muestras.filas, null) { error("") } }),
             Triple(180, 56, widget(180, 56) { ContenidoRapida(ctx, "notiono://nueva", null) }),
+            Triple(340, 76, widget(340, 76) { ContenidoAcciones(ctx, "bd") }),
+            Triple(300, 240, widget(300, 240) { ContenidoRecientes(ctx, Muestras.recientes) }),
         )
         // El ListView de cada widget tiene sus filas (sin esto, la foto saldría con la lista vacía).
-        assertTrue(listas(vistas[0].third).all { it > 0 } && listas(vistas[1].third).all { it > 0 })
+        assertTrue(listOf(0, 1, 4).all { i -> listas(vistas[i].third).let { it.isNotEmpty() && it.all { n -> n > 0 } } })
         compose.setContent {
             // Un «fondo de pantalla» neutro para ver los bordes del widget en los dos modos.
             Column(Modifier.fillMaxSize().background(Color(0xFF7A8B99)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                for ((w, h, v) in vistas) Box(Modifier.size(w.dp, h.dp)) { AndroidView({ v }) }
+                // Todo el tamaño para el widget, como se lo da el launcher (si no, las filas se encogen a su contenido).
+                for ((w, h, v) in vistas) Box(Modifier.size(w.dp, h.dp)) { AndroidView({ v }, Modifier.fillMaxSize()) }
             }
         }
         compose.onRoot().captureRoboImage("build/capturas/$modo/widgets.png")
@@ -87,18 +86,5 @@ class WidgetsTest {
         is android.widget.AdapterView<*> -> listOf(v.adapter?.count ?: 0)
         is android.view.ViewGroup -> (0 until v.childCount).flatMap { listas(v.getChildAt(it)) }
         else -> emptyList()
-    }
-
-    private companion object {
-        fun fila(id: String, nombre: String, hecho: Boolean, fecha: String) = """
-            {"id":"$id","cells":{"n":"$nombre","h":$hecho,"f":"$fecha"},"textos":{"n":"$nombre","f":"$fecha"}}"""
-        val VISTA = """{
-          "fields":[{"id":"n","name":"Nombre","type":"text"},{"id":"h","name":"Hecho","type":"checkbox"},{"id":"f","name":"Fecha","type":"date"}],
-          "filas":[${listOf(
-            fila("1", "Renovar el DNI", false, "19 oct"), fila("2", "Pintar el salón", false, "20 oct"),
-            fila("3", "Revisar la caldera", false, "23 oct"), fila("4", "Comprar regalo de Lucía", true, "15 oct"),
-            fila("5", "Cambiar el aceite del coche", false, "27 oct"),
-          ).joinToString(",")}]
-        }"""
     }
 }

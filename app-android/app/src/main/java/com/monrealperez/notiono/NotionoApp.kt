@@ -23,10 +23,11 @@ class NotionoApp : Application(), SingletonImageLoader.Factory {
         // Lo que cambia la app se ve al momento en los widgets.
         s.alcance.launch {
             s.repo.cambios
-                .filter { it.startsWith("bloques:") || it.startsWith("vista:") || it.startsWith("pagina:") || it == "arbol" }
+                .filter { it.startsWith("bloques:") || it.startsWith("vista:") || it.startsWith("pagina:") || it == "arbol" || it == "favoritos" || it == "recientes" }
                 .debounce(1500)
                 .collect { com.monrealperez.notiono.widgets.Widgets.actualizaTodo(this@NotionoApp) }
         }
+        s.alcance.launch { runCatching { com.monrealperez.notiono.widgets.Widgets.publicaVistasPrevias(this@NotionoApp) } }
     }
 
     // Las imágenes (portadas, adjuntos, iconos subidos) por el mismo cliente HTTP.

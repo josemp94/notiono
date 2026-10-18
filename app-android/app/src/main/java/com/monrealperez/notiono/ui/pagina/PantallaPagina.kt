@@ -50,7 +50,10 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
     var comentarios by remember { mutableStateOf(false) }
 
     LaunchedEffect(info?.id, info?.title, info?.icon) {
-        if (info != null && !info.embedded) s.recientes.anota(s.espacioActivo(), Reciente(info.id, info.title, info.icon, System.currentTimeMillis()))
+        if (info != null && !info.embedded) {
+            s.recientes.anota(s.espacioActivo(), Reciente(info.id, info.title, info.icon, System.currentTimeMillis()))
+            s.repo.avisa("recientes")
+        }
     }
 
     Column(Modifier.fillMaxSize()) {

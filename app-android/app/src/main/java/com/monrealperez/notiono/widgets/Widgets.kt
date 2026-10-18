@@ -47,7 +47,11 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.material3.ColorProviders
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.glance.ColorFilter
+import androidx.glance.LocalSize
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.text.FontWeight
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.work.Constraints
@@ -57,26 +61,31 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.monrealperez.notiono.BuildConfig
 import com.monrealperez.notiono.MainActivity
 import com.monrealperez.notiono.R
 import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.editor.Inline
 import com.monrealperez.notiono.red.ErrorApi
+import com.monrealperez.notiono.red.comoLista
 import com.monrealperez.notiono.red.comoObjeto
 import com.monrealperez.notiono.red.objeto
 import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.tema.ColoresClaros
 import com.monrealperez.notiono.ui.tema.ColoresOscuros
+import com.monrealperez.notiono.ui.comun.emojiDe
 import com.monrealperez.notiono.ui.tema.Marca
+import com.monrealperez.notiono.util.Fechas
+import java.time.Instant
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.TimeUnit
 
 /**
- * Los widgets de la pantalla de inicio (Glance): Nota, Lista de una base de datos y
- * Nota rápida. Se refrescan solos cada ~30 min, al momento cuando la app cambia algo
- * que enseñan y con su botón de refrescar.
+ * Los widgets de la pantalla de inicio (Glance): Nota, Lista de una base de datos,
+ * Nota rápida, Acciones rápidas y Páginas recientes. Se refrescan solos cada ~30 min,
+ * al momento cuando la app cambia algo que enseñan y con su botón de refrescar.
  */
 object Widgets {
     val CLAVE_PAGINA = stringPreferencesKey("pagina")
@@ -94,6 +103,22 @@ object Widgets {
         runCatching { NotaWidget().updateAll(ctx) }
         runCatching { ListaWidget().updateAll(ctx) }
         runCatching { RapidaWidget().updateAll(ctx) }
+        runCatching { AccionesWidget().updateAll(ctx) }
+        runCatching { RecientesWidget().updateAll(ctx) }
+    }
+
+    /**
+     * Android 15+: el selector de widgets pinta la vista previa con los propios widgets
+     * (`providePreview`). El sistema limita las llamadas: una vez por versión de la app.
+     */
+    suspend fun publicaVistasPrevias(ctx: Context) {
+        if (android.os.Build.VERSION.SDK_INT < 35) return
+        val prefs = ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE)
+        if (prefs.getInt("vistasPrevias", 0) == BuildConfig.VERSION_CODE) return
+        val m = GlanceAppWidgetManager(ctx)
+        val ok = listOf(NotaReceiver::class, ListaReceiver::class, RapidaReceiver::class, AccionesReceiver::class, RecientesReceiver::class)
+            .all { runCatching { m.setWidgetPreviews(it) }.getOrNull() == GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS }
+        if (ok) prefs.edit().putInt("vistasPrevias", BuildConfig.VERSION_CODE).apply()
     }
 
     fun abre(ctx: Context, uri: String): Intent =
@@ -125,6 +150,16 @@ val coloresWidget = ColorProviders(
         onBackground = ColoresOscuros.texto, onSurfaceVariant = ColoresOscuros.apagado, surfaceVariant = ColoresOscuros.superficie, outline = ColoresOscuros.borde,
     ),
 )
+
+/** El «+» naranja de las cabeceras (fila nueva, página nueva). */
+@Composable
+fun BotonMas(abrir: Intent, descripcion: String) {
+    Box(GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.primary).clickable(actionStartActivity(abrir)),
+        contentAlignment = Alignment.Center) {
+        Image(ImageProvider(R.drawable.widget_mas), descripcion, modifier = GlanceModifier.size(18.dp))
+    }
+    Spacer(GlanceModifier.width(4.dp))
+}
 
 /** Cabecera común: título (abre la app) y refrescar. */
 @Composable
@@ -170,6 +205,9 @@ class NotaWidget : GlanceAppWidget() {
         }
         provideContent { ContenidoNota(context, pagina, titulo, bloques, error) { Widgets.configura(context, id) } }
     }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) =
+        provideContent { ContenidoNota(context, "muestra", Muestras.TITULO_NOTA, Muestras.nota, null) { Intent() } }
 }
 
 /** Lo que pinta el widget «Nota» (aparte, para poder fotografiarlo en las pruebas). */
@@ -281,6 +319,9 @@ class ListaWidget : GlanceAppWidget() {
         val nombre = prefs[Widgets.CLAVE_TITULO] ?: (datos?.get("collection") as? JsonObject)?.str("name") ?: "Base de datos"
         provideContent { ContenidoLista(context, pagina, nombre, campos, filas, error) { Widgets.configura(context, id) } }
     }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) =
+        provideContent { ContenidoLista(context, "muestra", Muestras.TITULO_LISTA, Muestras.campos, Muestras.filas, null) { Intent() } }
 }
 
 /** Lo que pinta el widget «Lista». */
@@ -297,11 +338,7 @@ fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: Li
                 return@Column
             }
             CabeceraWidget(nombre, Widgets.abre(context, "notiono://pagina/$pagina")) {
-                Box(GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.primary).clickable(actionStartActivity(Widgets.abre(context, "notiono://nuevafila/$pagina"))),
-                    contentAlignment = Alignment.Center) {
-                    Text("+", style = TextStyle(color = androidx.glance.unit.ColorProvider(Color.White), fontWeight = FontWeight.Bold, fontSize = 16.sp))
-                }
-                Spacer(GlanceModifier.width(4.dp))
+                BotonMas(Widgets.abre(context, "notiono://nuevafila/$pagina"), "Nueva fila")
             }
             if (error != null && filas.isEmpty()) Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
             if (filas.isEmpty() && error == null) Text("Nada por aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
@@ -311,15 +348,25 @@ fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: Li
                     val textos = f["textos"] as? JsonObject ?: JsonObject(emptyMap())
                     val tit = titulo?.let { (celdas[it.str("id")] as? JsonPrimitive)?.content }?.ifBlank { null } ?: "Sin título"
                     val abrirFila = actionStartActivity(Widgets.abre(context, "notiono://fila/$pagina/${f.str("id")}"))
-                    Row(GlanceModifier.fillMaxWidth().padding(top = 3.dp, bottom = 3.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (casilla != null) CheckBox(
-                            checked = (celdas[casilla.str("id")] as? JsonPrimitive)?.content == "true",
-                            onCheckedChange = actionRunCallback<MarcaFila>(actionParametersOf(
+                    val hecha = casilla != null && (celdas[casilla.str("id")] as? JsonPrimitive)?.content == "true"
+                    Row(GlanceModifier.fillMaxWidth().padding(top = if (casilla != null) 0.dp else 6.dp, bottom = if (casilla != null) 0.dp else 6.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // La casilla es un círculo grande: se completa tocándolo (como en las apps de tareas).
+                        if (casilla != null) Box(
+                            GlanceModifier.size(36.dp).clickable(actionRunCallback<MarcaFila>(actionParametersOf(
                                 MarcaFila.PAGINA to pagina, MarcaFila.FILA to (f.str("id") ?: ""), MarcaFila.CAMPO to (casilla.str("id") ?: ""),
-                                MarcaFila.VALOR to ((celdas[casilla.str("id")] as? JsonPrimitive)?.content != "true").toString(),
-                            )),
-                        )
-                        Text(tit, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp), modifier = GlanceModifier.defaultWeight().clickable(abrirFila))
+                                MarcaFila.VALOR to (!hecha).toString(),
+                            ))),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(
+                                ImageProvider(if (hecha) R.drawable.widget_hecho else R.drawable.widget_circulo), if (hecha) "Hecha: desmarcar" else "Marcar como hecha",
+                                colorFilter = if (hecha) null else ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant), modifier = GlanceModifier.size(22.dp),
+                            )
+                        }
+                        Text(tit, maxLines = 1, modifier = GlanceModifier.defaultWeight().clickable(abrirFila), style = TextStyle(
+                            color = if (hecha) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface, fontSize = 13.sp,
+                            textDecoration = if (hecha) TextDecoration.LineThrough else TextDecoration.None,
+                        ))
                         val detalle = clave?.let { (textos[it.str("id")] as? JsonPrimitive)?.content }.orEmpty()
                         if (detalle.isNotBlank()) Text(detalle, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp), modifier = GlanceModifier.clickable(abrirFila))
                     }
@@ -366,6 +413,9 @@ class RapidaWidget : GlanceAppWidget() {
         val uri = if (destino != null) "notiono://rapida?en=$destino" else "notiono://nueva"
         provideContent { ContenidoRapida(context, uri, titulo) }
     }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) =
+        provideContent { ContenidoRapida(context, "notiono://nueva", null) }
 }
 
 /** Lo que pinta el widget «Nota rápida». */
@@ -398,4 +448,114 @@ suspend fun configuraWidget(ctx: Context, appWidgetId: Int, pagina: String?, vis
         if (titulo != null) p[Widgets.CLAVE_TITULO] = titulo else p.remove(Widgets.CLAVE_TITULO)
     }
     Widgets.actualizaTodo(ctx)
+}
+
+// ---------------- Acciones rápidas ----------------
+
+/** Widget «Acciones rápidas»: barra de botones (página nueva, tarea nueva, foto, buscar). */
+class AccionesWidget : GlanceAppWidget() {
+    override val sizeMode = SizeMode.Exact
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // La BD de «Nueva tarea» (si no se eligió ninguna, no sale ese botón).
+        val bd = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)[Widgets.CLAVE_PAGINA]
+        provideContent { ContenidoAcciones(context, bd) }
+    }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) =
+        provideContent { ContenidoAcciones(context, "muestra") }
+}
+
+/** Lo que pinta el widget «Acciones rápidas». */
+@Composable
+fun ContenidoAcciones(context: Context, bdTareas: String?) {
+    val botones = listOfNotNull(
+        Triple("Página", R.drawable.widget_nueva, "notiono://nueva"),
+        bdTareas?.let { Triple("Tarea", R.drawable.widget_tarea, "notiono://nuevafila/$it") },
+        Triple("Foto", R.drawable.widget_foto, "notiono://foto"),
+        Triple("Buscar", R.drawable.widget_buscar, "notiono://buscar"),
+    )
+    // Los nombres solo caben si el widget tiene algo de alto.
+    val conNombre = LocalSize.current.height >= 64.dp
+    GlanceTheme(colors = coloresWidget) {
+        Row(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(18.dp).padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            botones.forEachIndexed { i, (nombre, icono, uri) ->
+                if (i > 0) Spacer(GlanceModifier.width(6.dp))
+                Column(
+                    GlanceModifier.defaultWeight().fillMaxHeight().background(GlanceTheme.colors.surfaceVariant).cornerRadius(12.dp)
+                        .clickable(actionStartActivity(Widgets.abre(context, uri))),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Image(ImageProvider(icono), if (nombre == "Página" || nombre == "Tarea") "Nueva ${nombre.lowercase()}" else nombre, colorFilter = ColorFilter.tint(GlanceTheme.colors.primary), modifier = GlanceModifier.size(22.dp))
+                    if (conNombre) Text(nombre, maxLines = 1, modifier = GlanceModifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
+                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp))
+                }
+            }
+        }
+    }
+}
+
+class AccionesReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = AccionesWidget()
+}
+
+// ---------------- Páginas recientes ----------------
+
+/** Una fila del widget «Páginas recientes». `detalle`: «hace 5 min» (vacío en las favoritas). */
+data class PaginaWidget(val id: String, val titulo: String, val icono: String?, val detalle: String, val favorita: Boolean = false)
+
+/** Widget «Páginas recientes»: las favoritas arriba y luego las últimas abiertas en el móvil. */
+class RecientesWidget : GlanceAppWidget() {
+    override val sizeMode = SizeMode.Exact
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val s = Servicios.de(context)
+        val favoritas = if (s.sesion.token == null) emptyList() else runCatching {
+            s.repo.consulta("favorites.list").comoLista.map { it.comoObjeto }
+                .map { PaginaWidget(it.str("id").orEmpty(), it.str("title").orEmpty(), it.str("icon"), "", favorita = true) }
+        }.getOrDefault(emptyList())
+        val ids = favoritas.map { it.id }.toSet()
+        val vistas = s.recientes.lista(s.espacioActivo()).filter { it.pageId !in ids }
+            .map { PaginaWidget(it.pageId, it.title, it.icon, Fechas.haceCuanto(Instant.ofEpochMilli(it.visto).toString())) }
+        provideContent { ContenidoRecientes(context, (favoritas + vistas).take(30)) }
+    }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) =
+        provideContent { ContenidoRecientes(context, Muestras.recientes) }
+}
+
+/** Lo que pinta el widget «Páginas recientes». */
+@Composable
+fun ContenidoRecientes(context: Context, paginas: List<PaginaWidget>) {
+    GlanceTheme(colors = coloresWidget) {
+        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+            CabeceraWidget("Páginas recientes", Widgets.abre(context, "notiono://inicio")) {
+                BotonMas(Widgets.abre(context, "notiono://nueva"), "Nueva página")
+            }
+            if (paginas.isEmpty()) Text("Las páginas que abras en la app saldrán aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
+            LazyColumn(GlanceModifier.fillMaxSize()) {
+                items(paginas, itemId = { it.id.hashCode().toLong() }) { p ->
+                    Row(
+                        GlanceModifier.fillMaxWidth().padding(top = 5.dp, bottom = 5.dp, end = 8.dp).clickable(actionStartActivity(Widgets.abre(context, "notiono://pagina/${p.id}"))),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val emoji = emojiDe(p.icono)
+                        Box(GlanceModifier.size(22.dp), contentAlignment = Alignment.Center) {
+                            if (emoji.isNotBlank()) Text(emoji, style = TextStyle(fontSize = 15.sp))
+                            else Image(ImageProvider(R.drawable.widget_pagina), null, colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant), modifier = GlanceModifier.size(18.dp))
+                        }
+                        Text(p.titulo.ifBlank { "Sin título" }, maxLines = 1, modifier = GlanceModifier.defaultWeight().padding(start = 8.dp, end = 6.dp),
+                            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp))
+                        if (p.favorita) Image(ImageProvider(R.drawable.widget_estrella), "Favorita", colorFilter = ColorFilter.tint(GlanceTheme.colors.primary), modifier = GlanceModifier.size(14.dp))
+                        else Text(p.detalle, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+class RecientesReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = RecientesWidget()
 }

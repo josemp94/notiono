@@ -1,5 +1,8 @@
 package com.monrealperez.notiono.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +34,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
+import com.monrealperez.notiono.compartir.bloquesCompartidos
+import com.monrealperez.notiono.util.Fechas
+import java.io.File
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -114,6 +124,23 @@ fun Principal(destinos: SharedFlow<Destino>) {
     val navegador = remember(nav) {
         Navegador(nav, abrirPanel = { alcance.launch { panel.open() } }, nuevaPagina = nuevaPagina)
     }
+    // «Foto» del widget de acciones: la cámara y, con la foto, una página nueva que la lleva.
+    var fotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val camara = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = fotoUri
+        if (ok && u != null) alcance.launch {
+            Avisos.di("Subiendo la foto…")
+            try {
+                val bloques = bloquesCompartidos(ctx, null, u)
+                val titulo = "Foto ${Fechas.fechaHora(java.time.Instant.now().toString())}"
+                val id = s.repo.mutacion("pages.create", objeto("title" to titulo), encolable = false, etiquetas = listOf("arbol"))?.comoObjeto?.str("id")!!
+                s.repo.mutacion("app.aplicar", objeto("id" to id, "ops" to bloques.map { objeto("op" to "upsert", "block" to it) }), encolable = false)
+                navegador.pagina(id)
+            } catch (e: Exception) {
+                Avisos.di(if (e is ErrorApi && e.sinConexion) "Sin conexión: no se puede subir la foto" else e.message ?: "No se pudo guardar la foto")
+            }
+        }
+    }
 
     // Enlaces, atajos y widgets.
     LaunchedEffect(Unit) {
@@ -123,6 +150,11 @@ fun Principal(destinos: SharedFlow<Destino>) {
                 is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
                 Destino.Buscar -> navegador.a("buscar")
                 Destino.Bandeja -> navegador.a("bandeja")
+                Destino.Foto -> {
+                    val u = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", File(ctx.cacheDir, "foto-${System.currentTimeMillis()}.jpg"))
+                    fotoUri = u
+                    camara.launch(u)
+                }
                 // El «+» del widget de lista: fila nueva en esa BD y a su ficha.
                 is Destino.NuevaFila -> alcance.launch {
                     try {
