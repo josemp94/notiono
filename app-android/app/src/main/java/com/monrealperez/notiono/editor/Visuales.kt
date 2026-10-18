@@ -238,7 +238,7 @@ private fun TablaEditable(b: Bloque, estado: EstadoEditor, editable: Boolean) {
                                         (et.getTag(com.monrealperez.notiono.R.id.oyente_celda) as? TextWatcher)?.let { et.removeTextChangedListener(it) }
                                         et.setText(sp)
                                         val w = object : TextWatcher {
-                                            override fun beforeTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {}
+                                            override fun beforeTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) = estado.antesDeEscribir(b)
                                             override fun onTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {}
                                             override fun afterTextChanged(s: Editable) {
                                                 b.crudo = Tabla.conCelda(b.crudo, i, j, Inline.aJson(s))

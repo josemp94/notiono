@@ -104,7 +104,9 @@ class AccionesEditor(
         if (!nuevo.esTexto && estado.siguienteVisible(nuevo) == null) estado.insertaDespues(nuevo, Bloque.nuevo(), enfocar = false)
     }
 
-    fun eligeDelMenu(item: ItemBloque, m: MenuEscritura) {
+    fun eligeDelMenu(item: ItemBloque, m: MenuEscritura) = estado.enUnPaso { eligeDelMenuDentro(item, m) }
+
+    private fun eligeDelMenuDentro(item: ItemBloque, m: MenuEscritura) {
         val b = estado.busca(m.bloqueId)
         val t = b?.texto
         if (t != null) {
@@ -134,7 +136,9 @@ class AccionesEditor(
         convirtiendo = true
     }
 
-    fun inserta(item: ItemBloque) {
+    fun inserta(item: ItemBloque) = estado.enUnPaso { insertaDentro(item) }
+
+    private fun insertaDentro(item: ItemBloque) {
         when (item.clave) {
             in CONVERTIBLES -> {
                 val (tipo, props) = tipoDe(item.clave)
@@ -188,7 +192,9 @@ class AccionesEditor(
         t.setSpan(Inline.chip(nodo, estado.pal), p, p + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
-    fun insertaMencion(m: Mencionable, menu: MenuEscritura) {
+    fun insertaMencion(m: Mencionable, menu: MenuEscritura) = estado.enUnPaso { insertaMencionDentro(m, menu) }
+
+    private fun insertaMencionDentro(m: Mencionable, menu: MenuEscritura) {
         val b = estado.busca(menu.bloqueId) ?: return
         val t = b.texto ?: return
         val donde = quitaConsulta(t, menu, estado.seleccion.first)
@@ -214,7 +220,9 @@ class AccionesEditor(
 
     fun abreUrl(url: String) = Enlaces.abre(ctx, s.api.absoluta(url))
 
-    fun escribe(texto: String) {
+    fun escribe(texto: String) = estado.enUnPaso { escribeDentro(texto) }
+
+    private fun escribeDentro(texto: String) {
         val b = estado.enfocado?.let { estado.busca(it) } ?: return
         val t = b.texto ?: return
         val p = estado.seleccion.first.coerceIn(0, t.length)

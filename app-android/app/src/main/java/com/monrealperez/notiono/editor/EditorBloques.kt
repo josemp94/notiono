@@ -39,6 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -325,6 +328,14 @@ class OyenteEditor(private val estado: EstadoEditor, private val activo: Activo,
         val b = campo.bloque ?: return
         if (atras) estado.desangra(b) else estado.sangra(b)
     }
+
+    override fun antesDeCambiar(campo: CampoBloque) {
+        campo.bloque?.let { estado.antesDeEscribir(it) }
+    }
+
+    override fun deshacer(campo: CampoBloque, rehacer: Boolean) {
+        if (rehacer) estado.rehaz() else estado.deshaz()
+    }
 }
 
 /** Una fila del editor: el prefijo del tipo (viñeta, número, casilla…) y su contenido. */
@@ -358,7 +369,11 @@ private fun FilaBloque(
             verticalAlignment = Alignment.Top,
         ) {
             // Asa: tocar abre las acciones del bloque; mantener y arrastrar lo mueve.
-            Box(Modifier.width(16.dp).heightIn(min = 30.dp).then(asa).clickable(enabled = editable, onClick = onAsa), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.width(16.dp).heightIn(min = 30.dp).then(asa).clickable(enabled = editable, onClick = onAsa)
+                    .semantics { if (editable) contentDescription = "Acciones del bloque" },
+                contentAlignment = Alignment.Center,
+            ) {
                 if (editable) Icono("grip-vertical", tam = 14.dp, color = C.borde)
             }
             Prefijo(f, estado, editable, tinta)
@@ -384,7 +399,9 @@ private fun Prefijo(f: FilaVisible, estado: EstadoEditor, editable: Boolean, tin
         "checkListItem" -> {
             val hecha = b.propBool("checked")
             Box(
-                Modifier.width(28.dp).height(tam).clickable(enabled = editable) { estado.props(b, "checked" to JsonPrimitive(!hecha)) },
+                Modifier.width(28.dp).height(tam)
+                    .toggleable(value = hecha, enabled = editable, role = androidx.compose.ui.semantics.Role.Checkbox) { estado.props(b, "checked" to JsonPrimitive(it)) }
+                    .semantics { contentDescription = "Casilla" },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -404,7 +421,10 @@ private fun Prefijo(f: FilaVisible, estado: EstadoEditor, editable: Boolean, tin
 @Composable
 private fun Triangulo(b: Bloque, estado: EstadoEditor, alto: androidx.compose.ui.unit.Dp) {
     val abierto = b.id in estado.abiertos
-    Box(Modifier.width(26.dp).height(alto).clickable { estado.alternaPlegado(b) }, contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.width(26.dp).height(alto).clickable { estado.alternaPlegado(b) }.semantics { contentDescription = if (abierto) "Plegar" else "Desplegar" },
+        contentAlignment = Alignment.Center,
+    ) {
         Icono(if (abierto) "chevron-down" else "chevron-right", tam = 16.dp, color = if (b.hijos.isEmpty()) C.borde else C.apagado)
     }
 }

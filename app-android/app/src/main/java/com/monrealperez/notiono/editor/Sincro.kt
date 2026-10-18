@@ -213,6 +213,8 @@ class Sincro(private val fuente: Fuente, private val estado: EstadoEditor, priva
         val nueva = rehace(remoto)
         if (nueva.map { it.id } != estado.raiz.map { it.id } || nueva.zip(estado.raiz).any { (x, y) -> x !== y }) cambio = true
         if (!cambio) return
+        // Lo de otros entra en el documento: deshacer ya no puede volver a una foto entera.
+        estado.olvidaHistorial()
         estado.raiz.clear()
         estado.raiz.addAll(nueva)
         if (estado.raiz.isEmpty() && estado.editable) estado.raiz.add(Bloque.nuevo())

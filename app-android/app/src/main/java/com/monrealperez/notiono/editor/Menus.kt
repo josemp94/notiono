@@ -29,6 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -210,7 +213,7 @@ fun BarraFormato(
         if (a == z) {
             // Sin selección: lo próximo que se escriba (como en cualquier editor).
             estado.pendientes = if (estado.pendientes.containsKey(clave)) estado.pendientes - clave else estado.pendientes + (clave to JsonPrimitive(true))
-        } else {
+        } else estado.enUnPaso {
             Inline.alterna(txt, clave, JsonPrimitive(true), a, z, pal, !Inline.tiene(txt, clave, a, z))
             estado.texto(bl)
             campo.invalidate()
@@ -224,6 +227,8 @@ fun BarraFormato(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BotonBarra("plus", onClick = onInsertar)
+            BotonBarra("undo-2", habilitado = estado.puedeDeshacer) { estado.deshaz() }
+            BotonBarra("redo-2", habilitado = estado.puedeRehacer) { estado.rehaz() }
             BotonBarra("type-outline", onClick = { acciones.pideConvertir() })
             BotonBarra("bold", tiene("bold")) { alterna("bold") }
             BotonBarra("italic", tiene("italic")) { alterna("italic") }
@@ -243,12 +248,23 @@ fun BarraFormato(
     }
 }
 
+/** Lo que dice TalkBack de cada botón de la barra de formato. */
+private val ETIQUETAS_BARRA = mapOf(
+    "plus" to "Insertar bloque", "type-outline" to "Convertir en", "bold" to "Negrita", "italic" to "Cursiva",
+    "underline" to "Subrayado", "strikethrough" to "Tachado", "code" to "Código", "link" to "Enlace", "palette" to "Color",
+    "at-sign" to "Mencionar", "indent-increase" to "Sangrar", "indent-decrease" to "Quitar sangría", "arrow-up" to "Subir bloque",
+    "arrow-down" to "Bajar bloque", "ellipsis" to "Acciones del bloque", "chevron-down" to "Ocultar el teclado",
+    "undo-2" to "Deshacer", "redo-2" to "Rehacer",
+)
+
 @Composable
-private fun BotonBarra(icono: String, activo: Boolean = false, onClick: () -> Unit) {
+private fun BotonBarra(icono: String, activo: Boolean = false, habilitado: Boolean = true, onClick: () -> Unit) {
     Box(
-        Modifier.size(40.dp).padding(2.dp).clip(RoundedCornerShape(8.dp)).background(if (activo) C.activo else Color.Transparent).clickable(onClick = onClick),
+        Modifier.size(40.dp).padding(2.dp).clip(RoundedCornerShape(8.dp)).background(if (activo) C.activo else Color.Transparent)
+            .clickable(enabled = habilitado, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .semantics { ETIQUETAS_BARRA[icono]?.let { contentDescription = it }; selected = activo },
         contentAlignment = Alignment.Center,
-    ) { Icono(icono, tam = 19.dp, color = if (activo) Marca else C.texto) }
+    ) { Icono(icono, tam = 19.dp, color = if (activo) Marca else if (habilitado) C.texto else C.borde) }
 }
 
 /** Colores de texto y de fondo del tramo seleccionado (o del bloque entero si no hay selección). */
@@ -260,7 +276,7 @@ private fun FilaColores(estado: EstadoEditor, activo: Activo, pal: Paleta, onLis
         val b = campo.bloque ?: return
         val (a, z) = estado.seleccion
         val txt = campo.text ?: return
-        if (a != z) {
+        if (a != z) estado.enUnPaso {
             Inline.alterna(txt, clave, JsonPrimitive(nombre ?: "default"), a, z, pal, nombre != null)
             estado.texto(b)
             campo.invalidate()
@@ -339,7 +355,11 @@ fun HojaAccionesBloque(b: Bloque, estado: EstadoEditor, acciones: AccionesEditor
         if (b.esTexto) FilaMenu("Copiar texto", "copy") { acciones.copiaTexto(b); onCerrar() }
         if (editable) {
             Separador()
-            FilaMenu("Eliminar", "trash-2", color = Color(0xFFD44C47)) { estado.borra(b); onCerrar() }
+            FilaMenu("Eliminar", "trash-2", color = Color(0xFFD44C47)) {
+                estado.borra(b)
+                onCerrar()
+                com.monrealperez.notiono.ui.comun.Avisos.di("Bloque eliminado", "Deshacer") { estado.deshaz() }
+            }
         }
     }
 }
@@ -394,9 +414,11 @@ fun PedirEnlace(activo: Activo, estado: EstadoEditor, pal: Paleta, onCerrar: () 
             TextButton({
                 if (campo != null && txt != null && a < z) {
                     val limpio = url.trim().let { if (it.isNotEmpty() && !it.contains("://") && !it.startsWith("mailto:")) "https://$it" else it }
-                    Inline.ponEnlace(txt, limpio.ifBlank { null }, a, z, pal)
-                    campo.bloque?.let { estado.texto(it) }
-                    campo.invalidate()
+                    estado.enUnPaso {
+                        Inline.ponEnlace(txt, limpio.ifBlank { null }, a, z, pal)
+                        campo.bloque?.let { estado.texto(it) }
+                        campo.invalidate()
+                    }
                 }
                 onCerrar()
             }) { Text("Guardar", color = Marca) }

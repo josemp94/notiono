@@ -25,6 +25,10 @@ interface OyenteCampo {
     fun seleccion(campo: CampoBloque, a: Int, b: Int)
     fun foco(campo: CampoBloque, tiene: Boolean)
     fun tab(campo: CampoBloque, atras: Boolean)
+    /** Justo antes de que cambie el texto (para poder deshacerlo). */
+    fun antesDeCambiar(campo: CampoBloque) {}
+    /** Ctrl+Z / Ctrl+Mayús+Z de un teclado físico. */
+    fun deshacer(campo: CampoBloque, rehacer: Boolean) {}
 }
 
 /**
@@ -63,7 +67,9 @@ class CampoBloque(ctx: Context) : EditText(ctx) {
             override fun newEditable(source: CharSequence): Editable = source as? Editable ?: super.newEditable(source)
         })
         addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                if (!poniendo) oyente?.antesDeCambiar(this@CampoBloque)
+            }
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (!poniendo) oyente?.cambio(this@CampoBloque, start, before, count)
             }
@@ -158,6 +164,7 @@ class CampoBloque(ctx: Context) : EditText(ctx) {
                         oyente?.enter(this@CampoBloque, selectionStart)
                         return true
                     }
+                    if (esDeshacer(event)) return true
                 }
                 return super.sendKeyEvent(event)
             }
@@ -172,8 +179,20 @@ class CampoBloque(ctx: Context) : EditText(ctx) {
                 oyente?.enter(this, selectionStart); return true
             }
             keyCode == KeyEvent.KEYCODE_TAB -> { oyente?.tab(this, event.isShiftPressed); return true }
+            esDeshacer(event) -> return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    /** Ctrl+Z deshace y Ctrl+Mayús+Z o Ctrl+Y rehacen, en todo el documento (no solo en este campo). */
+    private fun esDeshacer(e: KeyEvent): Boolean {
+        if (!e.isCtrlPressed) return false
+        when {
+            e.keyCode == KeyEvent.KEYCODE_Z -> oyente?.deshacer(this, rehacer = e.isShiftPressed)
+            e.keyCode == KeyEvent.KEYCODE_Y -> oyente?.deshacer(this, rehacer = true)
+            else -> return false
+        }
+        return true
     }
 
     /** Aplica estilos pendientes (B sin selección) a lo recién escrito. */

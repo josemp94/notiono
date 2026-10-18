@@ -35,7 +35,14 @@ lo tiene en la web, o no tiene sentido en el teléfono: no se hace).
 - [ ] Capturas claro/oscuro revisadas una a una.
 
 ### R4 · Lo que falta para igualar a Notion (por uso diario)
-- [ ] (ver «Orden de R4» abajo)
+- [x] 1. Deshacer / rehacer en el editor (barra, Ctrl+Z/Ctrl+Mayús+Z, «Deshacer» al eliminar un bloque). Etiquetas de TalkBack en la barra, el asa y las casillas.
+- [ ] 2. Abrir el aviso en su sitio (vencimiento → la fila) y deslizar para marcarlo leído.
+- [ ] 3. Compartir el enlace de la página con el menú del sistema.
+- [ ] 4. Modo oscuro a mano (Sistema / Claro / Oscuro).
+- [ ] 5. Zoom con pellizco en las imágenes.
+- [ ] 6. Compartir hacia la app: varias imágenes y archivos cualquiera.
+- [ ] 7. Papelera de filas de una BD.
+- [ ] 8. Reordenar favoritos.
 
 ### Entrega
 - [ ] `versionCode` 7, `versionName` 2.1.0; `npm run build` + `npm run check`.
@@ -190,4 +197,10 @@ Propuestas (grandes o dudosas, no se hacen a medias):
   - Pruebas rojas antes del arreglo comprobadas en una copia del código de la 2.0.3
     (`git worktree` en `~/Dobby/tmp`, ya borrada): 9 de 9 (la de la gráfica, dibujando la
     ventana a mano en un bitmap: `captureToImage` no funciona con este montaje de Robolectric).
+- **Deshacer (R4.1)**. El editor guarda una «foto» del documento (JSON de bloques + cursor)
+  antes de cada cambio: una por operación (`operacion {}` en `EstadoEditor`; lo de dentro no
+  cuenta aparte) y una por racha de escritura en un bloque (se corta tras 1,5 s o al cambiar de
+  bloque; el campo avisa en `beforeTextChanged`). Deshacer recarga la foto y la sincronía manda
+  la diferencia como siempre (`Diff`). Si llega algo de otro dispositivo (`Sincro.adopta` con
+  cambios), el historial se borra: volver a una foto entera desharía también lo suyo.
 

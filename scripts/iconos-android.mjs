@@ -29,7 +29,7 @@ folder-input type-outline remove-formatting baseline highlighter pin smartphone 
 corner-up-left reply circle-check circle check-check archive-restore undo-2 info triangle-alert play pause
 external-link file-down file-up sparkles zoom-in zoom-out maximize minimize filter sliders-horizontal
 arrow-down-up rows-3 between-horizontal-start ban pencil circle-plus rotate-ccw save list-tree table-of-contents
-square circle-dot loader-circle wand-sparkles letter-text text
+square circle-dot loader-circle wand-sparkles letter-text text redo-2 sun-moon mail-open
 `.split(/\s+/).filter(Boolean);
 
 // Los de página: los mismos que la pestaña «Iconos» del selector de la web.

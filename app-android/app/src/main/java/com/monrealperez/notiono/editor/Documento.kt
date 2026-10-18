@@ -36,6 +36,10 @@ fun quitaConsulta(t: android.text.Editable, m: MenuEscritura, cursor: Int): Int 
     return m.inicio
 }
 
+/** Pausa que corta una racha de escritura para deshacer (como Notion: una palabra o frase cada vez). */
+const val PAUSA_ESCRITURA = 1500L
+private const val MAX_HISTORIAL = 100
+
 private val LISTAS = setOf("bulletListItem", "numberedListItem", "checkListItem", "toggleListItem")
 
 /**
@@ -64,6 +68,96 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
     var pendientes by mutableStateOf<Map<String, JsonElement>>(emptyMap())
 
     var alCambiar: () -> Unit = {}
+
+    // ---------- deshacer / rehacer ----------
+
+    /** Cómo estaba el documento (y el cursor) antes de un cambio. */
+    class Foto(val bloques: List<JsonObject>, val foco: PeticionFoco?)
+
+    private val deshacer = ArrayDeque<Foto>()
+    private val rehacer = ArrayDeque<Foto>()
+    var puedeDeshacer by mutableStateOf(false)
+        private set
+    var puedeRehacer by mutableStateOf(false)
+        private set
+
+    /** La racha de escritura en curso: lo que se teclea seguido en un bloque se deshace de una vez. */
+    private var escribiendoEn: String? = null
+    private var ultimaEscritura = 0L
+    private var operando = 0
+
+    private fun foto() = Foto(json(), enfocado?.let { PeticionFoco(it, seleccion.first) })
+
+    private fun actualizaHistorial() {
+        puedeDeshacer = deshacer.isNotEmpty()
+        puedeRehacer = rehacer.isNotEmpty()
+    }
+
+    /**
+     * Antes de cambiar algo, se guarda cómo estaba: una vez por operación (aunque por dentro
+     * haga varias cosas) y una por racha de escritura en un bloque (se corta con una pausa
+     * de [PAUSA_ESCRITURA] ms o al pasar a otro bloque).
+     */
+    fun antes(escritura: Bloque? = null, ahora: Long = System.currentTimeMillis()) {
+        if (operando > 0) return
+        val sigue = escritura != null && escritura.id == escribiendoEn && ahora - ultimaEscritura < PAUSA_ESCRITURA
+        escribiendoEn = escritura?.id
+        ultimaEscritura = ahora
+        if (sigue) return
+        val f = foto()
+        if (deshacer.lastOrNull()?.bloques != f.bloques) {
+            deshacer.addLast(f)
+            if (deshacer.size > MAX_HISTORIAL) deshacer.removeFirst()
+        }
+        rehacer.clear()
+        actualizaHistorial()
+    }
+
+    /** Lo que se teclea en un bloque (lo llama el campo antes de cada cambio de texto). */
+    fun antesDeEscribir(b: Bloque) = antes(b)
+
+    /** Varios cambios como uno solo para deshacer (lo usan los menús, la barra y los diálogos). */
+    fun <T> enUnPaso(f: () -> T): T = operacion(f)
+
+    private inline fun <T> operacion(f: () -> T): T {
+        antes()
+        operando++
+        try {
+            return f()
+        } finally {
+            operando--
+        }
+    }
+
+    fun deshaz() = restaura(deshacer, rehacer)
+
+    fun rehaz() = restaura(rehacer, deshacer)
+
+    private fun restaura(de: ArrayDeque<Foto>, a: ArrayDeque<Foto>) {
+        val actual = foto()
+        // Lo que no cambió nada (una operación que al final no hizo nada) no cuenta como paso.
+        var f = de.removeLastOrNull() ?: return
+        while (f.bloques == actual.bloques) f = de.removeLastOrNull() ?: return actualizaHistorial()
+        a.addLast(actual)
+        val tocados = HashSet<String>()
+        Bloques.enOrden(raiz, { b, _ -> tocados += b.id })
+        carga(f.bloques)
+        Bloques.enOrden(raiz, { b, _ -> tocados += b.id })
+        sucios += tocados
+        escribiendoEn = null
+        menu = null
+        foco = f.foco?.takeIf { busca(it.id)?.esTexto == true }?.copy(n = System.nanoTime())
+        actualizaHistorial()
+        alCambiar()
+    }
+
+    /** Lo de fuera cambió el documento: deshacer volvería atrás también lo de los demás. */
+    fun olvidaHistorial() {
+        deshacer.clear()
+        rehacer.clear()
+        escribiendoEn = null
+        actualizaHistorial()
+    }
 
     fun carga(bloques: List<JsonObject>) {
         raiz.clear()
@@ -156,149 +250,171 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
     }
 
     fun insertaDespues(ref: Bloque?, nuevo: Bloque, enfocar: Boolean = true) {
-        if (ref == null) raiz.add(nuevo)
-        else {
-            val (lista, i) = sitio(ref) ?: (raiz to raiz.size - 1)
-            lista.add(i + 1, nuevo)
+        operacion {
+            if (ref == null) raiz.add(nuevo)
+            else {
+                val (lista, i) = sitio(ref) ?: (raiz to raiz.size - 1)
+                lista.add(i + 1, nuevo)
+            }
+            if (enfocar && nuevo.esTexto) foco = PeticionFoco(nuevo.id, 0)
+            estructura(nuevo)
         }
-        if (enfocar && nuevo.esTexto) foco = PeticionFoco(nuevo.id, 0)
-        estructura(nuevo)
     }
 
     fun insertaAlFinal(nuevo: Bloque) {
-        raiz.add(nuevo)
-        if (nuevo.esTexto) foco = PeticionFoco(nuevo.id, 0)
-        estructura(nuevo)
+        operacion {
+            raiz.add(nuevo)
+            if (nuevo.esTexto) foco = PeticionFoco(nuevo.id, 0)
+            estructura(nuevo)
+        }
     }
 
     /** Enter: parte el bloque por el cursor (en listas, elemento nuevo; en uno vacío, sale de la lista). */
     fun enter(b: Bloque, pos: Int) {
-        val t = b.texto ?: return
-        if (b.tipo in LISTAS && t.isEmpty()) {
-            if (Bloques.padreDe(raiz, b.id)?.tipo in LISTAS) desangra(b) else convierte(b, "paragraph")
-            foco = PeticionFoco(b.id, 0)
-            return
-        }
-        val tipoNuevo = when (b.tipo) {
-            "bulletListItem", "numberedListItem", "checkListItem", "toggleListItem" -> b.tipo
-            else -> "paragraph"
-        }
-        if (pos == 0 && t.isNotEmpty()) {
-            // Al principio: línea vacía encima, el bloque (y su id) siguen con su texto.
-            val nuevo = Bloque.nuevo(if (b.tipo in LISTAS) b.tipo else "paragraph")
+        operacion {
+            val t = b.texto ?: return
+            if (b.tipo in LISTAS && t.isEmpty()) {
+                if (Bloques.padreDe(raiz, b.id)?.tipo in LISTAS) desangra(b) else convierte(b, "paragraph")
+                foco = PeticionFoco(b.id, 0)
+                return
+            }
+            val tipoNuevo = when (b.tipo) {
+                "bulletListItem", "numberedListItem", "checkListItem", "toggleListItem" -> b.tipo
+                else -> "paragraph"
+            }
+            if (pos == 0 && t.isNotEmpty()) {
+                // Al principio: línea vacía encima, el bloque (y su id) siguen con su texto.
+                val nuevo = Bloque.nuevo(if (b.tipo in LISTAS) b.tipo else "paragraph")
+                val (lista, i) = sitio(b) ?: return
+                lista.add(i, nuevo)
+                foco = PeticionFoco(b.id, 0)
+                estructura(nuevo)
+                return
+            }
+            val cola = SpannableStringBuilder(t, pos.coerceIn(0, t.length), t.length)
+            t.delete(pos.coerceIn(0, t.length), t.length)
+            val nuevo = Bloque(Bloque.nuevoId(), tipoNuevo, JsonObject(Bloque.propsPorDefecto(tipoNuevo)), cola, null, JsonObject(emptyMap()))
+            // Un desplegable abierto: lo nuevo va dentro, como primer hijo.
+            if (esPlegable(b) && b.id in abiertos && b.tipo != "heading") {
+                b.hijos.add(0, nuevo)
+                foco = PeticionFoco(nuevo.id, 0)
+                estructura(b, nuevo)
+                return
+            }
             val (lista, i) = sitio(b) ?: return
-            lista.add(i, nuevo)
-            foco = PeticionFoco(b.id, 0)
-            estructura(nuevo)
-            return
-        }
-        val cola = SpannableStringBuilder(t, pos.coerceIn(0, t.length), t.length)
-        t.delete(pos.coerceIn(0, t.length), t.length)
-        val nuevo = Bloque(Bloque.nuevoId(), tipoNuevo, JsonObject(Bloque.propsPorDefecto(tipoNuevo)), cola, null, JsonObject(emptyMap()))
-        // Un desplegable abierto: lo nuevo va dentro, como primer hijo.
-        if (esPlegable(b) && b.id in abiertos && b.tipo != "heading") {
-            b.hijos.add(0, nuevo)
+            lista.add(i + 1, nuevo)
             foco = PeticionFoco(nuevo.id, 0)
             estructura(b, nuevo)
-            return
         }
-        val (lista, i) = sitio(b) ?: return
-        lista.add(i + 1, nuevo)
-        foco = PeticionFoco(nuevo.id, 0)
-        estructura(b, nuevo)
     }
 
     /** Retroceso al principio: convierte en párrafo, saca de la sangría o une con el anterior. */
     fun retrocesoAlInicio(b: Bloque) {
-        val t = b.texto ?: return
-        if (b.tipo != "paragraph" && b.tipo != "codeBlock") {
-            convierte(b, "paragraph")
-            foco = PeticionFoco(b.id, 0)
-            return
+        operacion {
+            val t = b.texto ?: return
+            if (b.tipo != "paragraph" && b.tipo != "codeBlock") {
+                convierte(b, "paragraph")
+                foco = PeticionFoco(b.id, 0)
+                return
+            }
+            val padre = Bloques.padreDe(raiz, b.id)
+            if (padre != null && padre.tipo != "column" && padre.tipo != "columnList") {
+                desangra(b)
+                foco = PeticionFoco(b.id, 0)
+                return
+            }
+            val prev = anteriorVisible(b) ?: return
+            val pt = prev.texto
+            if (pt == null) {
+                // Detrás de una imagen o un separador: un bloque vacío simplemente se va.
+                if (t.isEmpty()) borra(b)
+                return
+            }
+            val unir = pt.length
+            pt.append(t)
+            val (lista, i) = sitio(b) ?: return
+            lista.removeAt(i)
+            prev.hijos.addAll(b.hijos)
+            foco = PeticionFoco(prev.id, unir)
+            estructura(prev)
         }
-        val padre = Bloques.padreDe(raiz, b.id)
-        if (padre != null && padre.tipo != "column" && padre.tipo != "columnList") {
-            desangra(b)
-            foco = PeticionFoco(b.id, 0)
-            return
-        }
-        val prev = anteriorVisible(b) ?: return
-        val pt = prev.texto
-        if (pt == null) {
-            // Detrás de una imagen o un separador: un bloque vacío simplemente se va.
-            if (t.isEmpty()) borra(b)
-            return
-        }
-        val unir = pt.length
-        pt.append(t)
-        val (lista, i) = sitio(b) ?: return
-        lista.removeAt(i)
-        prev.hijos.addAll(b.hijos)
-        foco = PeticionFoco(prev.id, unir)
-        estructura(prev)
     }
 
     fun convierte(b: Bloque, tipo: String, props: Map<String, JsonElement> = emptyMap()) {
-        if (b.tipo == tipo && props.isEmpty()) return
-        // Se conservan los colores; lo propio del tipo viejo (nivel, casilla…) se va.
-        val comunes = setOf("backgroundColor", "textColor", "textAlignment")
-        val nuevas = Bloque.propsPorDefecto(tipo).toMutableMap()
-        for ((k, v) in b.props) if (k in comunes && k in nuevas) nuevas[k] = v
-        nuevas.putAll(props)
-        b.tipo = tipo
-        b.props = JsonObject(nuevas)
-        if (tipo in TIPOS_TEXTO && b.texto == null) {
-            b.texto = SpannableStringBuilder()
-            b.crudo = null
+        operacion {
+            if (b.tipo == tipo && props.isEmpty()) return
+            // Se conservan los colores; lo propio del tipo viejo (nivel, casilla…) se va.
+            val comunes = setOf("backgroundColor", "textColor", "textAlignment")
+            val nuevas = Bloque.propsPorDefecto(tipo).toMutableMap()
+            for ((k, v) in b.props) if (k in comunes && k in nuevas) nuevas[k] = v
+            nuevas.putAll(props)
+            b.tipo = tipo
+            b.props = JsonObject(nuevas)
+            if (tipo in TIPOS_TEXTO && b.texto == null) {
+                b.texto = SpannableStringBuilder()
+                b.crudo = null
+            }
+            if (tipo == "codeBlock") b.texto?.let { Inline.limpia(it, 0, it.length, pal) }
+            estructura(b)
         }
-        if (tipo == "codeBlock") b.texto?.let { Inline.limpia(it, 0, it.length, pal) }
-        estructura(b)
     }
 
     fun sangra(b: Bloque) {
-        val (lista, i) = sitio(b) ?: return
-        if (i == 0) return
-        val madre = lista[i - 1]
-        if (madre.texto == null && madre.tipo != "column") return
-        lista.removeAt(i)
-        madre.hijos.add(b)
-        abiertos += madre.id
-        foco = PeticionFoco(b.id, seleccion.first)
-        estructura(b)
+        operacion {
+            val (lista, i) = sitio(b) ?: return
+            if (i == 0) return
+            val madre = lista[i - 1]
+            if (madre.texto == null && madre.tipo != "column") return
+            lista.removeAt(i)
+            madre.hijos.add(b)
+            abiertos += madre.id
+            foco = PeticionFoco(b.id, seleccion.first)
+            estructura(b)
+        }
     }
 
     fun desangra(b: Bloque) {
-        val padre = Bloques.padreDe(raiz, b.id) ?: return
-        if (padre.tipo == "column") return
-        val (lista, i) = sitio(b) ?: return
-        lista.removeAt(i)
-        val (listaPadre, j) = sitio(padre) ?: return
-        listaPadre.add(j + 1, b)
-        foco = PeticionFoco(b.id, seleccion.first)
-        estructura(b)
+        operacion {
+            val padre = Bloques.padreDe(raiz, b.id) ?: return
+            if (padre.tipo == "column") return
+            val (lista, i) = sitio(b) ?: return
+            lista.removeAt(i)
+            val (listaPadre, j) = sitio(padre) ?: return
+            listaPadre.add(j + 1, b)
+            foco = PeticionFoco(b.id, seleccion.first)
+            estructura(b)
+        }
     }
 
     fun mueve(b: Bloque, delta: Int) {
-        val (lista, i) = sitio(b) ?: return
-        val j = i + delta
-        if (j !in lista.indices) return
-        lista.removeAt(i)
-        lista.add(j, b)
-        foco = PeticionFoco(b.id, seleccion.first)
-        estructura(b)
+        operacion {
+            val (lista, i) = sitio(b) ?: return
+            val j = i + delta
+            if (j !in lista.indices) return
+            lista.removeAt(i)
+            lista.add(j, b)
+            foco = PeticionFoco(b.id, seleccion.first)
+            estructura(b)
+        }
     }
 
     /** Lleva `b` delante o detrás de `destino` (arrastrar con el asa). */
     fun recoloca(b: Bloque, destino: Bloque, despues: Boolean) {
-        if (b.id == destino.id || Bloques.busca(b.hijos, destino.id) != null) return
-        val (lista, i) = sitio(b) ?: return
-        lista.removeAt(i)
-        val (listaD, j) = sitio(destino) ?: run { lista.add(i, b); return }
-        listaD.add(if (despues) j + 1 else j, b)
-        estructura(b)
+        operacion {
+            if (b.id == destino.id || Bloques.busca(b.hijos, destino.id) != null) return
+            val (lista, i) = sitio(b) ?: return
+            lista.removeAt(i)
+            val (listaD, j) = sitio(destino) ?: run { lista.add(i, b); return }
+            listaD.add(if (despues) j + 1 else j, b)
+            estructura(b)
+        }
     }
 
     fun duplica(b: Bloque): Bloque {
+        return operacion { duplicaDentro(b) }
+    }
+
+    private fun duplicaDentro(b: Bloque): Bloque {
         fun copia(x: Bloque): Bloque = Bloque.deJson(x.aJson(), pal).let { c ->
             Bloque(Bloque.nuevoId(), c.tipo, c.props, c.texto, c.crudo, c.resto, c.hijos.map(::copia).toMutableList())
         }
@@ -310,22 +426,28 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
     }
 
     fun borra(b: Bloque) {
-        val prev = anteriorVisible(b)
-        val (lista, i) = sitio(b) ?: return
-        lista.removeAt(i)
-        if (raiz.isEmpty()) raiz.add(Bloque.nuevo())
-        prev?.texto?.let { foco = PeticionFoco(prev.id, it.length) }
-        estructura()
+        operacion {
+            val prev = anteriorVisible(b)
+            val (lista, i) = sitio(b) ?: return
+            lista.removeAt(i)
+            if (raiz.isEmpty()) raiz.add(Bloque.nuevo())
+            prev?.texto?.let { foco = PeticionFoco(prev.id, it.length) }
+            estructura()
+        }
     }
 
     fun props(b: Bloque, vararg cambios: Pair<String, JsonElement?>) {
-        for ((k, v) in cambios) b.conProp(k, v)
-        estructura(b)
+        operacion {
+            for ((k, v) in cambios) b.conProp(k, v)
+            estructura(b)
+        }
     }
 
     fun contenido(b: Bloque, crudo: JsonElement) {
-        b.crudo = crudo
-        estructura(b)
+        operacion {
+            b.crudo = crudo
+            estructura(b)
+        }
     }
 
     // ---------- atajos Markdown al escribir ----------
@@ -336,6 +458,10 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
      * Devuelve true si convirtió.
      */
     fun atajoMarkdown(b: Bloque): Boolean {
+        return operacion { atajoDentro(b) }
+    }
+
+    private fun atajoDentro(b: Bloque): Boolean {
         val t = b.texto ?: return false
         if (b.tipo == "codeBlock") return false
         val s = t.toString()
@@ -389,19 +515,21 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
 
     /** Pega texto con saltos de línea: cada línea, un bloque (lo que hace Notion). */
     fun parteLineas(b: Bloque) {
-        val t = b.texto ?: return
-        if (b.tipo == "codeBlock") return
-        val i = t.indexOf('\n')
-        if (i < 0) return
-        val cola = SpannableStringBuilder(t, i + 1, t.length)
-        t.delete(i, t.length)
-        val tipo = if (b.tipo in LISTAS) b.tipo else "paragraph"
-        val nuevo = Bloque(Bloque.nuevoId(), tipo, JsonObject(Bloque.propsPorDefecto(tipo)), cola, null, JsonObject(emptyMap()))
-        val (lista, j) = sitio(b) ?: return
-        lista.add(j + 1, nuevo)
-        foco = PeticionFoco(nuevo.id, 0)
-        estructura(b, nuevo)
-        parteLineas(nuevo)
+        operacion {
+            val t = b.texto ?: return
+            if (b.tipo == "codeBlock") return
+            val i = t.indexOf('\n')
+            if (i < 0) return
+            val cola = SpannableStringBuilder(t, i + 1, t.length)
+            t.delete(i, t.length)
+            val tipo = if (b.tipo in LISTAS) b.tipo else "paragraph"
+            val nuevo = Bloque(Bloque.nuevoId(), tipo, JsonObject(Bloque.propsPorDefecto(tipo)), cola, null, JsonObject(emptyMap()))
+            val (lista, j) = sitio(b) ?: return
+            lista.add(j + 1, nuevo)
+            foco = PeticionFoco(nuevo.id, 0)
+            estructura(b, nuevo)
+            parteLineas(nuevo)
+        }
     }
 
     /** Títulos del documento (para el bloque Índice). */
