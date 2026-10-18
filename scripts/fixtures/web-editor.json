@@ -1,0 +1,554 @@
+[
+  {
+    "id": "7922af99-5713-4977-9d8e-7005d7add15a",
+    "type": "heading",
+    "props": {
+      "level": 1,
+      "textColor": "default",
+      "isToggleable": false,
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "Título uno",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "bc8d4f07-6897-4376-b567-e8deca074733",
+    "type": "toc",
+    "props": {},
+    "children": []
+  },
+  {
+    "id": "0f371b7b-699b-4ac8-83ae-bc6055a58ef6",
+    "type": "heading",
+    "props": {
+      "level": 2,
+      "textColor": "default",
+      "isToggleable": false,
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "Título dos",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "8318c51e-e74c-468e-b196-83cb0b198a4a",
+    "type": "table",
+    "props": {
+      "textColor": "default"
+    },
+    "content": {
+      "rows": [
+        {
+          "cells": [
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": [
+                {
+                  "text": "celda",
+                  "type": "text",
+                  "styles": {}
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": []
+            },
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": []
+            }
+          ]
+        },
+        {
+          "cells": [
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": []
+            },
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": []
+            },
+            {
+              "type": "tableCell",
+              "props": {
+                "colspan": 1,
+                "rowspan": 1,
+                "textColor": "default",
+                "textAlignment": "left",
+                "backgroundColor": "default"
+              },
+              "content": []
+            }
+          ]
+        }
+      ],
+      "type": "tableContent",
+      "columnWidths": [
+        null,
+        null,
+        null
+      ]
+    },
+    "children": []
+  },
+  {
+    "id": "b370187c-171c-4ad2-8260-a11c4baa5993",
+    "type": "columnList",
+    "props": {},
+    "children": [
+      {
+        "id": "2cff5384-ba4e-41ec-97b6-66e50532810e",
+        "type": "column",
+        "props": {
+          "ancho": 1
+        },
+        "children": [
+          {
+            "id": "ca4a59d4-ba75-410e-9d38-2d816979df9d",
+            "type": "paragraph",
+            "props": {
+              "textColor": "default",
+              "textAlignment": "left",
+              "backgroundColor": "default"
+            },
+            "content": [
+              {
+                "text": "columna izquierda",
+                "type": "text",
+                "styles": {}
+              }
+            ],
+            "children": []
+          },
+          {
+            "id": "64feaa2f-320f-4ba5-a029-6bdf29d70aca",
+            "type": "bookmark",
+            "props": {
+              "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+              "image": "",
+              "title": "www.youtube.com",
+              "siteName": "www.youtube.com",
+              "description": ""
+            },
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "05518ba4-f5b1-4421-ab7e-33c99c0db99b",
+        "type": "column",
+        "props": {
+          "ancho": 1
+        },
+        "children": [
+          {
+            "id": "b657e1b8-ae89-40b4-a90f-81a841096dcb",
+            "type": "paragraph",
+            "props": {
+              "textColor": "default",
+              "textAlignment": "left",
+              "backgroundColor": "default"
+            },
+            "content": [],
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "35cc7abc-bda3-49c1-8104-6b5e629461a2",
+    "type": "paragraph",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "Texto con ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "text": "negrita",
+        "type": "text",
+        "styles": {
+          "bold": true
+        }
+      },
+      {
+        "text": " y ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "text": "cursiva",
+        "type": "text",
+        "styles": {
+          "italic": true
+        }
+      },
+      {
+        "text": " y ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "text": "tachado",
+        "type": "text",
+        "styles": {
+          "strike": true
+        }
+      },
+      {
+        "text": " y ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "text": "código",
+        "type": "text",
+        "styles": {
+          "code": true
+        }
+      },
+      {
+        "text": " normal.",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "ed8da879-fa95-4edf-b1b5-0cf41ebef810",
+    "type": "paragraph",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "Mención a ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "type": "mention",
+        "props": {
+          "icon": "",
+          "title": "Página enlazada",
+          "pageId": "cmve24ino000po71mabo7gs42"
+        }
+      },
+      {
+        "text": " y a ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "type": "personMention",
+        "props": {
+          "name": "Ana",
+          "userId": "cmvdzchid0000o7qf27ky4t8r"
+        }
+      },
+      {
+        "text": " para ",
+        "type": "text",
+        "styles": {}
+      },
+      {
+        "type": "dateMention",
+        "props": {
+          "fecha": "2026-10-18"
+        }
+      },
+      {
+        "text": " ",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "49251678-5ea9-4ddf-9ad9-be707a714d5b",
+    "type": "bulletListItem",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "viñeta uno",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": [
+      {
+        "id": "a7aa54a1-9b50-408f-a6da-30157ce91c62",
+        "type": "bulletListItem",
+        "props": {
+          "textColor": "default",
+          "textAlignment": "left",
+          "backgroundColor": "default"
+        },
+        "content": [
+          {
+            "text": "anidada",
+            "type": "text",
+            "styles": {}
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "3635d8bb-565a-4a97-a266-a2fd567ba49c",
+    "type": "bulletListItem",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "viñeta dos",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "3fae49d3-e1b9-4f49-95c9-c9cbc7ced7e2",
+    "type": "numberedListItem",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "primera",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "ee25b70a-40d1-416d-8cd8-98dac78117e0",
+    "type": "numberedListItem",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "segunda",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "5fddeb5b-a7fd-4d78-861c-a20bd539155a",
+    "type": "checkListItem",
+    "props": {
+      "checked": false,
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "tarea pendiente",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "34eb31cf-c121-40f5-9c50-c165c3d2179a",
+    "type": "quote",
+    "props": {
+      "textColor": "default",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "una cita",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "556bf8cb-0d6f-4aa9-97a9-6e3410854eb9",
+    "type": "toggleListItem",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [
+      {
+        "text": "desplegable",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "82441d4c-4fa8-40df-9e41-6d633b235750",
+    "type": "callout",
+    "props": {
+      "color": "naranja",
+      "emoji": "💡"
+    },
+    "content": [
+      {
+        "text": "una llamada importante",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  },
+  {
+    "id": "65ff8eb6-f6ba-4f2a-90f7-8937f66a7fa2",
+    "type": "paragraph",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [],
+    "children": []
+  },
+  {
+    "id": "f475ce8c-c4a0-4da9-9336-4e68f95ed905",
+    "type": "divider",
+    "props": {},
+    "children": []
+  },
+  {
+    "id": "d8582f65-cf77-4d5a-b87d-443185481601",
+    "type": "equation",
+    "props": {
+      "tex": "c = \\sqrt{a^2 + b^2}"
+    },
+    "children": []
+  },
+  {
+    "id": "926cb1dd-f6ca-4cd1-a770-b538d62cab84",
+    "type": "paragraph",
+    "props": {
+      "textColor": "default",
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "content": [],
+    "children": []
+  },
+  {
+    "id": "35808d3d-e26e-4254-af6b-0daa0b1d55eb",
+    "type": "database",
+    "props": {
+      "pageId": "cmve24uan000vo71mw99k7efq",
+      "viewId": "",
+      "collectionId": "cmve24uap000xo71meojxc12y"
+    },
+    "children": []
+  },
+  {
+    "id": "780e0713-4bab-4d5e-9544-0c11373ea728",
+    "type": "image",
+    "props": {
+      "url": "/api/asset/cmve24wdk0018o71mna6u8fh0",
+      "name": "icon-192.png",
+      "caption": "",
+      "showPreview": true,
+      "textAlignment": "left",
+      "backgroundColor": "default"
+    },
+    "children": []
+  },
+  {
+    "id": "61389131-4356-4170-a1c9-6322ca83e1d2",
+    "type": "codeBlock",
+    "props": {
+      "language": "javascript"
+    },
+    "content": [
+      {
+        "text": "const x = 1;",
+        "type": "text",
+        "styles": {}
+      }
+    ],
+    "children": []
+  }
+]

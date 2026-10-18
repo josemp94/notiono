@@ -62,7 +62,17 @@ export async function compruebaApp() {
   const colab = await import(pathToFileURL(salida).href);
   const bloquesYjs = await import("../src/server/app/bloquesYjs");
 
-  // --- 1. Ida y vuelta de TODOS los tipos de bloque (sin perder ni un atributo) ---
+  // --- 1. Ida y vuelta de TODOS los tipos de bloque (sin perder ni un atributo), con el
+  //        documento escrito a mano y con los generados por el editor de la web de verdad
+  //        (scripts/fixtures-web.mjs) ---
+  const { readdirSync } = await import("node:fs");
+  for (const nombre of readdirSync(path.join(__dirname, "fixtures")).filter((f) => f.endsWith(".json"))) {
+    const doc = JSON.parse(readFileSync(path.join(__dirname, "fixtures", nombre), "utf8")) as Bloque[];
+    const { Y } = await bloquesYjs.cargarLibs();
+    const y = new Y.Doc();
+    await bloquesYjs.aplicarOpsDoc(y, [], doc as never);
+    contiene(await bloquesYjs.bloquesDeDoc(y), doc);
+  }
   {
     const { Y } = await bloquesYjs.cargarLibs();
     const doc = new Y.Doc();
