@@ -46,11 +46,11 @@ lo tiene en la web, o no tiene sentido en el teléfono: no se hace).
 - [x] 8. Reordenar favoritos («Subir/Bajar en favoritos» en la pulsación larga; `favorites.move`).
 
 ### Entrega
-- [ ] `versionCode` 7, `versionName` 2.1.0; `npm run build` + `npm run check`.
-- [ ] `./gradlew testDebugUnitTest lintRelease assembleRelease`, `--stop`.
-- [ ] Integración y capturas contra Notiono local.
-- [ ] `node scripts/publicar-apk.mjs`, copia en `~/notiono-apk/notiono-2.1.0.apk`, `apksigner` (`8c9bb7dc…cb8e9a`).
-- [ ] `docs/app-nativa.md` al día.
+- [x] `versionCode` 7, `versionName` 2.1.0; `npm run build` limpio y `npm run check` OK.
+- [x] `./gradlew testDebugUnitTest lintRelease assembleRelease`: 64 pruebas (5 se saltan sin Notiono local), 0 fallos; lint 0 errores (84 avisos de estilo: `toUri`, RTL, versiones); `--stop`.
+- [x] Contra Notiono local: integración del servidor, integración de la app (138 pulsaciones del navegador a la vez, ninguna perdida), recorrido completo y capturas.
+- [x] `node scripts/publicar-apk.mjs` (`public/notiono.apk`, `src/lib/apk.json`); copia en `~/notiono-apk/notiono-2.1.0.apk` (4 742 806 bytes, sha256 `b7e86d2c…67cebb6`); `apksigner`: `8c9bb7dc…cb8e9a`, la de siempre. Sin push ni despliegue (lo hace Dobby).
+- [x] `docs/app-nativa.md` y `docs/android.md` al día.
 
 ## Inventario (R1)
 

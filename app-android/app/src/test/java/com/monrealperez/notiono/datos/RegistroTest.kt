@@ -95,7 +95,7 @@ class RegistroTest {
         val cuerpo = r.body!!.utf8()
         assertEquals("POST", r.method)
         assertTrue(r.headers["Cookie"].orEmpty().contains("notiono_session=tok"))
-        for (t in listOf("\"entradas\"", "\"cierre\"", "\"dispositivo\"", "\"modelo\"", "\"fabricante\"", "\"android\"", "2.0.")) assertTrue("$t en $cuerpo", t in cuerpo)
+        for (t in listOf("\"entradas\"", "\"cierre\"", "\"dispositivo\"", "\"modelo\"", "\"fabricante\"", "\"android\"", com.monrealperez.notiono.BuildConfig.VERSION_NAME)) assertTrue("$t en $cuerpo", t in cuerpo)
         assertFalse(cuerpo, "Diario secreto" in cuerpo)
         assertEquals(0, s.registro.pendientes().size)
     }
