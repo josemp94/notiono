@@ -1,6 +1,7 @@
 "use client";
 
 import { createReactBlockSpec } from "@blocknote/react";
+import { configMarcador } from "./esquemaBloques";
 import { embedUrl } from "@/lib/embed";
 
 /**
@@ -8,17 +9,7 @@ import { embedUrl } from "@/lib/embed";
  * Si el enlace es un vídeo de YouTube o Vimeo, se incrusta el reproductor.
  */
 export const BookmarkBlock = createReactBlockSpec(
-  {
-    type: "bookmark",
-    propSchema: {
-      url: { default: "" },
-      title: { default: "" },
-      description: { default: "" },
-      image: { default: "" },
-      siteName: { default: "" },
-    },
-    content: "none",
-  },
+  configMarcador,
   {
     render: ({ block }) => <Bookmark {...block.props} />,
     // En Markdown y HTML exportado, un enlace normal.

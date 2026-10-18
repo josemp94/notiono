@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createReactBlockSpec } from "@blocknote/react";
+import { configLlamada } from "./esquemaBloques";
 
 /** Colores del callout: los 10 de Notion, sobre las variables --tag-* (variante clara/oscura). */
 const tinta = (v: string) => ({ bg: `var(${v})`, border: `color-mix(in srgb, var(--tag-fg) 15%, var(${v}))` });
@@ -25,14 +26,7 @@ const EMOJIS = ["💡", "📌", "⚠️", "✅", "❌", "🔥", "📝", "❓", "
  * El emoji y el color se eligen desde el propio bloque (solo si el editor es editable).
  */
 export const CalloutBlock = createReactBlockSpec(
-  {
-    type: "callout",
-    propSchema: {
-      emoji: { default: "💡" },
-      color: { default: "naranja" },
-    },
-    content: "inline",
-  },
+  configLlamada,
   {
     render: ({ block, editor, contentRef }) => (
       <Callout

@@ -877,8 +877,9 @@ import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server
 }
 
 compruebaColaboracion()
+  .then(() => import("./checkApp").then((m) => m.compruebaApp()))
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas e import de Notion");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion y app nativa (sesión, bloques ↔ Yjs)");
     process.exit(0);
   })
   .catch((e) => {

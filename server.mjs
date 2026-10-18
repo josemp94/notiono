@@ -13,7 +13,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { WebSocketServer } from "ws";
-import { attachConnection, createHocuspocus } from "./collab/dist/hocuspocus.mjs";
+import { attachConnection, createHocuspocus, puenteApp } from "./collab/dist/hocuspocus.mjs";
 
 const port = Number(process.env.PORT || 3000);
 const hostname = process.env.HOSTNAME || "0.0.0.0";
@@ -25,6 +25,9 @@ const handle = app.getRequestHandler();
 await app.prepare();
 
 const hocuspocus = createHocuspocus();
+// La app nativa escribe en las páginas a través de Next, que corre en este mismo
+// proceso: así sus cambios entran en el documento vivo (src/server/app/documento.ts).
+globalThis.__notionoColab = puenteApp(hocuspocus);
 // noServer: las conexiones llegan por el "upgrade" de nuestro propio servidor.
 const wss = new WebSocketServer({ noServer: true });
 

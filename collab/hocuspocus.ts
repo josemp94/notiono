@@ -16,6 +16,7 @@ import { Hocuspocus } from "@hocuspocus/server";
 import { Database } from "@hocuspocus/extension-database";
 import { PrismaClient } from "@prisma/client";
 import { verifyCollabToken } from "../src/server/collabToken";
+import { aplicarOpsDoc, bloquesDeDoc, cargarLibs, type BloqueBN, type OpBloque } from "../src/server/app/bloquesYjs";
 
 const db = new PrismaClient();
 
@@ -90,4 +91,35 @@ export function createHocuspocus() {
       }),
     ],
   });
+}
+
+/**
+ * Puente con Next para la app nativa (ver src/server/app/documento.ts). Next corre en
+ * este mismo proceso (server.mjs) y lo encuentra en `globalThis.__notionoColab`.
+ *
+ * Las operaciones se aplican en el documento VIVO con una conexión directa: los
+ * navegadores conectados las reciben al momento y Hocuspocus las guarda en
+ * Page.ydoc como cualquier otro cambio. Todo lo que cruza el puente es JSON o bytes:
+ * así Next no toca objetos de esta copia de yjs (mezclar copias rompe Yjs).
+ */
+export function puenteApp(hocuspocus: Hocuspocus) {
+  return {
+    async estado(pageId: string): Promise<Uint8Array | null> {
+      const doc = hocuspocus.documents.get(pageId);
+      if (!doc) return null;
+      const { Y } = await cargarLibs();
+      return Y.encodeStateAsUpdate(doc);
+    },
+    async aplicar(pageId: string, ops: OpBloque[], semilla: BloqueBN[]): Promise<BloqueBN[]> {
+      const conexion = await hocuspocus.openDirectConnection(pageId, { app: true });
+      try {
+        const doc = conexion.document!;
+        await aplicarOpsDoc(doc, ops, semilla, { source: "local", context: { app: true } });
+        return await bloquesDeDoc(doc);
+      } finally {
+        // Guarda ya (no al rato): la copia legible que escribe Next sale de aquí.
+        await conexion.disconnect();
+      }
+    },
+  };
 }

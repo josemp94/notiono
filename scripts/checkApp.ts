@@ -1,0 +1,208 @@
+/**
+ * Pruebas del servidor para la app nativa (las llama scripts/check.ts).
+ *
+ * Lo que se prueba es lo que va a producción: el puente de colaboración se compila
+ * con esbuild igual que `npm run build:collab` y se carga ese .mjs, con el mismo
+ * Hocuspocus real y un cliente Yjs conectado por WebSocket, como un navegador.
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+type Bloque = { id: string; type: string; props?: Record<string, unknown>; content?: unknown; children?: Bloque[] };
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** ¿Todo lo de `esperado` está en `real` con el mismo valor? (lo demás —defaults— puede sobrar). */
+function contiene(real: unknown, esperado: unknown, ruta = "$"): void {
+  if (esperado === null || typeof esperado !== "object") {
+    // null y undefined son lo mismo: BlockNote deja undefined (anchos de columna sin
+    // fijar) y al guardar pasan a null (jsonLimpio).
+    assert.deepEqual(real ?? null, esperado ?? null, `distinto en ${ruta}`);
+    return;
+  }
+  if (Array.isArray(esperado)) {
+    assert.ok(Array.isArray(real), `${ruta} debería ser una lista`);
+    assert.equal((real as unknown[]).length, esperado.length, `${ruta}: nº de elementos`);
+    esperado.forEach((e, i) => contiene((real as unknown[])[i], e, `${ruta}[${i}]`));
+    return;
+  }
+  assert.ok(real && typeof real === "object", `${ruta} debería ser un objeto`);
+  for (const [k, v] of Object.entries(esperado)) contiene((real as Record<string, unknown>)[k], v, `${ruta}.${k}`);
+}
+
+const buscaBloque = (bs: Bloque[], id: string): Bloque | undefined => {
+  for (const b of bs) {
+    if (b.id === id) return b;
+    const h = buscaBloque(b.children ?? [], id);
+    if (h) return h;
+  }
+};
+
+const textoDe = (b: Bloque | undefined) =>
+  ((b?.content as { text?: string }[]) ?? []).map((c) => c.text ?? "").join("");
+
+export async function compruebaApp() {
+  const todos = JSON.parse(readFileSync(path.join(__dirname, "fixtures/bloques-todos.json"), "utf8")) as Bloque[];
+
+  // El módulo del puente, compilado como en producción.
+  const esbuild = await import("esbuild");
+  // Junto al de verdad (collab/dist, fuera de git): así resuelve node_modules igual.
+  const salida = path.join(__dirname, "../collab/dist/hocuspocus.check.mjs");
+  await esbuild.build({
+    entryPoints: [path.join(__dirname, "../collab/hocuspocus.ts")],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node22",
+    packages: "external",
+    outfile: salida,
+    logLevel: "silent",
+  });
+  const colab = await import(pathToFileURL(salida).href);
+  const bloquesYjs = await import("../src/server/app/bloquesYjs");
+
+  // --- 1. Ida y vuelta de TODOS los tipos de bloque (sin perder ni un atributo) ---
+  {
+    const { Y } = await bloquesYjs.cargarLibs();
+    const doc = new Y.Doc();
+    await bloquesYjs.aplicarOpsDoc(doc, [], todos as never);
+    const ida = (await bloquesYjs.bloquesDeDoc(doc)) as Bloque[];
+    contiene(ida, todos);
+    // Y estable: otra vuelta da exactamente lo mismo.
+    const doc2 = new Y.Doc();
+    await bloquesYjs.aplicarOpsDoc(doc2, [], ida as never);
+    assert.deepEqual(await bloquesYjs.bloquesDeDoc(doc2), ida);
+    // Cada bloque reescrito por la app (upsert sobre sí mismo) se queda igual.
+    const plano: Bloque[] = [];
+    const aplana = (bs: Bloque[]) => bs.forEach((b) => (plano.push(b), aplana(b.children ?? [])));
+    aplana(ida);
+    await bloquesYjs.aplicarOpsDoc(doc2, plano.map((b) => ({ op: "upsert" as const, block: b })));
+    assert.deepEqual(await bloquesYjs.bloquesDeDoc(doc2), ida, "reescribir cada bloque tal cual no debe cambiar nada");
+    // Las mismas operaciones sobre JSON (cuerpos de fila) dan lo mismo.
+    assert.deepEqual(bloquesYjs.aplicarOpsJson(ida as never, plano.map((b) => ({ op: "upsert" as const, block: b }))), ida);
+  }
+
+  // --- 2. Comentarios en línea: reescribir el bloque no se los lleva ---
+  {
+    assert.deepEqual([...bloquesYjs.casaCaracteres("hola mundo", "¡hola, mundo!")], [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    assert.deepEqual(bloquesYjs.mapeaTramo(bloquesYjs.casaCaracteres("hola mundo bonito", "¡hola mundo bonito!"), 5, 10), [6, 11]);
+    // Si se borra todo el texto comentado, el comentario no tiene dónde quedarse.
+    assert.equal(bloquesYjs.mapeaTramo(bloquesYjs.casaCaracteres("hola mundo", "hola"), 5, 10), null);
+
+    const { Y } = await bloquesYjs.cargarLibs();
+    const doc = new Y.Doc();
+    await bloquesYjs.aplicarOpsDoc(doc, [], [{ id: "c1", type: "paragraph", content: "hola mundo bonito" }] as never);
+    const texto = () => (((doc.getXmlFragment("document-store").get(0) as never as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlText>;
+    // Así marca el navegador un comentario (la marca «comment» de BlockNote).
+    texto().format(5, 5, { "comment--abcdefgh": { orphan: false, threadId: "hilo1" } });
+    await bloquesYjs.aplicarOpsDoc(doc, [
+      { op: "upsert", block: { id: "c1", type: "paragraph", content: [{ type: "text", text: "¡hola mundo bonito!", styles: { bold: true } }] } },
+    ]);
+    const delta = texto().toDelta() as { insert: string; attributes?: Record<string, unknown> }[];
+    const comentado = delta.filter((d) => Object.keys(d.attributes ?? {}).some((k) => k.startsWith("comment")));
+    assert.equal(comentado.map((d) => d.insert).join(""), "mundo", "el comentario debe seguir sobre «mundo»");
+    assert.equal(delta.map((d) => d.insert).join(""), "¡hola mundo bonito!");
+    assert.ok(delta.every((d) => d.attributes?.bold), "y el estilo nuevo, aplicado");
+  }
+
+  // --- 3. Operaciones: insertar, mover, convertir y borrar, también sobre JSON ---
+  {
+    const base: Bloque[] = [
+      { id: "a", type: "paragraph", content: "uno" },
+      { id: "b", type: "paragraph", content: "dos", children: [{ id: "b1", type: "paragraph", content: "hijo" }] },
+    ];
+    const ops = [
+      { op: "upsert", block: { id: "n", type: "paragraph", content: "nuevo" }, parentId: "b", afterId: "b1" },
+      { op: "upsert", block: { id: "p", type: "paragraph", content: "primero" }, parentId: null, afterId: null },
+      { op: "move", id: "a", parentId: null, afterId: "b" },
+      { op: "upsert", block: { id: "b", type: "heading", props: { level: 2 }, content: "dos" } },
+      { op: "delete", id: "b1" },
+      { op: "move", id: "b", parentId: "n" }, // dentro de su propio hijo: no se hace
+      { op: "upsert", block: { id: "z", type: "paragraph", content: "huérfano" }, afterId: "no-existe" },
+      { op: "delete", id: "no-existe" },
+    ] as never;
+    const { Y } = await bloquesYjs.cargarLibs();
+    const doc = new Y.Doc();
+    await bloquesYjs.aplicarOpsDoc(doc, [], base as never);
+    await bloquesYjs.aplicarOpsDoc(doc, ops);
+    const r = (await bloquesYjs.bloquesDeDoc(doc)) as Bloque[];
+    const forma = (bs: Bloque[]): unknown => bs.map((b) => [b.id, b.type, ...(b.children?.length ? [forma(b.children)] : [])]);
+    const esperado = [["p", "paragraph"], ["b", "heading", [["n", "paragraph"]]], ["a", "paragraph"], ["z", "paragraph"]];
+    assert.deepEqual(forma(r), esperado);
+    assert.equal(textoDe(buscaBloque(r, "b")), "dos");
+    // Sobre JSON, lo mismo.
+    const j = bloquesYjs.aplicarOpsJson(base as never, ops) as Bloque[];
+    assert.deepEqual(forma(j), esperado);
+  }
+
+  // --- 4. Con Hocuspocus de verdad: un navegador conectado recibe lo que escribe la
+  //        app, y lo que escribe él a la vez en otro bloque no se pierde ---
+  {
+    const { createServer } = await import("node:http");
+    const { WebSocketServer } = await import("ws");
+    const { Hocuspocus } = await import("@hocuspocus/server");
+    const { HocuspocusProvider } = await import("@hocuspocus/provider");
+    const { Y } = await bloquesYjs.cargarLibs();
+
+    const { Database } = await import("@hocuspocus/extension-database");
+    // Como en producción, el estado se guarda (aquí en memoria en vez de en Page.ydoc).
+    const guardado = new Map<string, Uint8Array>();
+    const hocuspocus = new Hocuspocus({
+      extensions: [
+        new Database({
+          fetch: async ({ documentName }) => guardado.get(documentName) ?? null,
+          store: async ({ documentName, state }) => void guardado.set(documentName, state),
+        }),
+      ],
+    });
+    const puente = colab.puenteApp(hocuspocus);
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((_req, res) => res.end("ok"));
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => colab.attachConnection(hocuspocus, ws, request));
+    });
+    await new Promise<void>((listo) => server.listen(0, "127.0.0.1", listo));
+    const { port } = server.address() as { port: number };
+
+    // La app estrena la página (documento vacío + su copia legible como semilla).
+    const semilla = [
+      { id: "x", type: "paragraph", content: "bloque del navegador" },
+      { id: "y", type: "paragraph", content: "bloque de la app" },
+    ];
+    const tras = (await puente.aplicar("pagina-app", [], semilla)) as Bloque[];
+    assert.deepEqual(tras.map((b) => textoDe(b)), ["bloque del navegador", "bloque de la app"]);
+
+    const doc = new Y.Doc();
+    const navegador = new HocuspocusProvider({ url: `ws://127.0.0.1:${port}`, name: "pagina-app", document: doc });
+    await Promise.race([
+      new Promise<void>((ok) => navegador.on("synced", () => ok())),
+      espera(5000).then(() => {
+        throw new Error("el navegador de prueba no sincroniza");
+      }),
+    ]);
+    assert.deepEqual(((await bloquesYjs.bloquesDeDoc(doc)) as Bloque[]).map((b) => textoDe(b)), ["bloque del navegador", "bloque de la app"]);
+
+    // A la vez: el navegador escribe en «x» y la app reescribe «y» (sin esperarse).
+    const textoX = (((doc.getXmlFragment("document-store").get(0) as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlElement>).get(0) as InstanceType<typeof Y.XmlText>;
+    textoX.insert(0, "¡");
+    const app = puente.aplicar("pagina-app", [
+      { op: "upsert", block: { id: "y", type: "paragraph", content: "la app escribió esto" } },
+      { op: "upsert", block: { id: "w", type: "checkListItem", props: { checked: true }, content: "tarea nueva" }, afterId: "y" },
+    ], []);
+    textoX.insert(textoX.length, "!");
+    const deLaApp = (await app) as Bloque[];
+    assert.equal(textoDe(buscaBloque(deLaApp, "y")), "la app escribió esto");
+    await espera(400);
+    const enNavegador = (await bloquesYjs.bloquesDeDoc(doc)) as Bloque[];
+    assert.deepEqual(enNavegador.map((b) => textoDe(b)), ["¡bloque del navegador!", "la app escribió esto", "tarea nueva"], "el navegador recibe lo de la app y conserva lo suyo");
+    assert.equal(buscaBloque(enNavegador, "w")?.props?.checked, true);
+    // Y el servidor tiene lo de los dos (lo que se guardaría en Page.ydoc).
+    const enServidor = await bloquesYjs.bloquesDeEstado((await puente.estado("pagina-app"))!);
+    assert.deepEqual(enServidor, enNavegador);
+
+    navegador.destroy();
+    await espera(100);
+    server.close();
+  }
+}

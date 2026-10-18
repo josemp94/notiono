@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createReactBlockSpec } from "@blocknote/react";
+import { configEcuacion } from "./esquemaBloques";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 
@@ -13,13 +14,7 @@ import "katex/dist/katex.min.css";
  * falta, chip inline de solo lectura + edición reemplazando el nodo.
  */
 export const EquationBlock = createReactBlockSpec(
-  {
-    type: "equation",
-    propSchema: {
-      tex: { default: "" },
-    },
-    content: "none",
-  },
+  configEcuacion,
   {
     render: ({ block, editor }) => (
       <Ecuacion

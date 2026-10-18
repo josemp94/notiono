@@ -8,11 +8,9 @@ import { rankAtEnd, rankBetween } from "@/lib/fractional";
 import { TEMPLATES } from "@/lib/templates";
 import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
-import { sendPush } from "../push";
 import { dispatchWebhooks } from "../webhooks";
-import { createPage } from "../services/pages";
-import { jsonLimpio } from "../jsonLimpio";
-import { alcanza, exigeNivel, filtraQuienesVen, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
+import { createPage, guardaContenidoPagina } from "../services/pages";
+import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
 const TRASH_TTL_DAYS = 30;
@@ -436,49 +434,8 @@ export const pagesRouter = router({
       });
       if (!page) throw new TRPCError({ code: "NOT_FOUND" });
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "edit");
-      // ponytail: throttle simple — solo se crea versión si la última tiene más de 2 min;
-      // dentro de la ventana se omite (la versión reciente ya cubre ese estado).
-      const last = await ctx.db.version.findFirst({
-        where: { pageId: input.id },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-      });
-      if (!last || Date.now() - last.createdAt.getTime() > 2 * 60_000) {
-        await ctx.db.version.create({
-          data: { pageId: input.id, snapshot: (page.content ?? []) as Prisma.InputJsonValue, authorId: ctx.user.id },
-        });
-      }
-      const saved = await ctx.db.page.update({
-        where: { id: input.id },
-        data: { content: jsonLimpio(input.content) },
-        select: { id: true, updatedAt: true, title: true },
-      });
-      // Avisa a quien sigue la página (menos al que edita). El autosave dispara
-      // esto sin parar: el anti-duplicados de siempre (una sin leer del mismo
-      // actor en la misma página basta) lo deja en un aviso por sesión de edición.
-      const seguidores = await ctx.db.pageFollow.findMany({
-        where: { pageId: input.id, userId: { not: ctx.user.id } },
-        select: { userId: true },
-      });
-      const pendientes: string[] = [];
-      for (const { userId } of seguidores) {
-        const dup = await ctx.db.notification.findFirst({
-          where: { userId, pageId: input.id, actorId: ctx.user.id, type: "follow", read: false },
-          select: { id: true },
-        });
-        if (!dup) pendientes.push(userId);
-      }
-      // Quien siguió la página antes de que se restringiera deja de recibir avisos.
-      for (const userId of await filtraQuienesVen(ctx.db, ctx.workspace.id, input.id, pendientes)) {
-        await ctx.db.notification.create({
-          data: { userId, workspaceId: ctx.workspace.id, type: "follow", pageId: input.id, actorId: ctx.user.id },
-        });
-        sendPush(userId, {
-          title: `${ctx.user.name || ctx.user.email} ha editado ${saved.title || "Sin título"}`,
-          body: "Sigues esta página.",
-          url: `/p/${input.id}`,
-        });
-      }
+      // Versión, guardado y avisos a quien sigue la página: lo comparte con la app nativa.
+      const saved = await guardaContenidoPagina(ctx.db, { workspaceId: ctx.workspace.id, user: ctx.user }, page, input.content);
       return { id: saved.id, updatedAt: saved.updatedAt };
     }),
 

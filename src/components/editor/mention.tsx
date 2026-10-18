@@ -13,19 +13,12 @@ import { CalloutBlock } from "./calloutBlock";
 import { EquationBlock } from "./equationBlock";
 import { DatabaseBlock, PublicBaseContext } from "./databaseBlock";
 import { TocBlock } from "./tocBlock";
+import { configMencion, configMencionFecha, configMencionPersona } from "./esquemaBloques";
 
 /** Chip de mención inline: icono + título de la página. Enlaza a /p/<id> o, en
  *  una página pública, a la subpágina pública (/s/<token>/<id>). */
 const Mention = createReactInlineContentSpec(
-  {
-    type: "mention",
-    propSchema: {
-      pageId: { default: "" },
-      title: { default: "" },
-      icon: { default: "" },
-    },
-    content: "none",
-  },
+  configMencion,
   {
     render: ({ inlineContent }) => (
       <MentionChip inlineContent={inlineContent} />
@@ -48,14 +41,7 @@ function MentionChip({ inlineContent }: { inlineContent: { props: { pageId: stri
 
 /** Chip de mención de persona: @nombre en azul (distinto de las páginas, en naranja de marca). */
 const PersonMention = createReactInlineContentSpec(
-  {
-    type: "personMention",
-    propSchema: {
-      userId: { default: "" },
-      name: { default: "" },
-    },
-    content: "none",
-  },
+  configMencionPersona,
   {
     render: ({ inlineContent }) => (
       <span className="whitespace-nowrap rounded bg-sky-500/15 px-1 font-medium text-sky-600">
@@ -94,11 +80,7 @@ function etiquetaFecha(fecha: string): string {
  * dirá «Hoy» mañana, como en Notion.
  */
 const DateMention = createReactInlineContentSpec(
-  {
-    type: "dateMention",
-    propSchema: { fecha: { default: "" } },
-    content: "none",
-  },
+  configMencionFecha,
   {
     render: ({ inlineContent }) => (
       <span

@@ -8,6 +8,7 @@ import { apiTokensRouter } from "./routers/apiTokens";
 import { webhooksRouter } from "./routers/webhooks";
 import { pushRouter } from "./routers/push";
 import { notificationsRouter } from "./routers/notifications";
+import { appNativaRouter } from "./routers/app";
 
 export const appRouter = router({
   auth: authRouter,
@@ -20,6 +21,8 @@ export const appRouter = router({
   webhooks: webhooksRouter,
   push: pushRouter,
   notifications: notificationsRouter,
+  // Lo que la app nativa de Android necesita y la web hace en el navegador.
+  app: appNativaRouter,
   me: workspaceProcedure.query(({ ctx }) => ({
     user: { id: ctx.user.id, name: ctx.user.name, email: ctx.user.email },
     workspace: { id: ctx.workspace.id, name: ctx.workspace.name },

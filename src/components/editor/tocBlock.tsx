@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createReactBlockSpec, useEditorChange } from "@blocknote/react";
+import { configIndice } from "./esquemaBloques";
 import type { BlockNoteEditor } from "@blocknote/core";
 
 type Heading = { id: string; level: number; text: string };
@@ -36,7 +37,7 @@ function headingsOf(editor: any): Heading[] {
 
 /** Bloque "Tabla de contenidos": índice de los encabezados de la página, clicable. */
 export const TocBlock = createReactBlockSpec(
-  { type: "toc", propSchema: {}, content: "none" },
+  configIndice,
   {
     render: ({ editor }) => <Toc editor={editor} />,
     // En Markdown y en el HTML exportado, una lista de enlaces internos.

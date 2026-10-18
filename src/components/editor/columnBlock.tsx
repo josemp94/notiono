@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { createExtension } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
+import { configColumna, configListaColumnas } from "./esquemaBloques";
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { DecorationSet } from "prosemirror-view";
 import {
@@ -113,7 +114,7 @@ function ListaColumnas({ block, editor }: { block: { children?: { id: string }[]
 }
 
 export const ColumnListBlock = createReactBlockSpec(
-  { type: "columnList", propSchema: {}, content: "none" },
+  configListaColumnas,
   {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render: ({ block, editor }) => <ListaColumnas block={block as any} editor={editor as any} />,
@@ -181,7 +182,7 @@ function Columna({ block, editor }: { block: { id: string; props: { ancho?: numb
 }
 
 export const ColumnBlock = createReactBlockSpec(
-  { type: "column", propSchema: { ancho: { default: 1 } }, content: "none" },
+  configColumna,
   {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render: ({ block, editor }) => <Columna block={block as any} editor={editor as any} />,

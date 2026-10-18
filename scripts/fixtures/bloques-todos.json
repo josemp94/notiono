@@ -1,0 +1,67 @@
+[
+  { "id": "b-h1", "type": "heading", "props": { "level": 1, "textColor": "red", "backgroundColor": "default", "textAlignment": "center", "isToggleable": false }, "content": [{ "type": "text", "text": "Título grande", "styles": { "bold": true } }], "children": [] },
+  { "id": "b-h2t", "type": "heading", "props": { "level": 2, "textColor": "default", "backgroundColor": "yellow", "textAlignment": "left", "isToggleable": true }, "content": [{ "type": "text", "text": "Plegable", "styles": {} }], "children": [
+    { "id": "b-h2t-1", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "dentro del plegable", "styles": {} }], "children": [] }
+  ] },
+  { "id": "b-h3", "type": "heading", "props": { "level": 3, "textColor": "default", "backgroundColor": "default", "textAlignment": "left", "isToggleable": false }, "content": [{ "type": "text", "text": "Nivel 3", "styles": {} }], "children": [] },
+  { "id": "b-p", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "justify" }, "content": [
+    { "type": "text", "text": "negrita ", "styles": { "bold": true } },
+    { "type": "text", "text": "cursiva ", "styles": { "italic": true } },
+    { "type": "text", "text": "subrayado ", "styles": { "underline": true } },
+    { "type": "text", "text": "tachado ", "styles": { "strike": true } },
+    { "type": "text", "text": "código", "styles": { "code": true } },
+    { "type": "text", "text": " rojo", "styles": { "textColor": "red" } },
+    { "type": "text", "text": " fondo", "styles": { "backgroundColor": "blue", "bold": true, "italic": true } },
+    { "type": "text", "text": " ", "styles": {} },
+    { "type": "link", "href": "https://notion.so", "content": [{ "type": "text", "text": "un enlace", "styles": { "bold": true } }] },
+    { "type": "text", "text": " y ", "styles": {} },
+    { "type": "mention", "props": { "pageId": "pag123", "title": "Otra página", "icon": "📄" } },
+    { "type": "text", "text": " ", "styles": {} },
+    { "type": "personMention", "props": { "userId": "usr1", "name": "Ana" } },
+    { "type": "text", "text": " ", "styles": {} },
+    { "type": "dateMention", "props": { "fecha": "2026-10-20" } }
+  ], "children": [] },
+  { "id": "b-ul", "type": "bulletListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "viñeta", "styles": {} }], "children": [
+    { "id": "b-ul-1", "type": "bulletListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "anidada", "styles": {} }], "children": [] }
+  ] },
+  { "id": "b-ol", "type": "numberedListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left", "start": 3 }, "content": [{ "type": "text", "text": "numerada desde 3", "styles": {} }], "children": [] },
+  { "id": "b-ol2", "type": "numberedListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "siguiente", "styles": {} }], "children": [] },
+  { "id": "b-ck", "type": "checkListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left", "checked": true }, "content": [{ "type": "text", "text": "hecha", "styles": {} }], "children": [] },
+  { "id": "b-ck2", "type": "checkListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left", "checked": false }, "content": [{ "type": "text", "text": "pendiente", "styles": {} }], "children": [] },
+  { "id": "b-tg", "type": "toggleListItem", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "desplegable", "styles": {} }], "children": [
+    { "id": "b-tg-1", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [], "children": [] }
+  ] },
+  { "id": "b-q", "type": "quote", "props": { "textColor": "default", "backgroundColor": "default" }, "content": [{ "type": "text", "text": "Una cita", "styles": { "italic": true } }], "children": [] },
+  { "id": "b-code", "type": "codeBlock", "props": { "language": "python" }, "content": [{ "type": "text", "text": "def f(x):\n    return x * 2", "styles": {} }], "children": [] },
+  { "id": "b-div", "type": "divider", "props": {}, "children": [] },
+  { "id": "b-call", "type": "callout", "props": { "emoji": "🔥", "color": "rojo" }, "content": [{ "type": "text", "text": "Llamada ", "styles": {} }, { "type": "text", "text": "importante", "styles": { "bold": true } }], "children": [] },
+  { "id": "b-img", "type": "image", "props": { "textAlignment": "center", "backgroundColor": "default", "name": "foto.png", "url": "/api/asset/abc", "caption": "Pie de foto", "showPreview": true, "previewWidth": 320 }, "children": [] },
+  { "id": "b-vid", "type": "video", "props": { "textAlignment": "left", "backgroundColor": "default", "name": "v.mp4", "url": "/api/asset/vid", "caption": "", "showPreview": true, "previewWidth": 512 }, "children": [] },
+  { "id": "b-aud", "type": "audio", "props": { "backgroundColor": "default", "name": "a.mp3", "url": "/api/asset/aud", "caption": "audio", "showPreview": true }, "children": [] },
+  { "id": "b-file", "type": "file", "props": { "backgroundColor": "default", "name": "contrato.pdf", "url": "/api/asset/pdf", "caption": "" }, "children": [] },
+  { "id": "b-tab", "type": "table", "props": { "textColor": "default" }, "content": { "type": "tableContent", "columnWidths": [150, null, 90], "headerRows": 1, "rows": [
+    { "cells": [
+      { "type": "tableCell", "content": [{ "type": "text", "text": "Nombre", "styles": { "bold": true } }], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "gray", "textColor": "default", "textAlignment": "left" } },
+      { "type": "tableCell", "content": [{ "type": "text", "text": "Edad", "styles": {} }], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "default", "textColor": "default", "textAlignment": "center" } },
+      { "type": "tableCell", "content": [], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "default", "textColor": "red", "textAlignment": "right" } }
+    ] },
+    { "cells": [
+      { "type": "tableCell", "content": [{ "type": "text", "text": "Ana", "styles": {} }], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "default", "textColor": "default", "textAlignment": "left" } },
+      { "type": "tableCell", "content": [{ "type": "text", "text": "34", "styles": {} }], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "default", "textColor": "default", "textAlignment": "left" } },
+      { "type": "tableCell", "content": [{ "type": "link", "href": "https://x.es", "content": [{ "type": "text", "text": "web", "styles": {} }] }], "props": { "colspan": 1, "rowspan": 1, "backgroundColor": "default", "textColor": "default", "textAlignment": "left" } }
+    ] }
+  ] }, "children": [] },
+  { "id": "b-bm", "type": "bookmark", "props": { "url": "https://www.youtube.com/watch?v=abc", "title": "Vídeo", "description": "Desc", "image": "https://img/x.jpg", "siteName": "YouTube" }, "children": [] },
+  { "id": "b-eq", "type": "equation", "props": { "tex": "c = \\sqrt{a^2 + b^2}" }, "children": [] },
+  { "id": "b-toc", "type": "toc", "props": {}, "children": [] },
+  { "id": "b-cols", "type": "columnList", "props": {}, "children": [
+    { "id": "b-col1", "type": "column", "props": { "ancho": 1.5 }, "children": [
+      { "id": "b-col1-p", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "izquierda", "styles": {} }], "children": [] }
+    ] },
+    { "id": "b-col2", "type": "column", "props": { "ancho": 0.5 }, "children": [
+      { "id": "b-col2-p", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [{ "type": "text", "text": "derecha", "styles": {} }], "children": [] }
+    ] }
+  ] },
+  { "id": "b-db", "type": "database", "props": { "collectionId": "col1", "pageId": "pagdb", "viewId": "vista2" }, "children": [] },
+  { "id": "b-fin", "type": "paragraph", "props": { "textColor": "default", "backgroundColor": "default", "textAlignment": "left" }, "content": [], "children": [] }
+]

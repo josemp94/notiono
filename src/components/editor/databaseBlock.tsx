@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 import dynamic from "next/dynamic";
 import { createReactBlockSpec } from "@blocknote/react";
+import { configBaseDatos } from "./esquemaBloques";
 
 // Import dinámico: rompe el ciclo schema → Database → TableView → RecordPanel → schema
 // y deja las vistas de BD fuera del bundle de páginas que no embeben ninguna.
@@ -105,15 +106,7 @@ function EmbeddedDatabase({
 
 /** Bloque "database": una BD real embebida en el cuerpo de la página (Notion inline database). */
 export const DatabaseBlock = createReactBlockSpec(
-  {
-    type: "database",
-    propSchema: {
-      collectionId: { default: "" },
-      pageId: { default: "" }, // página contenedora oculta (embedded=true) de la que cuelga la Collection
-      viewId: { default: "" }, // vista que muestra el bloque (las vistas enlazadas recuerdan la suya)
-    },
-    content: "none",
-  },
+  configBaseDatos,
   {
     render: ({ block, editor }) => (
       <EmbeddedDatabase
