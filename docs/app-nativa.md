@@ -27,7 +27,7 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 ### F4 · App: esqueleto
 - [x] Proyecto Gradle `app-android/` (Kotlin DSL + catálogo), firma desde `~/notiono-apk/firma.properties`.
-- [ ] Tema (marca, claro/oscuro), arranque, edge-to-edge, atrás predictivo, icono adaptativo.
+- [x] Tema (marca, claro/oscuro), arranque, edge-to-edge, atrás predictivo, icono adaptativo.
 - [x] Red: cliente tRPC/superjson, sesión (Custom Tab + PKCE), caché sin conexión y cola de cambios.
 - [x] Navegación: panel lateral con el árbol, Inicio, Buscar, Mis tareas, Bandeja, Ajustes, Papelera, Plantillas, página (cabecera, menú «⋯», comentarios, historial, enlaces entrantes, publicar, mover).
 
@@ -48,15 +48,26 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] Nota (casillas marcables), Lista de BD (casilla y «+»), Nota rápida; configuración al añadirlos, refresco cada 30 min, al cambiar algo en la app y con botón.
 
 ### F9 · Verificación
-- [ ] `npm run build` y `npm run check`.
-- [ ] Pruebas JVM (fixtures reales del editor web).
-- [ ] Integración contra Notiono local (PGlite + `server.mjs`).
-- [ ] Capturas Roborazzi revisadas (claro/oscuro, 390 dp).
-- [ ] `testDebugUnitTest`, `lintRelease`, `assembleRelease`, `apksigner`, `aapt2 dump badging`; APK en `~/notiono-apk/notiono-2.0.0.apk`.
+- [x] `npm run build` y `npm run check`.
+- [x] Pruebas JVM (fixtures reales del editor web): 19 sin servidor, 0 fallos (las 3 de integración y capturas se saltan sin Notiono local y pasan con él).
+- [x] Integración contra Notiono local (PGlite + `server.mjs`): la del servidor y la de la app en Kotlin con un cliente Yjs a la vez.
+- [x] Capturas Roborazzi revisadas (claro/oscuro, 390 dp): 21 por modo, con widgets.
+- [x] `testDebugUnitTest`, `lintRelease` (0 errores), `assembleRelease`, `apksigner` (misma firma que la TWA), `aapt2 dump badging` (`com.monrealperez.notiono` 3 / 2.0.0, min 26, target 36); APK en `~/notiono-apk/notiono-2.0.0.apk`.
 
 ### F10 · Documentación y entrega
-- [ ] `npm run apk:publicar` adaptado (sin publicar).
-- [ ] CLAUDE.md, `docs/android.md`, este fichero.
+- [x] `npm run apk:publicar` adaptado (sin publicar): versión de `build.gradle.kts` y se niega si el `versionCode` no sube.
+- [x] CLAUDE.md, `docs/android.md`, este fichero.
+
+## Estado final (18-oct-2026)
+
+Hecha y comprobada en local; **sin desplegar ni publicar**. Para ponerla en marcha:
+desplegar el servidor (lleva la migración `20261018120000_sesion_app_nativa`) y luego
+`npm run apk:publicar` con el APK firmado, commit y otro despliegue (ver `docs/android.md`).
+
+Pendiente, a propósito: flechas de dependencias del Cronograma, configurar las acciones
+del campo Botón (se hace en la web), hilos de comentarios en línea (se conservan pero la
+app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuevas exigen
+compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
 
@@ -119,3 +130,26 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - **Comentarios en línea**: viven como marca `comment` en el texto Yjs y `docToBlocks` la
   ignora. Al reescribir un bloque desde la app se vuelven a poner sobre el texto que no
   cambió (si no, el diff los quitaría).
+
+- **Integración de la APP** (`scripts/integracion-android.ts` + `IntegracionTest`): el
+  arnés en TS levanta el SSO falso, prepara una página y deja un cliente Yjs tecleando en
+  un bloque cada 150 ms; mientras, la prueba Kotlin (capa de red, `EstadoEditor` y
+  `Sincro` de la app) entra con PKCE, crea página, BD y fila, busca con el motor de la
+  web y edita otro bloque. Comprobado 18-oct: 57 pulsaciones del navegador a la vez,
+  ninguna perdida, y lo de la app llega al navegador. (El arnés lanza Gradle con `spawn`
+  asíncrono: con `spawnSync` se bloqueaba su propio SSO.)
+- **Capturas** (`scripts/capturas-android.ts` + `CapturasTest`, Roborazzi con gráficos
+  nativos de Robolectric): una persona nueva por pasada (espacio limpio), datos sembrados
+  por tRPC desde la propia prueba y la app ENTERA (`Principal`) recorrida como un
+  usuario: por destinos (páginas, cada vista con `?v=`, ficha) y pulsando la barra y el
+  panel. 21 capturas por modo, revisadas a mano. Lo que enseñaron y se arregló: el
+  cronograma abría en el día 1 (ahora en hoy), barras de la gráfica sin valor, «+ Fila /
+  + Columna» encima de la cabecera de la tabla, interlineado doble en textos de 14 sp
+  (alturas de línea en sp en vez de em), el campo de Buscar desbordaba la barra, listas
+  numeradas del widget con «–».
+- **Widgets en pruebas**: `GlanceRemoteViews` + `RemoteViews.apply`. Las listas
+  (`LazyColumn` → `setRemoteAdapter`) **solo se aplican si el padre es un
+  `AppWidgetHostView`**; con un `FrameLayout` salen vacías sin error. `WidgetsTest` lo
+  comprueba (cuenta las filas del adaptador) antes de fotografiar.
+- **Enlaces `?v=`**: como en la web, `/p/<id>?v=<vista>` abre esa vista.
+- **Accesibilidad**: los botones de solo icono (`BotonIcono`) dicen qué hacen a TalkBack.

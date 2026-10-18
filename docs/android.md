@@ -1,75 +1,80 @@
 # La app de Android
 
-Notiono en el móvil es un **APK que por dentro es Chrome** abriendo la misma web, sin
-barra de direcciones ni pestañas (una TWA: *Trusted Web Activity*). Es la forma
-estándar de empaquetar una web instalable como app, y la que usan bastantes apps de
-la Play Store que uno jura que son nativas.
+Desde la 2.0.0 Notiono en el móvil es una **app nativa** (Kotlin + Jetpack Compose,
+Material 3), en `app-android/`. Ya no es Chrome abriendo la web: las pantallas, el
+editor de bloques, las bases de datos y los widgets están hechos para Android y le
+piden los datos al mismo servidor, por los mismos procedimientos tRPC que la web.
 
-Lo importante de entender: **el APK no lleva la aplicación dentro**. Lleva el nombre,
-el icono y la dirección. Todo lo demás —el editor, las bases de datos, la edición
-simultánea— sigue viviendo en el NAS. Por eso:
+La única web que queda dentro es el **inicio de sesión**: el SSO de Synology se abre
+en una pestaña del sistema (Custom Tab), como hacen las apps nativas con sus
+logins, y al terminar el servidor vuelve a la app con `notiono://auth?code=…`, que la
+app canjea por una sesión con PKCE (`/api/app/sesion`). Solo pasa la primera vez.
 
-- **Cuando despliegas la web, la app del móvil se actualiza sola.** No hay que
-  reinstalar nada ni volver a compilar el APK.
-- Solo hay que rehacer el APK si cambia el **nombre, el icono, el color o el
-  dominio**.
-- Y por eso mismo, sin conexión al NAS la app abre lo que tuviera guardado el
-  navegador, igual que la web.
+El diseño y las decisiones (cómo escribe en el documento vivo de Yjs, cómo funciona
+sin conexión…) están en `docs/app-nativa.md`.
+
+La TWA anterior (`android/`, la 1.1.0) sigue en el repo como referencia, pero ya no
+se publica.
+
+## Qué cambia respecto a la TWA
+
+- **Las actualizaciones ya no son automáticas al desplegar.** Las pantallas viven
+  dentro del APK, así que una función nueva de la app es un APK nuevo. Los datos sí
+  son siempre los del servidor. La app mira al arrancar `GET /api/app/version` y, si
+  hay una versión con `versionCode` mayor, ofrece bajarla e instalarla encima
+  (Ajustes → «Buscar actualizaciones» hace lo mismo a mano).
+- **Funciona sin conexión**: lo último que se abrió se ve, y lo que se cambia sin red
+  se guarda en una cola y se manda al volver (WorkManager).
+- **Widgets** de escritorio: Nota, Lista de una base de datos y Nota rápida.
+- **«Compartir con Notiono»** desde cualquier app (texto, enlaces, imágenes).
 
 ## Cómo se la instala la familia
 
-**Ajustes → App de Android → Descargar el APK.** El APK va dentro del despliegue
-(`public/notiono.apk`), así que el que se baja cada uno es el de la versión que hay
-puesta y nadie tiene que ir pasándoselo por WhatsApp. Al abrirlo, Android pide
-permiso para instalar algo que no viene de su tienda: es lo normal fuera de Play
-Store.
+**Ajustes → App de Android → Descargar el APK** (en la web), o desde la propia app si
+ya tienen una versión. El APK va dentro del despliegue (`public/notiono.apk`), así
+que el que se baja cada uno es el de la versión publicada. Android pide permiso para
+instalar algo que no viene de su tienda: es lo normal fuera de Play Store.
 
-Sí, eso mete un binario de ~900 KB en el repo. Es a propósito: es la única forma de
-que el APK viaje con el despliegue, y solo cambia cuando cambia el envoltorio (una
-vez cada mucho), no en cada despliegue de la web.
-
-## Que no parezca el navegador
-
-Un APK que es Chrome por dentro se delata por cosas concretas, y cada una tiene su
-arreglo en el repo:
-
-| Lo que canta | Dónde se arregla |
-|---|---|
-| La barra de direcciones arriba | `/.well-known/assetlinks.json` (ver abajo) — **hay que desplegar con `ANDROID_CERT_FINGERPRINT`** |
-| Menú de la esquina de arriba en vez de navegación | `src/components/BarraInferior.tsx`: barra abajo (Inicio · Buscar · Nueva · Tareas · Menú) |
-| Tirar hacia abajo y que recargue | `overscroll-behavior-y: none` en `globals.css`, solo con `display-mode: standalone` |
-| El destello azul al tocar y el «copiar» al mantener pulsado un botón | mismas reglas de `globals.css` |
-| Arrancar en blanco y luego la app | pantalla de arranque naranja de marca (`backgroundColor` del `twa-manifest.json`) |
-
-Lo que **no** se puede quitar: al entrar por primera vez, el SSO de Synology se abre
-en una pestaña de Chrome con su barra. Las apps nativas hacen exactamente eso mismo
-con sus inicios de sesión, y solo pasa la primera vez.
+La 2.0.0 se instala **encima de la TWA** sin desinstalar nada: mismo paquete
+(`com.monrealperez.notiono`), misma firma y `versionCode` mayor (3 > 2).
 
 ## Lo que hace falta
 
 | Pieza | Dónde | Para qué |
 |---|---|---|
-| `android/twa-manifest.json` | este repo | nombre, icono, colores, dominio y versión |
-| `~/.bubblewrap/` | el PC | JDK 17 y SDK de Android que se descarga Bubblewrap solo (~1,5 GB) |
+| `app-android/` | este repo | el proyecto Gradle de la app |
+| `~/.bubblewrap/jdk/jdk-17…` y `~/.bubblewrap/android_sdk` | el PC | JDK 17 y SDK de Android (los mismos que usaba Bubblewrap) |
 | `~/notiono-apk/notiono.keystore` | **fuera del repo** | la firma del APK |
-| `/.well-known/assetlinks.json` | la web | dice que ese APK es de este dominio |
+| `~/notiono-apk/firma.properties` | **fuera del repo** | dónde está el almacén y sus contraseñas, para Gradle |
+| `/.well-known/assetlinks.json` | la web | dice que ese APK es de este dominio (abre los enlaces `/p/…` en la app) |
 
 ### El almacén de claves: guárdalo
 
 `~/notiono-apk/notiono.keystore` es lo que firma el APK. **Si se pierde, ninguna
 versión futura se podrá instalar encima de la instalada**: Android lo rechaza por
-firma distinta y hay que desinstalar la app (y con ella lo que tenga guardado el
-navegador dentro). No está en el repo a propósito —una clave de firma no se sube a
-git— así que cópialo donde guardes las cosas que no se pueden volver a generar,
-junto con su contraseña.
+firma distinta y hay que desinstalar la app (y con ella lo que tenga guardado sin
+mandar). No está en el repo a propósito —una clave de firma no se sube a git— así que
+cópialo donde guardes las cosas que no se pueden volver a generar, junto con su
+contraseña.
+
+`firma.properties` (también fuera del repo) es lo que lee `app/build.gradle.kts`:
+
+```properties
+storeFile=/home/jose/notiono-apk/notiono.keystore
+storePassword=…
+keyAlias=notiono
+keyPassword=…
+```
+
+Sin ese fichero, `assembleRelease` saca un APK **sin firmar** (que no se puede
+instalar): así nadie publica por error uno firmado con otra clave.
 
 ### El enlace entre dominio y app
 
-Chrome le quita la barra de direcciones al APK solo si la web confirma que ese APK es
-suyo. Lo confirma `/.well-known/assetlinks.json`, que compara la huella SHA-256 de la
-firma. Esa huella va en la variable `ANDROID_CERT_FINGERPRINT` del contenedor
-(`docker-compose.yml`), y **hasta que no se despliega con ella, la app se ve con la
-barra del navegador arriba**. Funciona igual, pero canta.
+`/.well-known/assetlinks.json` (variable `ANDROID_CERT_FINGERPRINT` del contenedor,
+con la huella SHA-256 de la firma) es lo que deja a Android abrir directamente en la
+app los enlaces `https://notiono.monrealperez.com/p/…` que alguien te pasa. Sin él
+funcionan igual, pero Android pregunta con qué abrirlos.
 
 Para volver a sacar la huella:
 
@@ -81,36 +86,55 @@ Para volver a sacar la huella:
 ## Compilar
 
 ```bash
-cd ~/Projects/notiono/android
-export PATH="$HOME/.npm-global/bin:$PATH"
-export BUBBLEWRAP_KEYSTORE_PASSWORD='…'   # la contraseña del almacén
-export BUBBLEWRAP_KEY_PASSWORD='…'        # la de la clave
-bubblewrap build --skipPwaValidation
+cd ~/Projects/notiono/app-android
+export JAVA_HOME=~/.bubblewrap/jdk/jdk-17.0.20+8
+./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
 ```
 
-Deja el APK firmado en `android/app-release-signed.apk`.
+Deja el APK firmado en `app-android/app/build/outputs/apk/release/app-release.apk`.
+La memoria está acotada en `app-android/gradle.properties` (Gradle con 3 GB, Kotlin
+dentro del mismo proceso, pruebas de Robolectric de una en una con 1 GB): el PC tiene
+16 GB y un Gradle sin límites tumbó la sesión entera. **No lances `npm run build`
+mientras compila Gradle**, y al acabar `./gradlew --stop`.
 
-## Instalarlo en el móvil
-
-No hace falta la Play Store (eso son 25 € y una revisión, y solo sirve para
-distribuirlo al público). Pásate el `.apk` al teléfono —correo, cable, lo que sea— y
-ábrelo; Android pedirá permiso para instalar de esa fuente esa vez.
-
-## Publicar una versión nueva del APK
-
-Solo si cambia el envoltorio (nombre, icono, dominio). Sube los dos números de
-`twa-manifest.json` —`appVersionCode` (entero, obligatorio subirlo) y `appVersion`
-(lo que ve el usuario; ojo, la clave es esa, no `appVersionName`)—, regenera el
-proyecto y compila:
+Una versión de depuración contra un Notiono local:
 
 ```bash
-bubblewrap update --skipVersionUpgrade   # aplica el twa-manifest al proyecto
-bubblewrap build --skipPwaValidation
-cd .. && npm run apk:publicar            # lo copia a public/ y anota versión y tamaño
-git add public/notiono.apk src/lib/apk.json android/twa-manifest.json
+./gradlew :app:assembleDebug -Pnotiono.baseUrl=http://192.168.1.50:3000
 ```
 
-`npm run apk:publicar` es lo que hace que la descarga de Ajustes y el APK compilado
-no puedan discrepar: la versión que enseña la web sale del mismo `twa-manifest.json`
-con el que se acaba de firmar. Firmado con el mismo almacén, se instala encima de la
-que haya sin perder nada.
+## Pruebas
+
+- `./gradlew :app:testDebugUnitTest`: modelo del editor con documentos reales del
+  editor web (`scripts/fixtures/*.json`), teclado, red/caché/cola y sincronía contra
+  un servidor de mentira, y las capturas de los widgets.
+- **Contra un Notiono de verdad en local** (servidor de producción `server.mjs` +
+  PGlite, ver «La app entera en local» en `docs/movil.md` y la cabecera de
+  `scripts/integracion-app.ts` para arrancarlo apuntando al SSO falso):
+  - `npx tsx scripts/integracion-app.ts`: el servidor de la app (sesión PKCE, ops de
+    bloque con un navegador conectado, vistas, Markdown).
+  - `npx tsx scripts/integracion-android.ts`: la capa de red, el editor y la sincronía
+    **de la app** (Kotlin) contra ese servidor, con un cliente Yjs tecleando a la vez.
+  - `npx tsx scripts/capturas-android.ts`: capturas de cada pantalla, vista de BD y
+    widget en claro y oscuro a 390 dp (`app-android/app/build/capturas/`). Míralas
+    antes de publicar una versión.
+
+## Publicar una versión nueva
+
+1. Sube `versionCode` (entero, **obligatorio**: con uno igual o menor Android no la
+   instala encima) y `versionName` en `app-android/app/build.gradle.kts`.
+2. Compila como arriba y comprueba la firma (debe ser la misma huella de siempre):
+   ```bash
+   ~/.bubblewrap/android_sdk/build-tools/*/apksigner verify --print-certs \
+     app-android/app/build/outputs/apk/release/app-release.apk
+   ```
+3. Publícalo en la web y commitea:
+   ```bash
+   npm run apk:publicar          # lo copia a public/ y anota versión y tamaño
+   git add public/notiono.apk src/lib/apk.json app-android/app/build.gradle.kts
+   ```
+4. Despliega. Al abrir la app, cada móvil verá que hay versión nueva.
+
+`npm run apk:publicar` lee la versión del mismo `build.gradle.kts` con el que se
+acaba de compilar, y se niega a publicar un `versionCode` que no sea mayor que el
+publicado: así la descarga, el aviso de la app y el APK no pueden discrepar.
