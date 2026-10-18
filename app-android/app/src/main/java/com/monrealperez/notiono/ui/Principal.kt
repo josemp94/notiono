@@ -122,6 +122,16 @@ fun Principal(destinos: SharedFlow<Destino>) {
                 is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
                 Destino.Buscar -> navegador.a("buscar")
                 Destino.Bandeja -> navegador.a("bandeja")
+                // El «+» del widget de lista: fila nueva en esa BD y a su ficha.
+                is Destino.NuevaFila -> alcance.launch {
+                    try {
+                        val col = s.repo.consulta("app.vista", objeto("pageId" to d.pageId)).comoObjeto["collection"]?.comoObjeto?.str("id")
+                        s.repo.mutacion("db.addRecord", objeto("collectionId" to col), encolable = false, etiquetas = listOf("vista:${d.pageId}"))
+                            ?.comoObjeto?.str("id")?.let { navegador.fila(d.pageId, it) }
+                    } catch (e: ErrorApi) {
+                        Avisos.di(e.message ?: "No se pudo crear la fila")
+                    }
+                }
                 Destino.Nueva -> nuevaPagina(null)
                 is Destino.NotaRapida -> if (d.paginaDestino != null) navegador.pagina(d.paginaDestino, alFinal = true) else nuevaPagina(null)
             }
@@ -139,6 +149,7 @@ fun Principal(destinos: SharedFlow<Destino>) {
         }
     }
 
+    AlArrancar()
     CompositionLocalProvider(LocalNavegador provides navegador) {
         ModalNavigationDrawer(
             drawerState = panel,

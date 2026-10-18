@@ -60,6 +60,47 @@
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- «Compartir con Notiono»: texto, enlaces e imágenes de otras apps. -->
+        <activity
+            android:name=".compartir.CompartirActivity"
+            android:exported="true"
+            android:label="@string/compartir_con"
+            android:theme="@style/Theme.Notiono"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- Widgets (Glance) y su configuración al añadirlos. -->
+        <activity
+            android:name=".widgets.ConfigWidgetActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Notiono">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".widgets.NotaReceiver" android:exported="true" android:label="@string/widget_nota">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_nota" />
+        </receiver>
+        <receiver android:name=".widgets.ListaReceiver" android:exported="true" android:label="@string/widget_lista">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_lista" />
+        </receiver>
+        <receiver android:name=".widgets.RapidaReceiver" android:exported="true" android:label="@string/widget_rapida">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rapida" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.ficheros"

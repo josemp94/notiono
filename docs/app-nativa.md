@@ -42,10 +42,10 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] Filtros/orden/agrupación/búsqueda, ficha de fila con todas las propiedades, crear BD/columnas/vistas (servidor: `app.fila`).
 
 ### F7 · App: resto de Notiono
-- [ ] Comentarios, bandeja, enlaces entrantes, historial, papelera, plantillas, publicar, icono/portada, bloquear, tipografía, espacios, importar/exportar, compartir hacia Notiono, atajos, avisos con WorkManager, actualizaciones.
+- [x] Comentarios, bandeja, enlaces entrantes, historial, papelera, plantillas, publicar, icono/portada, bloquear, tipografía, espacios, importar/exportar, compartir hacia Notiono, atajos, avisos con WorkManager, actualizaciones (al abrir, una vez al día, y en Ajustes).
 
 ### F8 · Widgets (Glance)
-- [ ] Nota, Lista de BD, Nota rápida.
+- [x] Nota (casillas marcables), Lista de BD (casilla y «+»), Nota rápida; configuración al añadirlos, refresco cada 30 min, al cambiar algo en la app y con botón.
 
 ### F9 · Verificación
 - [ ] `npm run build` y `npm run check`.
