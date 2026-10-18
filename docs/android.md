@@ -25,7 +25,9 @@ se publica.
   (Ajustes → «Buscar actualizaciones» hace lo mismo a mano).
 - **Funciona sin conexión**: lo último que se abrió se ve, y lo que se cambia sin red
   se guarda en una cola y se manda al volver (WorkManager).
-- **Widgets** de escritorio: Nota, Lista de una base de datos y Nota rápida.
+- **Widgets** de escritorio: Nota, Lista de una base de datos, Nota rápida, Acciones
+  rápidas y Páginas recientes, con vista previa en el selector del launcher (ver
+  «Vistas previas de los widgets» abajo).
 - **«Compartir con Notiono»** desde cualquier app (texto, enlaces, imágenes).
 
 ## Cómo se la instala la familia
@@ -108,6 +110,14 @@ Una versión de depuración contra un Notiono local:
 - `./gradlew :app:testDebugUnitTest`: modelo del editor con documentos reales del
   editor web (`scripts/fixtures/*.json`), teclado, red/caché/cola y sincronía contra
   un servidor de mentira, y las capturas de los widgets.
+- **Vistas previas de los widgets** (lo que enseña el launcher al añadirlos): PNG en
+  `res/drawable-nodpi` (claro) y `res/drawable-night-nodpi` (oscuro), sacados de los
+  composables reales con el contenido de `widgets/Muestras.kt`. Si cambias cómo se ve
+  un widget, regenéralos y míralos:
+  `./gradlew :app:testDebugUnitTest --tests '*VistasPreviasTest' -Pnotiono.vistasPrevias=1`.
+  Sin la propiedad solo se pintan en `app/build/vistas-previas/`, junto al layout
+  estático (`res/layout/widget_previa_*`, el `previewLayout` de Android 12+), que se
+  retoca a mano para que se parezca.
 - **Contra un Notiono de verdad en local** (servidor de producción `server.mjs` +
   PGlite, ver «La app entera en local» en `docs/movil.md` y la cabecera de
   `scripts/integracion-app.ts` para arrancarlo apuntando al SSO falso):

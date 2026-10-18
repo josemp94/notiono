@@ -46,6 +46,8 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 ### F8 · Widgets (Glance)
 - [x] Nota (casillas marcables), Lista de BD (casilla y «+»), Nota rápida; configuración al añadirlos, refresco cada 30 min, al cambiar algo en la app y con botón.
+- [x] 2.0.1: Acciones rápidas (página, tarea en la BD elegida, foto, buscar) y Páginas recientes (favoritas + últimas abiertas); casilla de Lista en círculo; vistas previas en el selector (`previewImage` PNG + `previewLayout` + `providePreview` de Android 15).
+- [x] 2.0.1 publicada en la web (`public/notiono.apk`, `src/lib/apk.json`): `versionCode 4`, `lintRelease` 0 errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `c1d26d52…aa1d05f`; copia en `~/notiono-apk/notiono-2.0.1.apk`. Falta desplegar.
 
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.
@@ -70,6 +72,25 @@ app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuev
 compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
+- **Widgets 2.0.1 (18-oct-2026)**: Jose vio en su Xiaomi (HyperOS) el icono en grande
+  al añadir los widgets: no había vista previa. Ahora cada widget lleva
+  `android:previewImage` (PNG claro/oscuro sacado de los composables reales por
+  `VistasPreviasTest`: el launcher de Xiaomi ignora `previewLayout`), `previewLayout`
+  estático para Android 12+ y vista previa generada en Android 15 (`providePreview`;
+  `setWidgetPreviews` una vez por `versionCode`, está limitado por el sistema). Para
+  igualar la app de notas de Pablo se añadieron **Acciones rápidas** (4×1; «Tarea» solo
+  si se elige BD al configurarlo; «Foto» = cámara → página nueva con la foto, por el
+  mismo camino que «Compartir con Notiono») y **Páginas recientes** (4×3; favoritas del
+  servidor arriba y luego los recientes del móvil, que no tienen fecha de edición del
+  servidor: la fecha relativa es la de la última vez que se abrió). En Lista de BD la
+  casilla pasa a un círculo de 22 dp con zona de toque de 36 dp; la fila hecha, tachada.
+- **Fondos de los widgets en drawables con forma** (`widget_fondo*`): Glance solo
+  aplica `cornerRadius` desde Android 12 y la app llega a Android 8; y en un lienzo de
+  software (los PNG) tampoco recorta, así que los botones interiores salían cuadrados.
+- **Arnés de las capturas de widgets**: el `AndroidView` va con `fillMaxSize()`; sin él
+  se medía «como mucho» y las filas de Glance (Nota rápida, Acciones) se encogían a su
+  contenido solo en la prueba. Los PNG se pintan dentro de una Activity de Robolectric:
+  sin ventana no salen fondos ni el estado de las casillas.
 
 - **BD**: las filas siempre salen de `app.vista` (motor de la web en el servidor); la app
   solo guarda la config de la vista (`db.updateView`) y vuelve a pedirla. Las celdas se
