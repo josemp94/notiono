@@ -16,37 +16,10 @@
  */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
+import { ssoFalso } from "./sso-falso";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3100";
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// --- SSO falso (OIDC mínimo): autoriza a «Ana» sin preguntar ---
-function ssoFalso() {
-  const server = createServer((req, res) => {
-    const url = new URL(req.url ?? "/", "http://127.0.0.1:55433");
-    if (url.pathname === "/.well-known/openid-configuration") {
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({
-        authorization_endpoint: "http://127.0.0.1:55433/authorize",
-        token_endpoint: "http://127.0.0.1:55433/token",
-        userinfo_endpoint: "http://127.0.0.1:55433/userinfo",
-      }));
-    } else if (url.pathname === "/authorize") {
-      const vuelta = new URL(url.searchParams.get("redirect_uri")!);
-      vuelta.searchParams.set("code", "codigo-sso");
-      vuelta.searchParams.set("state", url.searchParams.get("state")!);
-      res.writeHead(302, { Location: vuelta.toString() }).end();
-    } else if (url.pathname === "/token") {
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ access_token: "at-ana" }));
-    } else if (url.pathname === "/userinfo") {
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ sub: "ana", email: "ana@example.com", name: "Ana" }));
-    } else res.writeHead(404).end();
-  });
-  return new Promise<typeof server>((ok) => server.listen(55433, "127.0.0.1", () => ok(server)));
-}
 
 /** Cookies «nombre=valor» de las cabeceras Set-Cookie de una respuesta. */
 const cookiesDe = (r: Response) =>

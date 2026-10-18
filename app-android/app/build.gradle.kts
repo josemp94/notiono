@@ -70,6 +70,9 @@ android {
             all {
                 it.maxHeapSize = "1g"
                 it.maxParallelForks = 1
+                // La integración contra un Notiono de verdad (scripts/integracion-android.ts).
+                it.systemProperty("notiono.integracion", project.findProperty("notiono.integracion") ?: "")
+                it.systemProperty("notiono.pagina", project.findProperty("notiono.pagina") ?: "")
             }
         }
     }
