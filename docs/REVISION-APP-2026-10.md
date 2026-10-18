@@ -30,8 +30,9 @@ lo tiene en la web, o no tiene sentido en el teléfono: no se hace).
 - [x] Pruebas (`RedTest`, `DestinoTest`, `RobustezEditorTest`, `SincroTest`, `EstadoBDTest`, `GraficaTest`, `KanbanTest`, `TituloTest`, `CompartirTest`, `EnlacesTest`): 53 en total, verdes. Las 9 que se podían pasar al código de la 2.0.3, rojas con él.
 
 ### R3 · Recorrido real contra Notiono local
-- [ ] Notiono local (PGlite + `server.mjs` + SSO falso) con datos realistas.
-- [ ] Integración: crear página, escribir con formato, `/`, mover bloques, comentar; BD: fila, cada tipo de propiedad, vistas, filtro, Kanban, calendario, ficha, subtareas; buscar; bandeja; papelera y restaurar; plantillas; compartir hacia la app; widgets. Comprobado en el servidor.
+- [x] Notiono local (PGlite + `server.mjs` + SSO falso), una persona nueva por pasada.
+- [x] Recorrido como una persona (`RecorridoTest` + `RecorridoCompartirTest`, lanzados por `scripts/recorrido-android.ts`): página nueva, título, `## `, `[] `, «/cita», negrita con la barra, deshacer/rehacer, casilla, subir un bloque con su hoja, comentario; BD nueva con 8 propiedades creadas desde la ficha y rellenas (selección, número, fecha, casilla, persona, URL, multiselección, estado), subtarea, otra fila, filtro, Kanban por Estado arrastrando una tarjeta, calendario; buscar; vencimiento abierto desde la bandeja; papelera y recuperar; plantilla; compartir texto hacia la app; acciones de los widgets. Después, el script lo comprueba en el servidor con la sesión de la web (bloques del documento Yjs con la negrita como marca, celdas con el formato de cada tipo, vistas, filtro, aviso leído, plantilla, página compartida). Verde.
+- [x] Fallos que encontró y se arreglaron: navegar tras una llamada de red fuera del hilo principal (`rememberAlcance` en `Dispatchers.Main.immediate`); hojas que lanzaban y se cerraban cancelando su propia corrutina (nueva propiedad, nueva vista, exportar, menú «⋯» de la página: `est.lanza` / alcance de la app); dos opciones creadas seguidas en una selección que se pisaban; el Kanban que dejaba caer la tarjeta en columnas que ya no estaban tras cambiar la agrupación (prueba en `KanbanTest`, roja antes).
 - [ ] Capturas claro/oscuro revisadas una a una.
 
 ### R4 · Lo que falta para igualar a Notion (por uso diario)
@@ -203,4 +204,15 @@ Propuestas (grandes o dudosas, no se hacen a medias):
   bloque; el campo avisa en `beforeTextChanged`). Deshacer recarga la foto y la sincronía manda
   la diferencia como siempre (`Diff`). Si llega algo de otro dispositivo (`Sincro.adopta` con
   cambios), el historial se borra: volver a una foto entera desharía también lo suyo.
+- **R3 (18-19 oct)**. El recorrido se escribe con `createAndroidComposeRule`, reloj a mano y
+  esperas con reloj real (la red es de verdad). Lo que hubo que resolver en la prueba (no en la
+  app): los bloques del editor son `EditText` fuera del árbol de Compose (se buscan en la
+  jerarquía de vistas y se teclea por su `InputConnection`, letra a letra, como el teclado);
+  `performScrollToNode` y `captureToImage` esperan a que todo esté quieto y con el reloj a mano no
+  llega (se desliza con el dedo); y las llamadas de red de la propia prueba van en otro hilo
+  (bloquear el principal con `runBlocking` dejaba colgado lo que la app tenía en él). En la app,
+  lo que destapó: con el despachador de prueba de Compose la corrutina de la pantalla volvía de la
+  red en un hilo de fondo y `navigate` lo rechaza (la red de seguridad lo apuntó en el registro en
+  vez de cerrar); ahora el alcance de las pantallas es `Main.immediate`, que es lo correcto en
+  cualquier caso.
 

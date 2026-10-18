@@ -157,7 +157,7 @@ fun HojaNuevoCampo(est: EstadoBD, despuesDe: String?, onCerrar: () -> Unit) {
                 tipo = k
                 if (nombre.isBlank()) nombre = n
                 if (k !in setOf("relation", "rollup", "formula")) {
-                    alcance.launch { est.nuevoCampo(k, nombre.ifBlank { n }, despuesDe) }
+                    est.lanza { est.nuevoCampo(k, nombre.ifBlank { n }, despuesDe) }
                     onCerrar()
                 }
             }
@@ -189,7 +189,7 @@ fun HojaNuevoCampo(est: EstadoBD, despuesDe: String?, onCerrar: () -> Unit) {
             }
         }
         TextButton({
-            alcance.launch {
+            est.lanza {
                 when (t) {
                     "relation" -> destino?.let { est.nuevaRelacion(nombre.ifBlank { "Relación" }, it, espejo) }
                     "rollup" -> relacion?.let { est.nuevoRollup(nombre.ifBlank { "Rollup" }, it, objetivo, agg) }

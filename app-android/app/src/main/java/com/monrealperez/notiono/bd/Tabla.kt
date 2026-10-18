@@ -29,6 +29,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -238,7 +240,11 @@ private fun CabeceraTabla(est: EstadoBD, fijos: List<Campo>, moviles: List<Campo
         for (c in fijos) { cab(c); Linea() }
         Row(Modifier.horizontalScroll(desplazamiento).fillMaxHeight()) {
             for (c in moviles) { cab(c); Linea() }
-            if (est.editable) Box(Modifier.width(48.dp).fillMaxHeight().clickable { onCampo(NUEVO_CAMPO) }, contentAlignment = Alignment.Center) {
+            if (est.editable) Box(
+                Modifier.width(48.dp).fillMaxHeight().clickable { onCampo(NUEVO_CAMPO) }
+                    .semantics { contentDescription = "Añadir propiedad" },
+                contentAlignment = Alignment.Center,
+            ) {
                 Icono("plus", tam = 16.dp, color = C.apagado)
             }
         }

@@ -93,6 +93,13 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
 
     val repo get() = s.repo
 
+    /**
+     * Para lo que se pide desde una hoja que se cierra en el mismo gesto (nueva propiedad,
+     * nueva vista, exportar): en el alcance de la pantalla de la BD, no en el de la hoja, que
+     * se cancela al cerrarse y dejaba la columna o la vista sin aparecer.
+     */
+    fun lanza(bloque: suspend () -> Unit) = alcance.launch { bloque() }
+
     private fun ruta() = if (soloFila != null) "app.fila" else "app.vista"
 
     private fun input() = if (soloFila != null) JsonObject(mapOf("pageId" to JsonPrimitive(pageId), "recordId" to JsonPrimitive(soloFila!!))) else JsonObject(

@@ -149,7 +149,15 @@ private fun EditorOpciones(est: EstadoBD, campo: Campo, v: JsonElement?, pon: (J
     var q by remember { mutableStateOf("") }
     var elegidos by remember { mutableStateOf(lista(v).mapNotNull { (it as? JsonPrimitive)?.content }.toSet()) }
     var editando by remember { mutableStateOf<Opcion?>(null) }
-    val ops = campo.opciones()
+    // Las opciones de ahora: la hoja se abrió con el campo de entonces, y las que se acaban de
+    // crear aún no han vuelto del servidor (si no, crear dos seguidas perdía la primera).
+    val actual = est.campo(campo.id) ?: campo
+    var creadas by remember { mutableStateOf(listOf<JsonObject>()) }
+    var borradas by remember { mutableStateOf(setOf<String>()) }
+    val delServidor = (actual.cfg()["options"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
+    val opcionesJson = (delServidor + creadas.filter { c -> delServidor.none { it.str("id") == c.str("id") } }).filter { it.str("id") !in borradas }
+    val conTodas = actual.copy(config = JsonObject(actual.cfg() + ("options" to JsonArray(opcionesJson))))
+    val ops = conTodas.opciones()
     val filtradas = ops.filter { q.isBlank() || it.label.contains(q.trim(), true) }
     fun elige(id: String) {
         if (multi) {
@@ -167,8 +175,8 @@ private fun EditorOpciones(est: EstadoBD, campo: Campo, v: JsonElement?, pon: (J
         val id = "opt_" + java.util.UUID.randomUUID().toString().replace("-", "").take(7)
         val color = COLORES_OPCION[ops.size % COLORES_OPCION.size]
         val nueva = JsonObject(mapOf("id" to JsonPrimitive(id), "label" to JsonPrimitive(label), "color" to JsonPrimitive(color)) + (if (estado) mapOf("group" to JsonPrimitive("todo")) else emptyMap()))
-        val opciones = JsonArray(((campo.cfg()["options"] as? JsonArray)?.toList() ?: emptyList()) + nueva)
-        est.configCampo(campo.id, JsonObject(campo.cfg() + ("options" to opciones)))
+        creadas = creadas + nueva
+        est.configCampo(campo.id, JsonObject(actual.cfg() + ("options" to JsonArray(opcionesJson + nueva))))
         q = ""
         if (multi) {
             elegidos = elegidos + id
@@ -202,12 +210,12 @@ private fun EditorOpciones(est: EstadoBD, campo: Campo, v: JsonElement?, pon: (J
         }
         if (elegidos.isNotEmpty()) FilaMenu("Quitar", "x", color = C.apagado) { pon(null); onCerrar() }
     }
-    editando?.let { o -> EditorOpcion(est, campo, o) { editando = null } }
+    editando?.let { o -> EditorOpcion(est, conTodas, o, onBorrada = { borradas = borradas + it }) { editando = null } }
 }
 
 /** Renombrar, recolorear, cambiar de grupo (Estado) o borrar una opción. */
 @Composable
-private fun EditorOpcion(est: EstadoBD, campo: Campo, o: Opcion, onCerrar: () -> Unit) {
+private fun EditorOpcion(est: EstadoBD, campo: Campo, o: Opcion, onBorrada: (String) -> Unit, onCerrar: () -> Unit) {
     var nombre by remember { mutableStateOf(o.label) }
     fun guarda(cambio: (JsonObject) -> JsonObject?) {
         val nuevas = ((campo.cfg()["options"] as? JsonArray) ?: JsonArray(emptyList())).mapNotNull { e ->
@@ -235,7 +243,7 @@ private fun EditorOpcion(est: EstadoBD, campo: Campo, o: Opcion, onCerrar: () ->
             }
         }
         Separador()
-        FilaMenu("Borrar opción", "trash-2", color = Color(0xFFD44C47)) { guarda { null }; onCerrar() }
+        FilaMenu("Borrar opción", "trash-2", color = Color(0xFFD44C47)) { guarda { null }; onBorrada(o.id); onCerrar() }
     }
 }
 

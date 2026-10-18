@@ -76,7 +76,8 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val n = LocalNavegador.current
-    val alcance = rememberAlcance()
+    // En el de la app: casi todo se pide y la hoja se cierra en el mismo gesto (y con ella su alcance).
+    val alcance = s.alcance
     var hoja by remember { mutableStateOf<String?>(null) }
     var borrar by remember { mutableStateOf(false) }
     val id = info.id

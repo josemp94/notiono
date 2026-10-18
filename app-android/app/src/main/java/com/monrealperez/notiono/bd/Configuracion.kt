@@ -377,7 +377,7 @@ fun HojaAjustesVista(est: EstadoBD, onCerrar: () -> Unit) {
             Avisos.di("Enlace copiado")
             onCerrar()
         }
-        FilaMenu("Exportar a CSV", "file-down") { alcance.launch { com.monrealperez.notiono.util.Archivos.exportaCsv(ctx, est.pageId) }; onCerrar() }
+        FilaMenu("Exportar a CSV", "file-down") { est.lanza { com.monrealperez.notiono.util.Archivos.exportaCsv(ctx, est.pageId) }; onCerrar() }
         FilaMenu("Papelera de filas", "trash-2") { sub = "papelera" }
     }
 }

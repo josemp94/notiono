@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -140,7 +142,8 @@ fun CuerpoBD(est: EstadoBD, info: PaginaInfo?, embebida: Boolean, modifier: Modi
             BotonIcono("x", { est.q = ""; buscando = false })
         } else {
             Row(
-                Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { hoja = "vistas" }.padding(horizontal = 8.dp, vertical = 8.dp),
+                Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Cambiar de vista") { hoja = "vistas" }
+                    .semantics { contentDescription = "Cambiar de vista" }.padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icono(VISTAS.toMap()[vista?.type]?.second ?: "table", tam = 16.dp, color = C.texto)
@@ -247,7 +250,7 @@ private fun HojaVistas(est: EstadoBD, onCerrar: () -> Unit) {
             for ((tipo, par) in VISTAS) FilaMenu(par.first, par.second) {
                 nueva = false
                 onCerrar()
-                alcance.launch { est.nuevaVista(tipo) }
+                est.lanza { est.nuevaVista(tipo) }
             }
         }
     } else {

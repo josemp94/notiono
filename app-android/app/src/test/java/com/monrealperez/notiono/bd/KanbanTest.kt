@@ -43,16 +43,19 @@ class KanbanTest {
     private lateinit var est: EstadoBD
     private val abiertas = mutableListOf<String>()
 
-    private val datos = """{
+    /** Por qué campo agrupa la vista (lo cambia db.updateView, como el servidor). */
+    @Volatile private var agrupa = "e"
+    private val datos get() = """{
         "collection":{"id":"c1"},
         "fields":[
           {"id":"t","name":"Nombre","type":"text"},
-          {"id":"e","name":"Estado","type":"select","config":{"options":[{"id":"a","label":"Por hacer","color":"gray"},{"id":"b","label":"Hecho","color":"green"}]}}
+          {"id":"e","name":"Estado","type":"select","config":{"options":[{"id":"a","label":"Por hacer","color":"gray"},{"id":"b","label":"Hecho","color":"green"}]}},
+          {"id":"p","name":"Prioridad","type":"select","config":{"options":[{"id":"f","label":"Alta","color":"red"},{"id":"c","label":"Baja","color":"blue"}]}}
         ],
-        "views":[{"id":"v1","name":"Tablero","type":"kanban","config":{"groupByFieldId":"e"}}],
-        "view":{"id":"v1","name":"Tablero","type":"kanban","config":{"groupByFieldId":"e"}},
+        "views":[{"id":"v1","name":"Tablero","type":"kanban","config":{"groupByFieldId":"$agrupa"}}],
+        "view":{"id":"v1","name":"Tablero","type":"kanban","config":{"groupByFieldId":"$agrupa"}},
         "filas":[
-          {"id":"r1","cells":{"t":"Comprar pan","e":"a"}},
+          {"id":"r1","cells":{"t":"Comprar pan","e":"a","p":"f"}},
           {"id":"r2","cells":{"t":"Llamar al taller","e":"a"}},
           {"id":"r3","cells":{"t":"Regar","e":"b"}}
         ],
@@ -64,8 +67,12 @@ class KanbanTest {
         servidor = MockWebServer()
         servidor.dispatcher = object : Dispatcher() {
             // Las mutaciones dicen «hecho»; las consultas, la vista tal cual.
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                respuestaTrpc(if (request.method == "POST") """{"ok":true}""" else datos)
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.url.encodedPath.endsWith("db.updateView")) {
+                    agrupa = Regex("\"groupByFieldId\":\"(\\w+)\"").find(request.body!!.utf8())?.groupValues?.get(1) ?: agrupa
+                }
+                return respuestaTrpc(if (request.method == "POST") """{"ok":true}""" else datos)
+            }
         }
         servidor.start()
         WorkManagerTestInitHelper.initializeTestWorkManager(ctx)
@@ -101,6 +108,26 @@ class KanbanTest {
         val r = servidor.takeRequest(5, TimeUnit.SECONDS)!!
         assertEquals("/api/trpc/db.updateCell", r.url.encodedPath)
         assertEquals("""{"json":{"recordId":"r1","fieldId":"e","value":"b"}}""", r.body!!.utf8())
+    }
+
+    @Test
+    fun alCambiarLaAgrupacionNoCaeEnUnaColumnaQueYaNoEsta() {
+        // Primero por Estado; luego por Prioridad. Las zonas de las columnas de antes se
+        // quedaban, y la tarjeta caía en «Hecho» (de Estado) con un valor que Prioridad no tiene.
+        compose.waitForIdle()
+        compose.runOnIdle { est.ponConfig(mapOf("groupByFieldId" to JsonPrimitive("p"))) }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Baja").fetchSemanticsNodes().isNotEmpty() }
+        var dx = 0f
+        compose.runOnIdle { dx = with(compose.density) { 300.dp.toPx() } }
+        compose.onNodeWithText("Comprar pan").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 200)
+            repeat(10) { moveBy(Offset(dx / 10, 0f)) }
+            up()
+        }
+        compose.waitForIdle()
+        // (ids escogidos para que la zona vieja de «Hecho» se recorra antes que la de «Baja», como en el móvil)
+        assertEquals("c", (est.celdas(fila("r1"))["p"] as JsonPrimitive).content)
     }
 
     @Test

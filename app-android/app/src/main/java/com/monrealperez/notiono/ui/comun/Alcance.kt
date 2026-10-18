@@ -7,6 +7,7 @@ import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.datos.Registro
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Red de seguridad de las corrutinas: un fallo que nadie esperaba (un archivo que ya no se
@@ -19,9 +20,13 @@ fun manejadorFallos(registro: Registro) = CoroutineExceptionHandler { _, e ->
     Avisos.di("Algo no salió bien. Inténtalo otra vez.")
 }
 
-/** El `rememberCoroutineScope` de las pantallas, con la red de seguridad puesta. */
+/**
+ * El `rememberCoroutineScope` de las pantallas, con la red de seguridad puesta y siempre en
+ * el hilo principal: lo que sigue a una llamada de red (navegar, tocar el estado de la
+ * pantalla) lo exige, y no todos los despachadores de la composición lo garantizan.
+ */
 @Composable
 fun rememberAlcance(): CoroutineScope {
     val registro = Servicios.de(LocalContext.current).registro
-    return rememberCoroutineScope { manejadorFallos(registro) }
+    return rememberCoroutineScope { Dispatchers.Main.immediate + manejadorFallos(registro) }
 }

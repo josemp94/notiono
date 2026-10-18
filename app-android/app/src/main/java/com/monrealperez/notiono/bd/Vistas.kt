@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -147,16 +148,20 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
     val sumar = est.vista?.cfg()?.bool("kanbanSum") == true
     val numero = est.visibles().firstOrNull { it.type == "number" }
     val tam = when (est.cfgStr("cardSize")) { "small" -> 220; "large" -> 320; else -> 270 }
-    // Arrastrar tarjetas: dónde está cada columna en pantalla.
-    val zonas = remember { mutableStateMapOf<String, Rect>() }
+    // Arrastrar tarjetas: dónde está cada columna en pantalla. Se empieza de cero si cambia la
+    // agrupación, y una columna que sale de la lista quita su zona: si no, la tarjeta podía
+    // caer en una columna que ya no está y quedarse con un valor que no existe.
+    val zonas = remember(campoG.id, campoS?.id) { mutableStateMapOf<String, Rect>() }
     var arrastre by remember { mutableStateOf<Pair<String, Offset>?>(null) }
     var menu by remember { mutableStateOf<Fila?>(null) }
 
     @Composable
     fun Columna(g: GrupoK, filas: List<Fila>, carril: GrupoK?, conScroll: Boolean) {
+        val claveZona = "${carril?.id ?: "-"}|${g.id}"
+        DisposableEffect(claveZona, zonas) { onDispose { zonas.remove(claveZona) } }
         Column(
             Modifier.width(tam.dp).padding(horizontal = 4.dp).clip(RoundedCornerShape(10.dp)).background(C.superficie)
-                .onGloballyPositioned { zonas["${carril?.id ?: "-"}|${g.id}"] = it.boundsInRoot() }.padding(6.dp),
+                .onGloballyPositioned { zonas[claveZona] = it.boundsInRoot() }.padding(6.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
                 Pildora(g.etiqueta, g.color)
@@ -199,6 +204,7 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                                             val punto = origen + a.second + Offset(40f, 20f)
                                             val destino = zonas.entries.firstOrNull { it.value.contains(punto) }?.key ?: return@detectDragGesturesAfterLongPress
                                             val (carrilId, colId) = destino.split("|", limit = 2)
+                                            if (columnasAhora.none { it.id == colId }) return@detectDragGesturesAfterLongPress
                                             val cg = campoGrupo
                                             if (colId != claveDe(est, cg, columnasAhora, fila)) est.ponCelda(fila.id, cg.id, valorDeGrupo(cg, colId))
                                             val cs = campoCarril
