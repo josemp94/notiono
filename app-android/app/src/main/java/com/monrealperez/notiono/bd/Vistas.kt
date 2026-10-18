@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -165,7 +166,7 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                 }
             }
             Column(if (conScroll) Modifier.verticalScroll(rememberScrollState()) else Modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (f in filas) {
+                for (f in filas) key(f.id) {
                     val moviendo = arrastre?.first == f.id
                     var origen by remember { mutableStateOf(Offset.Zero) }
                     Tarjeta(
@@ -173,7 +174,10 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                         modifier = Modifier.fillMaxWidth()
                             .onGloballyPositioned { origen = it.positionInRoot() }
                             .zIndex(if (moviendo) 1f else 0f)
-                            .graphicsLayer { if (moviendo) { translationX = arrastre!!.second.x; translationY = arrastre!!.second.y; alpha = 0.9f } }
+                            // El bloque se repite al cambiar `arrastre`, antes de recomponer: leerlo aquí, sin `!!`.
+                            .graphicsLayer { val a = arrastre; if (a != null && a.first == f.id) { translationX = a.second.x; translationY = a.second.y; alpha = 0.9f } }
+                            .clickable { abrir(f.id) }
+                            // Por dentro del clic: si no, el clic se queda el «soltar» y el arrastre se cancela.
                             .pointerInput(f.id) {
                                 if (!est.editable) return@pointerInput
                                 detectDragGesturesAfterLongPress(
@@ -193,8 +197,7 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                                     },
                                     onDragCancel = { arrastre = null },
                                 )
-                            }
-                            .clickable { abrir(f.id) },
+                            },
                     )
                 }
                 if (est.editable) Row(

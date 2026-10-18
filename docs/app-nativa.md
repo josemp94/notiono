@@ -48,6 +48,7 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] Nota (casillas marcables), Lista de BD (casilla y «+»), Nota rápida; configuración al añadirlos, refresco cada 30 min, al cambiar algo en la app y con botón.
 - [x] 2.0.1: Acciones rápidas (página, tarea en la BD elegida, foto, buscar) y Páginas recientes (favoritas + últimas abiertas); casilla de Lista en círculo; vistas previas en el selector (`previewImage` PNG + `previewLayout` + `providePreview` de Android 15).
 - [x] 2.0.1 publicada en la web (`public/notiono.apk`, `src/lib/apk.json`): `versionCode 4`, `lintRelease` 0 errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `c1d26d52…aa1d05f`; copia en `~/notiono-apk/notiono-2.0.1.apk`. Falta desplegar.
+- [x] 2.0.2 (`versionCode 5`): la app se cerraba al soltar una tarjeta del Kanban (NPE de `arrastre!!` dentro de `graphicsLayer {}`, que Compose repite al cambiar el estado antes de recomponer); además el clic se quedaba el «soltar» y la pulsación larga sin mover no sacaba el menú. Prueba sin servidor en `bd/KanbanTest.kt` (roja antes del arreglo). Copia en `~/notiono-apk/notiono-2.0.2.apk`, misma firma (`8c9bb7dc…cb8e9a`). Falta desplegar.
 
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.

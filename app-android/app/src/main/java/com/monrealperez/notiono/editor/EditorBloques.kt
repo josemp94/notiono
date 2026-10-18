@@ -181,7 +181,7 @@ fun EditorBloques(
                                         arrastre = null
                                     },
                                     onDragCancel = { arrastre = null },
-                                    onDrag = { c, d -> c.consume(); arrastre = arrastre?.copy(dy = arrastre!!.dy + d.y) },
+                                    onDrag = { c, d -> c.consume(); arrastre = arrastre?.let { it.copy(dy = it.dy + d.y) } },
                                 )
                             } else Modifier,
                         )
