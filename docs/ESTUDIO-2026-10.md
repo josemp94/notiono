@@ -2,7 +2,7 @@
 
 > Revisión completa de Notiono frente a Notion hecha el 17-oct-2026 leyendo el código (commit `59718bc`,
 > 379 commits) en tres frentes: editor y navegación, bases de datos, y colaboración/plataforma/seguridad.
-> `docs/notion-parity.md` (19-ago) y `AUDIT-NOTION-PARITY.md` se habían quedado ~50 commits atrás: muchos ❌
+> `docs/notion-parity.md` (19-ago) y `docs/historico/AUDIT-NOTION-PARITY.md` se habían quedado ~50 commits atrás: muchos ❌
 > de ahí ya están hechos (ecuaciones, columnas arrastrando, estilo de página, bloqueo, seguir página…).
 > Este documento manda sobre ellos para el plan; la tabla de paridad se irá poniendo al día por tandas.
 >

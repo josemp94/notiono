@@ -13,8 +13,8 @@ app canjea por una sesión con PKCE (`/api/app/sesion`). Solo pasa la primera ve
 El diseño y las decisiones (cómo escribe en el documento vivo de Yjs, cómo funciona
 sin conexión…) están en `docs/app-nativa.md`.
 
-La TWA anterior (`android/`, la 1.1.0) sigue en el repo como referencia, pero ya no
-se publica.
+La TWA anterior (la 1.1.0) ya no se publica; su código (`android/`) se quitó del repo
+en oct-2026 y queda en el historial de git.
 
 ## Qué cambia respecto a la TWA
 

@@ -1,6 +1,6 @@
 # App nativa de Android — plan vivo
 
-Tarea: `NATIVA-TASK.md` (raíz del repo). Este fichero es el estado: quien retome la
+Tarea: el encargo original lo guarda Dobby fuera del repo (`~/Dobby/encargos/hechos/NATIVA-TASK.md`). Este fichero es el estado: quien retome la
 sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 ## Checklist

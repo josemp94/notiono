@@ -1,8 +1,0 @@
-# Lo que sale de compilar y lo que nunca debe salir de aquí
-build/
-.gradle/
-local.properties
-*.keystore
-*.jks
-app-release-*
-*.idsig
