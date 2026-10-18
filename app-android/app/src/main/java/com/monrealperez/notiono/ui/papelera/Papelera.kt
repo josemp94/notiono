@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.papelera
 
 import androidx.compose.foundation.layout.Box
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 fun PantallaPapelera() {
     val s = Servicios.de(LocalContext.current)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val q = rememberConsulta("pages.trash", etiquetas = setOf("papelera", "espacio"))
     var filtro by remember { mutableStateOf("") }
     var borrar by remember { mutableStateOf<String?>(null) }
@@ -57,7 +57,7 @@ fun PantallaPapelera() {
         // La auto-purga perezosa, como al abrir la papelera en la web.
         runCatching { s.repo.mutacion("pages.purgeExpired", encolable = false, etiquetas = listOf("papelera")) }
     }
-    val todas = q.datos?.comoLista?.map { it.comoObjeto }
+    val todas = q.datos?.comoLista?.map { it.comoObjeto }?.distinctBy { it.str("id") }
     val lista = todas?.filter { filtro.isBlank() || (it.str("title") ?: "").contains(filtro, true) }
     Column(Modifier.fillMaxSize()) {
         BarraSuperior("Papelera", izquierda = { BotonIcono("arrow-left", { n.atras() }) }, acciones = {

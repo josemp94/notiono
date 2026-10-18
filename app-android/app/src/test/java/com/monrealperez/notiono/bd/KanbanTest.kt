@@ -104,6 +104,15 @@ class KanbanTest {
     }
 
     @Test
+    fun opcionesRepetidasNoRepitenColumnas() {
+        // Las columnas son las claves de la lista: una repetida cerraba la vista.
+        val c = com.monrealperez.notiono.datos.Campo("e2", "E", "select", config = json.parseToJsonElement(
+            """{"options":[{"id":"a","label":"A"},{"id":"a","label":"A otra vez"},{"id":"","label":"Vacía"}]}""",
+        ))
+        assertEquals(listOf("a", ""), gruposDe(est, c).map { it.id })
+    }
+
+    @Test
     fun pulsacionLargaSinMoverAbreElMenu() {
         compose.onNodeWithText("Comprar pan").performTouchInput {
             down(center)

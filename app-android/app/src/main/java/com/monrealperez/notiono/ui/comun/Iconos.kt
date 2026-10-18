@@ -29,7 +29,8 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 object Lucide {
     @Volatile private var trazos: Map<String, List<String>>? = null
-    private val vectores = HashMap<String, ImageVector>()
+    // Se usa desde la interfaz y desde los widgets (otro hilo).
+    private val vectores = java.util.concurrent.ConcurrentHashMap<String, ImageVector>()
 
     fun carga(ctx: Context): Map<String, List<String>> = trazos ?: synchronized(this) {
         trazos ?: run {
@@ -56,7 +57,7 @@ object Lucide {
                 strokeLineJoin = StrokeJoin.Round,
             )
         }
-        return b.build().also { synchronized(this) { vectores[clave] = it } }
+        return b.build().also { vectores[clave] = it }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import android.content.ClipData
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +24,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -294,7 +294,7 @@ fun HojaOrden(est: EstadoBD, onCerrar: () -> Unit) {
 @Composable
 fun HojaAjustesVista(est: EstadoBD, onCerrar: () -> Unit) {
     val ctx = LocalContext.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val v = est.vista ?: return onCerrar()
     val cfg = v.cfg()
     var sub by remember { mutableStateOf<String?>(null) }
@@ -429,7 +429,7 @@ private fun ReglasColor(est: EstadoBD, onCerrar: () -> Unit) {
 @Composable
 private fun PapeleraFilas(est: EstadoBD, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var filas by remember { mutableStateOf<List<JsonObject>?>(null) }
     val col = est.datos?.collection?.id
     suspend fun carga() {

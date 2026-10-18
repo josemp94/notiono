@@ -82,24 +82,30 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
     private suspend fun ejecuta(req: Request, interrumpible: Boolean = false): JsonElement {
         // La respuesta también se lee de la red: un corte o un tiempo agotado a mitad del
         // cuerpo es «sin conexión», no una excepción suelta.
-        val llamada = {
-            try {
-                http.newCall(req).execute().use { leeTrpc(it) }
-            } catch (e: IOException) {
-                throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-            }
-        }
+        val llamada = { llama(req) { leeTrpc(it) } }
         return if (interrumpible) runInterruptible(Dispatchers.IO) { llamada() } else withContext(Dispatchers.IO) { llamada() }
     }
+
+    /**
+     * Hace la petición y lee la respuesta con `lee`, todo dentro del `try`: un corte a mitad
+     * del cuerpo es «sin conexión» y un JSON que no se entiende (la página del proxy con un
+     * 200, un campo que falta) es un error del servidor. Nunca sale otra excepción: quien
+     * llama solo tiene que capturar [ErrorApi].
+     */
+    private fun <T> llama(req: Request, lee: (Response) -> T): T =
+        try {
+            http.newCall(req).execute().use(lee)
+        } catch (e: IOException) {
+            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
+        } catch (e: IllegalArgumentException) {
+            // SerializationException es una IllegalArgumentException.
+            throw ErrorApi(ErrorApi.Tipo.Servidor, "Respuesta inesperada del servidor")
+        }
 
     /** POST de JSON a una ruta propia de la web (no tRPC) con la sesión: /api/app/registro. */
     suspend fun postJson(ruta: String, cuerpo: JsonElement): Unit = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(absoluta(ruta)).post(cuerpo.toString().toRequestBody(JSON)).conSesion().build()
-        try {
-            http.newCall(req).execute().use { if (!it.isSuccessful) throw errorHttp(it.code, "Error del servidor (${it.code})") }
-        } catch (e: IOException) {
-            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-        }
+        llama(req) { if (!it.isSuccessful) throw errorHttp(it.code, "Error del servidor (${it.code})") }
     }
 
     /** Sube un archivo a `/api/upload` (portadas, adjuntos, imágenes del editor). */
@@ -110,12 +116,7 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
                 .build()
             val url = "$base/api/upload" + if (soloImagen) "?kind=image" else ""
             val req = Request.Builder().url(url).post(cuerpo).conSesion().build()
-            val res = try {
-                http.newCall(req).execute()
-            } catch (e: IOException) {
-                throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-            }
-            res.use {
+            llama(req) {
                 val texto = it.body.string()
                 if (!it.isSuccessful) throw errorHttp(it.code, mensajeDe(texto) ?: "No se pudo subir el archivo")
                 json.decodeFromString(Subida.serializer(), texto)
@@ -129,12 +130,7 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
             put("verifier", verifier)
         }.toString()
         val req = Request.Builder().url("$base/api/app/sesion").post(cuerpo.toRequestBody(JSON)).build()
-        val res = try {
-            http.newCall(req).execute()
-        } catch (e: IOException) {
-            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-        }
-        res.use {
+        llama(req) {
             val texto = it.body.string()
             if (!it.isSuccessful) throw errorHttp(it.code, mensajeDe(texto) ?: "No se pudo iniciar sesión")
             json.decodeFromString(Canje.serializer(), texto)
@@ -144,12 +140,7 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
     /** Versión del APK que hay desplegado (para ofrecer actualizar). */
     suspend fun versionPublicada(): VersionApk = withContext(Dispatchers.IO) {
         val req = Request.Builder().url("$base/api/app/version").get().build()
-        val res = try {
-            http.newCall(req).execute()
-        } catch (e: IOException) {
-            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-        }
-        res.use {
+        llama(req) {
             if (!it.isSuccessful) throw errorHttp(it.code, "No se pudo consultar la versión")
             json.decodeFromString(VersionApk.serializer(), it.body.string())
         }
@@ -158,15 +149,12 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
     /** GET a una ruta propia de la web (no tRPC) con la sesión: /api/geo… */
     suspend fun getJson(ruta: String): JsonElement = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(absoluta(ruta)).get().conSesion().build()
-        val res = try {
-            http.newCall(req).execute()
-        } catch (e: IOException) {
-            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
-        }
-        res.use {
+        llama(req) {
             val texto = it.body.string()
             if (!it.isSuccessful) throw errorHttp(it.code, mensajeDe(texto) ?: "Error del servidor (${it.code})")
-            json.parseToJsonElement(texto)
+            // parseToJsonElement acepta texto suelto sin comillas (la página HTML del proxy): eso no es una respuesta.
+            json.parseToJsonElement(texto).takeIf { e -> e is JsonObject || e is kotlinx.serialization.json.JsonArray }
+                ?: throw ErrorApi(ErrorApi.Tipo.Servidor, "Respuesta inesperada del servidor")
         }
     }
 

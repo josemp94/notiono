@@ -15,19 +15,32 @@ sealed interface Destino {
     data class NotaRapida(val paginaDestino: String?) : Destino
 
     companion object {
+        private val ID = Regex("^[A-Za-z0-9_-]{1,64}$")
+
+        /**
+         * ¿Sirve como id de página, fila o vista? Los enlaces llegan de cualquier app y de
+         * documentos editados por otros: un id con «/», «?» o «&» haría que la navegación
+         * no encontrara su ruta y la app se cerrara.
+         */
+        fun esId(s: String?): Boolean = s != null && ID.matches(s)
+
+        private fun id(s: String?) = s?.takeIf(::esId)
+
         fun de(uri: Uri): Destino? {
             val seg = uri.pathSegments
+            val s0 = id(seg.getOrNull(0))
+            val s1 = id(seg.getOrNull(1))
             return when {
                 uri.scheme == "notiono" && uri.host == "nueva" -> Nueva
                 uri.scheme == "notiono" && uri.host == "buscar" -> Buscar
                 uri.scheme == "notiono" && uri.host == "bandeja" -> Bandeja
                 uri.scheme == "notiono" && uri.host == "foto" -> Foto
-                uri.scheme == "notiono" && uri.host == "nuevafila" && seg.isNotEmpty() -> NuevaFila(seg[0])
-                uri.scheme == "notiono" && uri.host == "rapida" -> NotaRapida(uri.getQueryParameter("en"))
-                uri.scheme == "notiono" && uri.host == "pagina" && seg.isNotEmpty() -> Pagina(seg[0])
-                uri.scheme == "notiono" && uri.host == "fila" && seg.size >= 2 -> Fila(seg[0], seg[1])
-                (uri.scheme == "https" || uri.scheme == "http") && seg.size >= 2 && seg[0] == "p" ->
-                    uri.getQueryParameter("r")?.let { Fila(seg[1], it) } ?: Pagina(seg[1], uri.getQueryParameter("v"))
+                uri.scheme == "notiono" && uri.host == "nuevafila" && s0 != null -> NuevaFila(s0)
+                uri.scheme == "notiono" && uri.host == "rapida" -> NotaRapida(id(uri.getQueryParameter("en")))
+                uri.scheme == "notiono" && uri.host == "pagina" && s0 != null -> Pagina(s0)
+                uri.scheme == "notiono" && uri.host == "fila" && s0 != null && s1 != null -> Fila(s0, s1)
+                (uri.scheme == "https" || uri.scheme == "http") && seg.getOrNull(0) == "p" && s1 != null ->
+                    id(uri.getQueryParameter("r"))?.let { Fila(s1, it) } ?: Pagina(s1, id(uri.getQueryParameter("v")))
                 else -> null
             }
         }

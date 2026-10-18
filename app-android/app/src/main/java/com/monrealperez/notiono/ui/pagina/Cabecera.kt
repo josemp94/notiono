@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.pagina
 
 import androidx.compose.foundation.clickable
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +17,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,27 +56,61 @@ fun familia(font: String): FontFamily = when (font) {
 }
 
 /**
+ * El título que se escribe frente al que tiene el servidor. Lo de fuera (otro lo renombra)
+ * solo se adopta si no hay nada escrito sin confirmar: si no, la respuesta del guardado
+ * anterior pisaba lo que se había seguido escribiendo mientras viajaba.
+ */
+@Stable
+class TituloEnEdicion(inicial: String) {
+    var texto by mutableStateOf(inicial)
+
+    /** Lo último que se sabe que tiene el servidor (o que se le ha mandado). */
+    private var confirmado = inicial
+    private var enVuelo = 0
+    val pendiente get() = texto != confirmado
+
+    fun remoto(t: String) {
+        if (enVuelo > 0 || pendiente) return
+        texto = t
+        confirmado = t
+    }
+
+    /** Manda lo escrito con `envia`, si hay algo nuevo. */
+    suspend fun guarda(envia: suspend (String) -> Unit) {
+        val t = texto
+        if (t == confirmado) return
+        enVuelo++
+        try {
+            envia(t)
+            confirmado = t
+        } finally {
+            enVuelo--
+        }
+    }
+}
+
+/**
  * Cabecera de una página o BD: portada, icono y título grande, como en la web.
  * El título se guarda solo (a los 600 ms de dejar de escribir) y avisa al árbol.
  */
 @Composable
 fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false, compacta: Boolean = false, onEnter: () -> Unit = {}) {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberCoroutineScope()
-    var titulo by remember(info.id) { mutableStateOf(info.title) }
+    val alcance = rememberAlcance()
+    val titulo = remember(info.id) { TituloEnEdicion(info.title) }
     var icono by remember(info.id) { mutableStateOf(info.icon) }
     var portada by remember(info.id) { mutableStateOf(info.cover) }
     var eligeIcono by remember { mutableStateOf(false) }
     var eligePortada by remember { mutableStateOf(false) }
     val foco = remember { FocusRequester() }
     // Si otro la renombra mientras no la toco, adoptar el nombre nuevo.
-    LaunchedEffect(info.title) { if (titulo != info.title) titulo = info.title }
+    LaunchedEffect(info.title) { titulo.remoto(info.title) }
     LaunchedEffect(info.icon) { icono = info.icon }
     LaunchedEffect(info.cover) { portada = info.cover }
-    LaunchedEffect(titulo) {
-        if (titulo == info.title) return@LaunchedEffect
+    LaunchedEffect(titulo.texto) {
+        if (!titulo.pendiente) return@LaunchedEffect
         delay(600)
-        AccionesPagina.renombrar(s.repo, info.id, titulo)
+        titulo.guarda { AccionesPagina.renombrar(s.repo, info.id, it) }
     }
     if (enfocarTitulo) LaunchedEffect(Unit) { runCatching { foco.requestFocus() } }
 
@@ -94,8 +129,8 @@ fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false
                 }
             }
             BasicTextField(
-                titulo,
-                { titulo = it.replace("\n", "") },
+                titulo.texto,
+                { titulo.texto = it.replace("\n", "") },
                 readOnly = !editable,
                 textStyle = TextStyle(fontSize = if (compacta) 26.sp else 30.sp, fontWeight = FontWeight.Bold, color = C.texto, lineHeight = 36.sp, fontFamily = familia(info.font)),
                 cursorBrush = SolidColor(Marca),
@@ -104,7 +139,7 @@ fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false
                 modifier = Modifier.fillMaxWidth().focusRequester(foco).padding(vertical = 4.dp),
                 decorationBox = { campo ->
                     Box {
-                        if (titulo.isEmpty()) Text("Sin título", fontSize = if (compacta) 26.sp else 30.sp, fontWeight = FontWeight.Bold, color = C.borde, fontFamily = familia(info.font))
+                        if (titulo.texto.isEmpty()) Text("Sin título", fontSize = if (compacta) 26.sp else 30.sp, fontWeight = FontWeight.Bold, color = C.borde, fontFamily = familia(info.font))
                         campo()
                     }
                 },
@@ -115,7 +150,7 @@ fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false
     if (eligeIcono) SelectorIcono({ nuevo ->
         eligeIcono = false
         icono = nuevo
-        alcance.launch { AccionesPagina.renombrar(s.repo, info.id, titulo, nuevo, conIcono = true) }
+        alcance.launch { AccionesPagina.renombrar(s.repo, info.id, titulo.texto, nuevo, conIcono = true) }
     }, { eligeIcono = false })
     if (eligePortada) SelectorPortada({ nueva ->
         eligePortada = false

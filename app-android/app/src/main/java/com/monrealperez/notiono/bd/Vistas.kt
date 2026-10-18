@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,7 +81,7 @@ fun gruposDe(est: EstadoBD, c: Campo): List<GrupoK> = when (c.type) {
     "person" -> (est.datos?.personas ?: emptyList()).map { GrupoK(it.id, it.nombre, "blue") } + GrupoK("", "Sin asignar", "gray")
     "checkbox" -> listOf(GrupoK("true", "Hecho", "green"), GrupoK("", "Sin hacer", "gray"))
     else -> c.opciones().map { GrupoK(it.id, it.label, it.color ?: "gray") } + GrupoK("", "Sin asignar", "gray")
-}
+}.distinctBy { it.id } // son las claves de las columnas: una opción repetida cerraría la vista
 
 fun claveDe(est: EstadoBD, c: Campo, grupos: List<GrupoK>, f: Fila): String {
     val v = est.celdas(f)[c.id]
@@ -169,6 +170,13 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                 for (f in filas) key(f.id) {
                     val moviendo = arrastre?.first == f.id
                     var origen by remember { mutableStateOf(Offset.Zero) }
+                    // El gesto vive más que una recomposición (se monta una vez por tarjeta): lee
+                    // siempre lo último, no lo que había cuando empezó (una recarga lo cambia).
+                    val fila by rememberUpdatedState(f)
+                    val campoGrupo by rememberUpdatedState(campoG)
+                    val columnasAhora by rememberUpdatedState(columnas)
+                    val campoCarril by rememberUpdatedState(campoS)
+                    val carrilesAhora by rememberUpdatedState(carriles)
                     Tarjeta(
                         est, f, alto = tam / 2,
                         modifier = Modifier.fillMaxWidth()
@@ -186,13 +194,16 @@ fun VistaKanban(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> 
                                     onDragEnd = {
                                         val a = arrastre
                                         arrastre = null
-                                        if (a != null && a.second.getDistance() < 24f) { menu = f; return@detectDragGesturesAfterLongPress }
+                                        if (a != null && a.second.getDistance() < 24f) { menu = fila; return@detectDragGesturesAfterLongPress }
                                         if (a != null) {
                                             val punto = origen + a.second + Offset(40f, 20f)
                                             val destino = zonas.entries.firstOrNull { it.value.contains(punto) }?.key ?: return@detectDragGesturesAfterLongPress
                                             val (carrilId, colId) = destino.split("|", limit = 2)
-                                            if (colId != claveDe(est, campoG, columnas, f)) est.ponCelda(f.id, campoG.id, valorDeGrupo(campoG, colId))
-                                            if (campoS != null && carrilId != "-" && carrilId != claveDe(est, campoS, carriles!!, f)) est.ponCelda(f.id, campoS.id, valorDeGrupo(campoS, carrilId))
+                                            val cg = campoGrupo
+                                            if (colId != claveDe(est, cg, columnasAhora, fila)) est.ponCelda(fila.id, cg.id, valorDeGrupo(cg, colId))
+                                            val cs = campoCarril
+                                            val cars = carrilesAhora
+                                            if (cs != null && cars != null && carrilId != "-" && carrilId != claveDe(est, cs, cars, fila)) est.ponCelda(fila.id, cs.id, valorDeGrupo(cs, carrilId))
                                         }
                                     },
                                     onDragCancel = { arrastre = null },

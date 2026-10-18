@@ -76,7 +76,7 @@ object Avisador {
         runCatching { s.api.mutation("notifications.checkDue") }
         val lista = s.api.query("notifications.list").comoLista.map { it.comoObjeto }
         val prefs = ctx.getSharedPreferences("avisos", Context.MODE_PRIVATE)
-        val vistos = prefs.getStringSet("vistos", emptySet())!!.toMutableSet()
+        val vistos = prefs.getStringSet("vistos", null) ?: emptySet()
         val primeraVez = !prefs.contains("vistos")
         val nuevos = lista.filter { !it.bool("read") && it.str("id") !in vistos }
         // La primera vez no se avisa de lo viejo: solo se apunta como visto.
@@ -101,8 +101,10 @@ object Avisador {
                 }
             }
         }
-        vistos.addAll(lista.mapNotNull { it.str("id") })
-        prefs.edit { putStringSet("vistos", vistos.toList().takeLast(500).toSet()) }
+        // Basta con los de la lista actual (las 50 últimas): lo que sale de ella no vuelve. Antes
+        // se acumulaban y se recortaban a 500 de un conjunto sin orden, y alguno aún sin leer se
+        // podía caer y volver a avisar cada 15 minutos.
+        prefs.edit { putStringSet("vistos", lista.mapNotNull { it.str("id") }.toSet()) }
     }
 }
 

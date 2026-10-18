@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.pagina
 
 import android.net.Uri
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +73,7 @@ private fun iconosPagina(ctx: android.content.Context): List<Pair<String, String
 fun SelectorIcono(onElegir: (String?) -> Unit, onCerrar: () -> Unit) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var pestaña by remember { mutableIntStateOf(0) }
     var color by remember { mutableStateOf("gray") }
     var filtro by remember { mutableStateOf("") }
@@ -140,7 +140,7 @@ fun SelectorIcono(onElegir: (String?) -> Unit, onCerrar: () -> Unit) {
 fun SelectorPortada(onElegir: (String?) -> Unit, onCerrar: () -> Unit) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var subiendo by remember { mutableStateOf(false) }
     val galeria = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         if (uri != null) alcance.launch {

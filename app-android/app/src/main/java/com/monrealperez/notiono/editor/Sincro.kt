@@ -93,7 +93,22 @@ class Sincro(private val fuente: Fuente, private val estado: EstadoEditor, priva
         }
     }
 
-    /** Manda lo que haya (se llama también al salir de la página). */
+    /**
+     * Al cerrarse el editor (salir de la página, girar el móvil, cambiar el tema o el tamaño
+     * de letra): lo que falte por mandar se guarda ya en el móvil y se manda en el alcance
+     * de la app. El editor que se abre justo después (el de la pantalla girada) lo encuentra
+     * al abrir y sigue desde ahí; antes empezaba con lo del servidor y, si se seguía
+     * escribiendo en el mismo bloque, su envío deshacía lo último del anterior.
+     */
+    fun alCerrar(alcanceApp: CoroutineScope) {
+        if (cargado) {
+            val local = estado.json()
+            if (Diff.ops(base, local).isNotEmpty()) guardaLocal(local)
+        }
+        alcanceApp.launch { envia() }
+    }
+
+    /** Manda lo que haya. */
     suspend fun envia() {
         if (enviaBloqueado()) refresca(primera = true)
     }

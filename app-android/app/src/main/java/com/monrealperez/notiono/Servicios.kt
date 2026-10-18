@@ -32,8 +32,14 @@ class Servicios private constructor(ctx: Context) {
         repo.alFallar = { ruta, e -> r.anota("red", "$ruta: ${e.estado} ${e.tipo}") }
     }
 
-    /** Para lo que tiene que terminar aunque se cierre la pantalla (mandar lo pendiente al salir). */
-    val alcance = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+    /**
+     * Para lo que tiene que terminar aunque se cierre la pantalla (mandar lo pendiente al
+     * salir). Con la red de seguridad: un fallo inesperado se apunta y no cierra la app.
+     */
+    val alcance = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate +
+            com.monrealperez.notiono.ui.comun.manejadorFallos(registro),
+    )
 
     /** El espacio activo: el elegido o, si no se ha elegido ninguno, el que dio el servidor. */
     fun espacioActivo(): String? =

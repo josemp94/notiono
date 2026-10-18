@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import android.content.ClipData
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,9 +118,9 @@ fun VistaGrafica(est: EstadoBD) {
                             if (series != null) series.forEachIndexed { j, s ->
                                 val w = (s.second.getOrElse(i) { 0.0 } / max * size.width).toFloat()
                                 drawRect(colores[j % colores.size], Offset(x0, 0f), Size(w, size.height)); x0 += w
-                            } else drawRect(colores[0], Offset.Zero, Size((valores[i] / max * size.width).toFloat(), size.height))
+                            } else drawRect(colores[0], Offset.Zero, Size((valores.getOrElse(i) { 0.0 } / max * size.width).toFloat(), size.height))
                         }
-                        Text(formatea(series?.sumOf { it.second.getOrElse(i) { 0.0 } } ?: valores[i]), fontSize = 12.sp, color = C.apagado, modifier = Modifier.weight(0.15f).padding(start = 4.dp))
+                        Text(formatea(series?.sumOf { it.second.getOrElse(i) { 0.0 } } ?: valores.getOrElse(i) { 0.0 }), fontSize = 12.sp, color = C.apagado, modifier = Modifier.weight(0.15f).padding(start = 4.dp))
                     }
                 }
             }
@@ -150,7 +150,7 @@ fun VistaGrafica(est: EstadoBD) {
                             val h = (s.second.getOrElse(i) { 0.0 } / max * alto).toFloat()
                             drawRect(colores[j % colores.size], Offset(x, y0 - h), Size(ancho, h)); y0 -= h
                         } else {
-                            val h = (valores[i] / max * alto).toFloat()
+                            val h = (valores.getOrElse(i) { 0.0 } / max * alto).toFloat()
                             drawRect(colores[0], Offset(x, alto - h), Size(ancho, h))
                         }
                     }
@@ -165,7 +165,7 @@ fun VistaGrafica(est: EstadoBD) {
             }
         }
         // Leyenda: series (apiladas) o categorías (anillo).
-        val leyenda = series?.map { it.first } ?: if (tipo == "donut") cats.mapIndexed { i, c -> "$c (${formatea(valores[i])})" } else emptyList()
+        val leyenda = series?.map { it.first } ?: if (tipo == "donut") cats.mapIndexed { i, c -> "$c (${formatea(valores.getOrElse(i) { 0.0 })})" } else emptyList()
         if (leyenda.isNotEmpty()) FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             leyenda.forEachIndexed { i, n ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,7 +213,7 @@ fun GraficaAjustes(est: EstadoBD) {
 /** Formulario: rellenar y enviar (crea una fila), como la vista Formulario de la web. */
 @Composable
 fun VistaFormulario(est: EstadoBD) {
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val campos = est.visibles().filter { it.type !in CAMPOS_AUTOMATICOS && it.type !in setOf("button", "relation", "files", "location") }
     val obligatorios = est.vista?.cfg()?.strs("requiredFields")?.toSet() ?: emptySet()
     var valores by remember { mutableStateOf(mapOf<String, JsonElement>()) }
@@ -292,7 +292,7 @@ private fun EditorFormulario(est: EstadoBD, c: Campo, onValor: (JsonElement?) ->
 fun FormularioAjustes(est: EstadoBD) {
     val ctx = LocalContext.current
     val s = com.monrealperez.notiono.Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var gracias by remember { mutableStateOf(est.cfgStr("thanksMessage").orEmpty()) }
     val token = est.cfgStr("publicToken")
     TituloSeccion("Formulario")

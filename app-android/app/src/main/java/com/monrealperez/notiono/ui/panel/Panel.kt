@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.panel
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,13 +67,13 @@ fun Panel(onCerrar: () -> Unit) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val arbolQ = rememberConsulta("pages.tree", etiquetas = setOf("arbol"))
     val favQ = rememberConsulta("favorites.list", etiquetas = setOf("favoritos", "arbol"))
     val yoQ = rememberConsulta("auth.me", etiquetas = setOf("espacio"))
     val yo = yoQ.datos?.let { runCatching { json.decodeFromJsonElement(Yo.serializer(), it) }.getOrNull() }
     val arbol = Arbol.de(arbolQ.datos)
-    val favoritos = favQ.datos?.comoLista?.map { it.comoObjeto } ?: emptyList()
+    val favoritos = favQ.datos?.comoLista?.map { it.comoObjeto }?.distinctBy { it.str("id") } ?: emptyList()
     var abiertos by rememberSaveable { mutableStateOf(setOf<String>()) }
     var menuDe by remember { mutableStateOf<NodoArbol?>(null) }
     var moviendo by remember { mutableStateOf<String?>(null) }
@@ -260,7 +260,7 @@ private fun FilaArbol(
 private fun HojaEspacios(yo: Yo?, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
     val q = rememberConsulta("workspace.list")
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val lista = q.datos?.comoLista?.map { it.comoObjeto } ?: emptyList()
     Hoja(onCerrar, "Espacios de trabajo") {
         for (w in lista) {

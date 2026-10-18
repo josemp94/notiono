@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.ajustes
 
 import android.annotation.SuppressLint
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -24,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,7 +64,7 @@ fun PantallaAjustes() {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val yo = rememberConsulta("auth.me", etiquetas = setOf("perfil", "espacio")).datos?.let { runCatching { json.decodeFromJsonElement(Yo.serializer(), it) }.getOrNull() }
     val miembros = rememberConsulta("workspace.members", etiquetas = setOf("espacio")).datos?.comoObjeto?.objs("members")
         ?.mapNotNull { runCatching { json.decodeFromJsonElement(Miembro.serializer(), it) }.getOrNull() } ?: emptyList()
@@ -74,7 +74,7 @@ fun PantallaAjustes() {
     var nueva by remember { mutableStateOf<VersionApk?>(null) }
     var comprobado by remember { mutableStateOf(false) }
     var progreso by remember { mutableStateOf<Float?>(null) }
-    fun web(ruta: String) = ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.BASE_URL + ruta)))
+    fun web(ruta: String) = com.monrealperez.notiono.util.Enlaces.abre(ctx, BuildConfig.BASE_URL + ruta)
 
     Column(Modifier.fillMaxSize()) {
         BarraSuperior("Ajustes", izquierda = { BotonIcono("arrow-left", { n.atras() }) })
@@ -203,7 +203,7 @@ private fun pideBateria(ctx: Context) = Intent(Settings.ACTION_REQUEST_IGNORE_BA
 private fun SeccionDiagnostico() {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var abierto by remember { mutableStateOf(false) }
     var vuelta by remember { mutableIntStateOf(0) }
     val eventos = remember(vuelta, abierto) { s.registro.eventos() }

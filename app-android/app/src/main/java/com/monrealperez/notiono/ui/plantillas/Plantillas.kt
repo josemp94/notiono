@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.plantillas
 
 import androidx.compose.foundation.border
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 fun PantallaPlantillas(padre: String? = null) {
     val s = Servicios.de(LocalContext.current)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val q = rememberConsulta("app.plantillas")
     var creando by remember { mutableStateOf<String?>(null) }
     val lista = q.datos?.comoLista?.map { it.comoObjeto }

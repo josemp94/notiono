@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.compartir
 
 import android.content.Intent
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -24,7 +25,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,8 +61,8 @@ class CompartirActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val texto = intent.getStringExtra(Intent.EXTRA_TEXT)
-        val asunto = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+        val texto = textoCompartido(intent, Intent.EXTRA_TEXT)
+        val asunto = textoCompartido(intent, Intent.EXTRA_SUBJECT)
         val imagen: Uri? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         else @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
         setContent {
@@ -79,6 +79,13 @@ class CompartirActivity : ComponentActivity() {
         }
     }
 }
+
+/**
+ * Un texto de lo compartido. Hay apps que lo mandan con formato (`CharSequence`, no
+ * `String`): `getStringExtra` lo devolvía null y se guardaba una página vacía.
+ */
+fun textoCompartido(intent: Intent, clave: String): String? =
+    runCatching { intent.getCharSequenceExtra(clave)?.toString() }.getOrNull()
 
 private fun parrafo(contenido: JsonElement) = JsonObject(mapOf(
     "id" to JsonPrimitive(UUID.randomUUID().toString()), "type" to JsonPrimitive("paragraph"),
@@ -130,7 +137,7 @@ suspend fun añadeAlFinal(ctx: android.content.Context, pageId: String, bloques:
 private fun Compartir(texto: String?, asunto: String?, imagen: Uri?, onListo: (String?) -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var q by remember { mutableStateOf("") }
     var paginas by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
     var trabajando by remember { mutableStateOf<String?>(null) }
@@ -138,7 +145,7 @@ private fun Compartir(texto: String?, asunto: String?, imagen: Uri?, onListo: (S
         paginas = runCatching {
             if (q.isBlank()) s.repo.consulta("pages.tree").comoLista.map { it.comoObjeto }.take(30)
             else s.repo.consulta("pages.search", objeto("query" to q), cachear = false).comoLista.map { it.comoObjeto }
-        }.getOrDefault(emptyList())
+        }.getOrDefault(emptyList()).distinctBy { it.str("id") }
     }
     fun guarda(destino: String?) {
         trabajando = "Guardando…"

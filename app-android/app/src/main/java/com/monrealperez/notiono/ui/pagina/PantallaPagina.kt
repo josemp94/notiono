@@ -45,7 +45,8 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
     val n = LocalNavegador.current
     val q = rememberConsulta("app.pagina", objeto("id" to id), etiquetas = setOf("pagina:$id"))
     val info = q.datos?.let { runCatching { json.decodeFromJsonElement(PaginaInfo.serializer(), it) }.getOrNull() }
-    val arbol = Arbol.de(s.repo.cacheada("pages.tree"))
+    // Del disco una vez por página (y si cambia de sitio o de nombre), no en cada recomposición.
+    val arbol = androidx.compose.runtime.remember(id, info?.parentId, info?.title) { Arbol.de(s.repo.cacheada("pages.tree")) }
     var menu by remember { mutableStateOf(false) }
     var comentarios by remember { mutableStateOf(false) }
 

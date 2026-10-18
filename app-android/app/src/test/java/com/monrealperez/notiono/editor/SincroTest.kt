@@ -14,6 +14,8 @@ import com.monrealperez.notiono.red.str
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -43,6 +45,8 @@ import java.io.File
 class ServidorDePrueba : Dispatcher() {
     @Volatile var doc: List<JsonObject> = emptyList()
     @Volatile var caido = false
+    /** Milisegundos que tarda en contestar a `app.aplicar` (un envío lento en camino). */
+    @Volatile var lento = 0L
     val operaciones = mutableListOf<List<JsonObject>>()
     private fun huella() = doc.toString().hashCode().toString()
 
@@ -56,6 +60,7 @@ class ServidorDePrueba : Dispatcher() {
                 respuestaTrpc("""{"huella":"${huella()}","bloques":${if (igual) "null" else JsonArray(doc).toString()}}""")
             }
             "app.aplicar" -> {
+                if (lento > 0) Thread.sleep(lento)
                 val ops = json.parseToJsonElement(request.body!!.utf8()).jsonObject["json"]!!.jsonObject["ops"]!!.jsonArray.map { it.jsonObject }
                 synchronized(this) {
                     operaciones.add(ops)
@@ -143,6 +148,28 @@ class SincroTest {
         sincro.envia()
         assertEquals(listOf("uno!", "dos", "tres (de otro)"), textos(falso.doc))
         assertEquals(listOf("uno!", "dos", "tres (de otro)"), textos(estado.json()))
+    }
+
+    @Test
+    fun girarElMovilConUnEnvioEnCaminoNoPierdeLoUltimo() = runBlocking {
+        val (estado, sincro) = nuevo()
+        sincro.abre()
+        // Un envío lento en camino (tiene el turno de envío)…
+        falso.lento = 1500
+        estado.busca("a")!!.texto!!.append(" uno")
+        estado.texto(estado.busca("a")!!)
+        val enCamino = launch(Dispatchers.Default) { sincro.envia() }
+        delay(300)
+        // …se sigue escribiendo y se gira el móvil: el editor se cierra y se abre otro.
+        estado.busca("a")!!.texto!!.append(" dos")
+        estado.texto(estado.busca("a")!!)
+        sincro.alCerrar(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        val (estado2, sincro2) = nuevo()
+        sincro2.abre()
+        // El nuevo empieza con todo lo escrito, no con lo que llevaba el envío en camino.
+        assertEquals("uno uno dos", Inline.textoPlano(estado2.json()[0]["content"]))
+        falso.lento = 0
+        enCamino.join()
     }
 
     @Test

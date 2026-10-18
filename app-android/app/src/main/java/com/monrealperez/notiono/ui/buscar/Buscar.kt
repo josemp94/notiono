@@ -72,7 +72,7 @@ fun PantallaBuscar() {
         delay(250)
         try {
             val input = objeto("query" to q, "inContent" to true, "tipo" to tipo).let { if (dias != null) JsonObject(it + ("editadoDias" to kotlinx.serialization.json.JsonPrimitive(dias))) else it }
-            resultados = s.repo.consulta("pages.search", input, cachear = false).comoLista.map { it.comoObjeto }
+            resultados = s.repo.consulta("pages.search", input, cachear = false).comoLista.map { it.comoObjeto }.distinctBy { it.str("id") }
             error = null
         } catch (e: ErrorApi) {
             error = if (e.sinConexion) "Sin conexión: buscando solo en títulos guardados" else e.message

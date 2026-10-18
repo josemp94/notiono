@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui
 
 import android.net.Uri
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -42,7 +43,6 @@ import androidx.core.content.FileProvider
 import com.monrealperez.notiono.compartir.bloquesCompartidos
 import com.monrealperez.notiono.util.Fechas
 import java.io.File
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,7 +80,7 @@ import com.monrealperez.notiono.ui.plantillas.PantallaPlantillas
 import com.monrealperez.notiono.ui.tareas.PantallaTareas
 import com.monrealperez.notiono.ui.tema.C
 import com.monrealperez.notiono.ui.tema.Marca
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -90,9 +90,16 @@ class Navegador(
     val abrirPanel: () -> Unit,
     val nuevaPagina: (parentId: String?) -> Unit,
 ) {
-    fun pagina(id: String, alFinal: Boolean = false, vista: String? = null) =
-        nav.navigate("pagina/$id?final=$alFinal" + (vista?.let { "&v=$it" } ?: "")) { launchSingleTop = true }
-    fun fila(pageId: String, recordId: String) = nav.navigate("fila/$pageId/$recordId")
+    // Los ids que no lo parecen (una mención rota dentro de un documento) no navegan: la
+    // ruta no casaría con ningún destino y la app se cerraría.
+    fun pagina(id: String, alFinal: Boolean = false, vista: String? = null) {
+        if (!Destino.esId(id)) return Avisos.di("Enlace a una página que no existe")
+        nav.navigate("pagina/$id?final=$alFinal" + (vista?.takeIf(Destino::esId)?.let { "&v=$it" } ?: "")) { launchSingleTop = true }
+    }
+    fun fila(pageId: String, recordId: String) {
+        if (!Destino.esId(pageId) || !Destino.esId(recordId)) return Avisos.di("Enlace a una fila que no existe")
+        nav.navigate("fila/$pageId/$recordId")
+    }
     fun a(ruta: String) = nav.navigate(ruta) { launchSingleTop = true }
     fun atras() {
         if (!nav.popBackStack()) nav.navigate("inicio")
@@ -103,12 +110,12 @@ val LocalNavegador = staticCompositionLocalOf<Navegador> { error("sin navegador"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Principal(destinos: SharedFlow<Destino>) {
+fun Principal(destinos: Flow<Destino>) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val nav = rememberNavController()
     val panel = rememberDrawerState(DrawerValue.Closed)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val avisos = remember { SnackbarHostState() }
 
     val nuevaPagina: (String?) -> Unit = { padre ->
@@ -153,7 +160,7 @@ fun Principal(destinos: SharedFlow<Destino>) {
                 Destino.Foto -> {
                     val u = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", File(ctx.cacheDir, "foto-${System.currentTimeMillis()}.jpg"))
                     fotoUri = u
-                    camara.launch(u)
+                    com.monrealperez.notiono.util.Enlaces.lanza(camara, u, "No hay ninguna app de cámara")
                 }
                 // El «+» del widget de lista: fila nueva en esa BD y a su ficha.
                 is Destino.NuevaFila -> alcance.launch {

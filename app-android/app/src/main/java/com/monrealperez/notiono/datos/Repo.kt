@@ -2,12 +2,14 @@ package com.monrealperez.notiono.datos
 
 import com.monrealperez.notiono.red.Api
 import com.monrealperez.notiono.red.ErrorApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 
 /**
@@ -61,7 +63,8 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         try {
             val r = api.query(ruta, input)
             _sinConexion.value = false
-            if (cachear) cache.guarda(cache.clave(ruta, input), r)
+            // Una BD grande son megas de JSON: se escriben fuera del hilo principal.
+            if (cachear) withContext(Dispatchers.IO) { cache.guarda(cache.clave(ruta, input), r) }
             r
         } catch (e: ErrorApi) {
             anota(e, ruta)

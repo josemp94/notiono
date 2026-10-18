@@ -135,11 +135,12 @@ fun MenuMenciones(consulta: String, pageId: String, onElegir: (Mencionable) -> U
         paginas = runCatching {
             if (q.isEmpty()) s.repo.consulta("pages.tree").comoLista.take(8).map { it.comoObjeto }
             else s.repo.consulta("pages.search", objeto("query" to q), cachear = false).comoLista.map { it.comoObjeto }
-        }.getOrDefault(emptyList()).filter { it.str("id") != pageId }.map { Mencionable.Pagina(it.str("id")!!, it.str("title").orEmpty(), it.str("icon")) }
+        }.getOrDefault(emptyList()).filter { it.str("id") != null && it.str("id") != pageId }.distinctBy { it.str("id") }
+            .map { Mencionable.Pagina(it.str("id")!!, it.str("title").orEmpty(), it.str("icon")) }
         personas = runCatching {
             s.repo.consulta("workspace.members").comoObjeto.objs("members").map { json.decodeFromJsonElement(Miembro.serializer(), it) }
         }.getOrDefault(emptyList()).filter { q.isEmpty() || it.nombre.contains(q, true) || it.email.contains(q, true) }
-            .map { Mencionable.Persona(it.userId, it.nombre) }
+            .distinctBy { it.userId }.map { Mencionable.Persona(it.userId, it.nombre) }
     }
     val fechas = remember(consulta) { fechasPara(consulta.trim().lowercase()) }
     Desplegable {
@@ -412,17 +413,31 @@ object Tabla {
             ((fila as? JsonObject)?.get("cells") as? JsonArray)?.map { c -> (c as? JsonObject)?.get("content") ?: c } ?: emptyList()
         } ?: emptyList()
 
-    /** Cambia el contenido de una celda conservando sus props y el formato (objeto o lista). */
+    /**
+     * Cambia el contenido de una celda conservando sus props y el formato (objeto o lista).
+     * Todo con `as?` y comprobando índices: la tabla puede venir de otra versión de la web
+     * o de la API con otra forma, y una celda que no existe no puede cerrar la app.
+     */
     fun conCelda(contenido: JsonElement?, fila: Int, col: Int, nuevo: JsonArray): JsonObject {
         val o = contenido as? JsonObject ?: vacia(1, 1)
-        val filas = (o["rows"] as? JsonArray)?.toMutableList() ?: mutableListOf()
-        val f = (filas[fila] as JsonObject)
-        val cs = (f["cells"] as JsonArray).toMutableList()
-        val vieja = cs[col]
+        val filas = (o["rows"] as? JsonArray)?.toMutableList() ?: return o
+        val f = filas.getOrNull(fila) as? JsonObject ?: return o
+        val cs = (f["cells"] as? JsonArray)?.toMutableList() ?: return o
+        val vieja = cs.getOrNull(col) ?: return o
         cs[col] = if (vieja is JsonObject) JsonObject(vieja + ("content" to nuevo)) else nuevo
         filas[fila] = JsonObject(f + ("cells" to JsonArray(cs)))
         return JsonObject(o + ("rows" to JsonArray(filas)))
     }
+
+    private fun filasDe(contenido: JsonElement?): Pair<JsonObject, MutableList<JsonElement>> {
+        val o = contenido as? JsonObject ?: vacia(1, 1)
+        return o to ((o["rows"] as? JsonArray)?.toMutableList() ?: mutableListOf())
+    }
+
+    private fun celdasDe(f: JsonElement): MutableList<JsonElement> = ((f as? JsonObject)?.get("cells") as? JsonArray)?.toMutableList() ?: mutableListOf()
+
+    private fun conCeldas(f: JsonElement, cs: List<JsonElement>): JsonElement =
+        (f as? JsonObject)?.let { JsonObject(it + ("cells" to JsonArray(cs))) } ?: f
 
     private fun celdaVacia() = JsonObject(mapOf(
         "type" to JsonPrimitive("tableCell"), "content" to JsonArray(emptyList()),
@@ -436,39 +451,37 @@ object Tabla {
     ))
 
     fun añadeFila(contenido: JsonElement?, en: Int): JsonObject {
-        val o = contenido as JsonObject
-        val filas = (o["rows"] as JsonArray).toMutableList()
-        val cols = ((filas.firstOrNull() as? JsonObject)?.get("cells") as? JsonArray)?.size ?: 1
+        val (o, filas) = filasDe(contenido)
+        val cols = filas.maxOfOrNull { celdasDe(it).size }?.coerceAtLeast(1) ?: 1
         filas.add(en.coerceIn(0, filas.size), JsonObject(mapOf("cells" to JsonArray(List(cols) { celdaVacia() }))))
         return JsonObject(o + ("rows" to JsonArray(filas)))
     }
 
     fun quitaFila(contenido: JsonElement?, i: Int): JsonObject {
-        val o = contenido as JsonObject
-        val filas = (o["rows"] as JsonArray).toMutableList()
-        if (filas.size > 1) filas.removeAt(i)
+        val (o, filas) = filasDe(contenido)
+        if (filas.size > 1 && i in filas.indices) filas.removeAt(i)
         return JsonObject(o + ("rows" to JsonArray(filas)))
     }
 
     fun añadeColumna(contenido: JsonElement?, en: Int): JsonObject {
-        val o = contenido as JsonObject
-        val filas = (o["rows"] as JsonArray).map { f ->
-            val cs = ((f as JsonObject)["cells"] as JsonArray).toMutableList()
+        val (o, filas) = filasDe(contenido)
+        val nuevas = filas.map { f ->
+            val cs = celdasDe(f)
             cs.add(en.coerceIn(0, cs.size), celdaVacia())
-            JsonObject(f + ("cells" to JsonArray(cs)))
+            conCeldas(f, cs)
         }
         val anchos = (o["columnWidths"] as? JsonArray)?.toMutableList()?.also { it.add(en.coerceIn(0, it.size), kotlinx.serialization.json.JsonNull) }
-        return JsonObject(o + ("rows" to JsonArray(filas)) + (anchos?.let { mapOf("columnWidths" to JsonArray(it)) } ?: emptyMap()))
+        return JsonObject(o + ("rows" to JsonArray(nuevas)) + (anchos?.let { mapOf("columnWidths" to JsonArray(it)) } ?: emptyMap()))
     }
 
     fun quitaColumna(contenido: JsonElement?, j: Int): JsonObject {
-        val o = contenido as JsonObject
-        val filas = (o["rows"] as JsonArray).map { f ->
-            val cs = ((f as JsonObject)["cells"] as JsonArray).toMutableList()
-            if (cs.size > 1) cs.removeAt(j)
-            JsonObject(f + ("cells" to JsonArray(cs)))
+        val (o, filas) = filasDe(contenido)
+        val nuevas = filas.map { f ->
+            val cs = celdasDe(f)
+            if (cs.size > 1 && j in cs.indices) cs.removeAt(j)
+            conCeldas(f, cs)
         }
-        val anchos = (o["columnWidths"] as? JsonArray)?.toMutableList()?.also { if (it.size > 1 && j < it.size) it.removeAt(j) }
-        return JsonObject(o + ("rows" to JsonArray(filas)) + (anchos?.let { mapOf("columnWidths" to JsonArray(it)) } ?: emptyMap()))
+        val anchos = (o["columnWidths"] as? JsonArray)?.toMutableList()?.also { if (it.size > 1 && j in it.indices) it.removeAt(j) }
+        return JsonObject(o + ("rows" to JsonArray(nuevas)) + (anchos?.let { mapOf("columnWidths" to JsonArray(it)) } ?: emptyMap()))
     }
 }

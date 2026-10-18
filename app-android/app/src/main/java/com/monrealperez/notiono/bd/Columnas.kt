@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import androidx.compose.foundation.layout.Box
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -12,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -137,7 +137,7 @@ fun Interruptor(texto: String, valor: Boolean, onCambio: (Boolean) -> Unit) {
 /** Crear una columna: nombre y tipo (relación, rollup y fórmula piden algo más). */
 @Composable
 fun HojaNuevoCampo(est: EstadoBD, despuesDe: String?, onCerrar: () -> Unit) {
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var nombre by remember { mutableStateOf("") }
     var tipo by remember { mutableStateOf<String?>(null) }
     // Relación

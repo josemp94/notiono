@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.widgets
 
 import android.appwidget.AppWidgetManager
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,7 +23,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +119,7 @@ private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, Stri
 @Composable
 private fun EligeVista(listo: (String?, String?, String?) -> Unit, conVista: Boolean = true) {
     val s = Servicios.de(androidx.compose.ui.platform.LocalContext.current)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var bds by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
     var bd by remember { mutableStateOf<JsonObject?>(null) }
     var vistas by remember { mutableStateOf<List<JsonObject>>(emptyList()) }

@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import androidx.compose.foundation.background
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -23,7 +24,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +63,7 @@ import kotlinx.serialization.json.JsonPrimitive
 @Composable
 fun rememberEstadoBD(pageId: String, vistaInicial: String? = null): EstadoBD {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val est = remember(pageId) { EstadoBD(pageId, s, alcance).apply { vistaId = vistaInicial; cacheada() } }
     LaunchedEffect(pageId, est.vistaId, est.q) {
         if (est.q.isNotEmpty()) delay(250)
@@ -112,7 +112,7 @@ fun BdEmbebida(pageId: String, viewId: String?, onVista: (String) -> Unit) {
 @Composable
 fun CuerpoBD(est: EstadoBD, info: PaginaInfo?, embebida: Boolean, modifier: Modifier = Modifier) {
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val d = est.datos
     var buscando by remember { mutableStateOf(false) }
     var hoja by remember { mutableStateOf<String?>(null) }
@@ -210,7 +210,7 @@ fun contarFiltros(nodos: kotlinx.serialization.json.JsonArray?): Int = nodos?.su
 /** Elegir, crear, renombrar, duplicar, reordenar y borrar vistas. */
 @Composable
 private fun HojaVistas(est: EstadoBD, onCerrar: () -> Unit) {
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var opciones by remember { mutableStateOf<Vista?>(null) }
     var nueva by remember { mutableStateOf(false) }
     var renombrar by remember { mutableStateOf<Vista?>(null) }

@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import android.content.Intent
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -131,8 +131,8 @@ private fun EditorTexto(campo: Campo, v: JsonElement?, pon: (JsonElement?) -> Un
                     TextButton({
                         when (campo.type) {
                             "url" -> Enlaces.abre(ctx, t.trim().let { if (it.contains("://")) it else "https://$it" })
-                            "email" -> ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${t.trim()}")))
-                            else -> ctx.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${t.trim()}")))
+                            "email" -> Enlaces.lanza(ctx, Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${t.trim()}")), "No hay ninguna app de correo")
+                            else -> Enlaces.lanza(ctx, Intent(Intent.ACTION_DIAL, Uri.parse("tel:${t.trim()}")), "Este móvil no puede llamar")
                         }
                     }) { Text(when (campo.type) { "url" -> "Abrir"; "email" -> "Escribir"; else -> "Llamar" }, color = Marca) }
                 }
@@ -341,7 +341,7 @@ fun valorFecha(v: JsonElement?): Pair<String, String?>? = when (v) {
 private fun EditorArchivos(campo: Campo, v: JsonElement?, pon: (JsonElement?) -> Unit, onCerrar: () -> Unit) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var adjuntos by remember { mutableStateOf(lista(v).mapNotNull { it as? JsonObject }) }
     var renombrando by remember { mutableStateOf<JsonObject?>(null) }
     var subiendo by remember { mutableStateOf(false) }

@@ -86,6 +86,9 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
 
     /** Celdas cambiadas en el móvil que aún no ha devuelto el servidor. */
     private val locales = mutableStateMapOf<String, JsonObject>()
+
+    /** Cambios de celda que aún viajan: mientras haya alguno, lo local manda sobre lo recibido. */
+    private var enVuelo = 0
     private var recargaJob: Job? = null
 
     val repo get() = s.repo
@@ -104,7 +107,7 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
 
     private fun lee(e: JsonElement) {
         runCatching { json.decodeFromJsonElement(DatosVista.serializer(), e) }.onSuccess {
-            datos = it
+            datos = sinRepetidos(it)
             if (vistaId == null && soloFila == null) vistaId = it.view?.id
         }
         if (soloFila != null) {
@@ -114,12 +117,28 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
         }
     }
 
+    /** Filas y grupos sin ids repetidos: son las claves de las listas, y una repetida las cierra. */
+    private fun sinRepetidos(d: DatosVista) = d.copy(
+        filas = d.filas.distinctBy { it.id },
+        grupos = d.grupos?.distinctBy { it.clave }?.map { g ->
+            g.copy(ids = g.ids.distinct(), subgrupos = g.subgrupos?.distinctBy { it.clave }?.map { it.copy(ids = it.ids.distinct()) })
+        },
+    )
+
     suspend fun carga() {
         cargando = true
+        val pedido = input()
         try {
-            lee(s.repo.consulta(ruta(), input()))
+            val r = s.repo.consulta(ruta(), pedido)
+            // Mientras viajaba se eligió otra vista o se buscó otra cosa: esta respuesta ya
+            // no es la de lo que se ve (la siguiente carga trae la buena).
+            if (pedido != input()) return
+            lee(r)
             error = null
-            locales.clear()
+            // Un refresco que salió antes que el cambio de una celda la devolvería a su valor
+            // viejo: lo local se queda hasta que no quede ningún cambio en camino. Sin red, lo
+            // recibido es la copia guardada (sin los cambios que esperan en la cola): también.
+            if (enVuelo == 0 && !s.repo.sinConexion.value) locales.clear()
         } catch (e: ErrorApi) {
             error = e
         } finally {
@@ -171,8 +190,13 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
     fun ponCelda(recordId: String, fieldId: String, valor: JsonElement?) {
         val v = valor ?: JsonNull
         locales[recordId] = JsonObject((locales[recordId] ?: JsonObject(emptyMap())) + (fieldId to v))
+        enVuelo++
         alcance.launch {
-            muta("db.updateCell", objeto("recordId" to recordId, "fieldId" to fieldId, "value" to v))
+            try {
+                muta("db.updateCell", objeto("recordId" to recordId, "fieldId" to fieldId, "value" to v))
+            } finally {
+                enVuelo--
+            }
             recarga()
         }
     }

@@ -42,7 +42,14 @@ object Imagenes {
                 dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             }
         } else {
-            val b = ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: error("No se pudo leer la imagen")
+            // Android 8: primero las medidas y luego la imagen ya reducida al leerla (una foto
+            // de 12 MP entera son ~48 MB y puede agotar la memoria de la app).
+            val medidas = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, medidas) }
+            var muestra = 1
+            while (maxOf(medidas.outWidth, medidas.outHeight) / (muestra * 2) >= maxLado) muestra *= 2
+            val b = ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = muestra }) }
+                ?: error("No se pudo leer la imagen")
             val lado = maxOf(b.width, b.height)
             if (lado > maxLado) Bitmap.createScaledBitmap(b, b.width * maxLado / lado, b.height * maxLado / lado, true) else b
         }

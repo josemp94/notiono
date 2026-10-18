@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui
 
 import android.Manifest
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,7 +14,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.edit
@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AlArrancar() {
     val ctx = LocalContext.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var nueva by remember { mutableStateOf<VersionApk?>(null) }
     var progreso by remember { mutableStateOf<Float?>(null) }
     val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }

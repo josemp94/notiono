@@ -25,6 +25,17 @@ data class FilaVisible(
     val inicioColumna: Int?,
 )
 
+/**
+ * Quita del texto el «/consulta» o «@consulta» de un menú y devuelve dónde poner lo
+ * elegido. Si el texto cambió por debajo (lo de fuera llegó entre medias) y el «/» ya no
+ * está donde se abrió el menú, no borra nada y devuelve el cursor.
+ */
+fun quitaConsulta(t: android.text.Editable, m: MenuEscritura, cursor: Int): Int {
+    if (m.inicio !in 0 until t.length || t[m.inicio] != m.tipo) return cursor.coerceIn(0, t.length)
+    t.delete(m.inicio, cursor.coerceIn(m.inicio + 1, t.length))
+    return m.inicio
+}
+
 private val LISTAS = setOf("bulletListItem", "numberedListItem", "checkListItem", "toggleListItem")
 
 /**
@@ -89,9 +100,13 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
 
     fun visibles(): List<FilaVisible> {
         val out = ArrayList<FilaVisible>()
+        // Un id repetido (un documento mal mezclado) se pinta una vez: dos filas con la misma
+        // clave cierran la lista perezosa, y la página no se podría abrir nunca más.
+        val vistos = HashSet<String>()
         fun baja(lista: List<Bloque>, sangria: Int) {
             var numero = 0
             for (b in lista) {
+                if (!vistos.add(b.id)) continue
                 numero = if (b.tipo == "numberedListItem") {
                     val inicio = (b.props["start"] as? JsonPrimitive)?.content?.toDoubleOrNull()?.toInt()
                     if (numero == 0 || inicio != null) inicio ?: 1 else numero + 1

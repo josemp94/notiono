@@ -36,7 +36,7 @@ import kotlinx.serialization.json.JsonObject
 fun PantallaTareas() {
     val n = LocalNavegador.current
     val q = rememberConsulta("db.myTasks", etiquetas = setOf("tareas", "espacio"))
-    val tareas = q.datos?.comoLista?.map { it.comoObjeto }
+    val tareas = q.datos?.comoLista?.map { it.comoObjeto }?.distinctBy { it.str("recordId") }
     Column(Modifier.fillMaxSize()) {
         BarraSuperior("Mis tareas", izquierda = { BotonIcono("panel-left", n.abrirPanel) }, acciones = { BotonIcono("refresh-cw", { q.recargar() }) })
         when {

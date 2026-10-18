@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import android.content.ClipData
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +54,7 @@ import kotlinx.serialization.json.JsonPrimitive
 fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val est = remember(pageId, recordId) { EstadoBD(pageId, s, alcance).apply { soloFila = recordId; cacheada() } }
     LaunchedEffect(recordId) { est.carga() }
     LaunchedEffect(recordId) { s.repo.cambios.collect { if (it == "vista:$pageId") est.recarga() } }

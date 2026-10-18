@@ -62,17 +62,21 @@ object Actualizador {
     fun puedeInstalar(ctx: Context) = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ctx.packageManager.canRequestPackageInstalls()
 
     fun pidePermiso(ctx: Context) {
-        ctx.startActivity(
+        Enlaces.lanza(
+            ctx,
             Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            "Busca «Instalar apps desconocidas» en los ajustes de Android",
         )
     }
 
     fun instala(ctx: Context, apk: File) {
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", apk)
-        ctx.startActivity(
+        Enlaces.lanza(
+            ctx,
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+            "No se pudo abrir el instalador de Android",
         )
     }
 }

@@ -108,8 +108,7 @@ class AccionesEditor(
         val b = estado.busca(m.bloqueId)
         val t = b?.texto
         if (t != null) {
-            val fin = (estado.seleccion.first).coerceIn(m.inicio, t.length)
-            t.delete(m.inicio, fin.coerceAtLeast(m.inicio + 1).coerceAtMost(t.length))
+            quitaConsulta(t, m, estado.seleccion.first)
             estado.texto(b)
         }
         estado.menu = null
@@ -192,17 +191,16 @@ class AccionesEditor(
     fun insertaMencion(m: Mencionable, menu: MenuEscritura) {
         val b = estado.busca(menu.bloqueId) ?: return
         val t = b.texto ?: return
-        val fin = estado.seleccion.first.coerceIn(menu.inicio, t.length)
-        t.delete(menu.inicio, fin.coerceAtLeast(menu.inicio + 1).coerceAtMost(t.length))
+        val donde = quitaConsulta(t, menu, estado.seleccion.first)
         val nodo = when (m) {
             is Mencionable.Pagina -> JsonObject(mapOf("type" to JsonPrimitive("mention"), "props" to JsonObject(mapOf("pageId" to JsonPrimitive(m.id), "title" to JsonPrimitive(m.titulo.ifBlank { "Sin título" }), "icon" to JsonPrimitive(m.icono ?: "")))))
             is Mencionable.Persona -> JsonObject(mapOf("type" to JsonPrimitive("personMention"), "props" to JsonObject(mapOf("userId" to JsonPrimitive(m.id), "name" to JsonPrimitive(m.nombre)))))
             is Mencionable.Fecha -> JsonObject(mapOf("type" to JsonPrimitive("dateMention"), "props" to JsonObject(mapOf("fecha" to JsonPrimitive(m.ymd)))))
         }
-        insertaChip(b, nodo, menu.inicio)
+        insertaChip(b, nodo, donde)
         estado.menu = null
         estado.texto(b)
-        estado.foco = PeticionFoco(b.id, menu.inicio + 2)
+        estado.foco = PeticionFoco(b.id, donde + 2)
         estado.estructura(b)
         // Mencionar a alguien le avisa en su bandeja, como en la web.
         if (m is Mencionable.Persona) alcance.launch {
@@ -278,7 +276,8 @@ class AccionesEditor(
     fun Dialogos() {
         val galeria = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let(::sube) }
         val archivo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(::sube) }
-        val fotoUri = remember { mutableStateOf<Uri?>(null) }
+        // Guardada: con la cámara abierta, Android puede matar la app y la foto llega al volver.
+        val fotoUri = androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Uri?>(null) }
         val camara = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) fotoUri.value?.let(::sube) }
         lanzaGaleria = {
             galeria.launch(PickVisualMediaRequest(if (tipoSubida == "video") ActivityResultContracts.PickVisualMedia.VideoOnly else ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -288,7 +287,7 @@ class AccionesEditor(
             val f = File(ctx.cacheDir, "foto-${System.currentTimeMillis()}.jpg")
             val u = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", f)
             fotoUri.value = u
-            camara.launch(u)
+            Enlaces.lanza(camara, u, "No hay ninguna app de cámara")
         }
         if (convirtiendo) {
             val b = estado.enfocado?.let { estado.busca(it) }

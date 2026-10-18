@@ -14,13 +14,18 @@ import com.monrealperez.notiono.ui.App
 import com.monrealperez.notiono.ui.Destino
 import com.monrealperez.notiono.ui.tema.TemaNotiono
 import com.monrealperez.notiono.widgets.Widgets
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    /** A dónde ir por un intent (atajo, widget, enlace, compartir). */
-    private val destinos = MutableSharedFlow<Destino>(replay = 1, extraBufferCapacity = 4)
+    /**
+     * A dónde ir por un intent (atajo, widget, enlace, compartir). Un canal y no un flujo con
+     * repetición: cada destino se atiende una vez aunque la pantalla principal se vuelva a
+     * montar (entrar tras caducar la sesión repetía el último: otra fila nueva, la cámara…).
+     */
+    private val destinos = Channel<Destino>(Channel.BUFFERED)
     private val errorAcceso = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,7 +35,7 @@ class MainActivity : ComponentActivity() {
         val s = Servicios.de(this)
         setContent {
             TemaNotiono {
-                App(destinos = destinos, errorAcceso = errorAcceso, onEntrar = {
+                App(destinos = destinos.receiveAsFlow(), errorAcceso = errorAcceso, onEntrar = {
                     errorAcceso.value = null
                     Acceso.abrir(this, BuildConfig.BASE_URL, s.sesion)
                 })
@@ -62,12 +67,14 @@ class MainActivity : ComponentActivity() {
                     s.sesion.verificadorPendiente = null
                     s.sesion.guarda(canje)
                     Tareas.programaPeriodicas(this@MainActivity)
+                    // Lo que quedó en la cola de la sesión anterior sale ya, no al próximo arranque.
+                    com.monrealperez.notiono.datos.ColaWorker.programa(this@MainActivity)
                 } catch (e: ErrorApi) {
                     errorAcceso.value = e.message
                 }
             }
             return
         }
-        Destino.de(uri)?.let { destinos.tryEmit(it) }
+        Destino.de(uri)?.let { destinos.trySend(it) }
     }
 }

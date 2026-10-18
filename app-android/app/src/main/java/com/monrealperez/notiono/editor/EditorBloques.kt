@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.editor
 
 import android.annotation.SuppressLint
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.graphics.Typeface
 import android.view.MotionEvent
 import androidx.compose.foundation.background
@@ -31,7 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,7 +109,7 @@ fun EditorBloques(
     val sincro = remember(fuente) { Sincro(fuente, estado, s.repo, s.alcance) }
     val activo = remember { Activo() }
     val lista = rememberLazyListState()
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val ciclo = LocalLifecycleOwner.current
     var arrastre by remember { mutableStateOf<Arrastre?>(null) }
     var hojaBloque by remember { mutableStateOf<Bloque?>(null) }
@@ -136,8 +137,8 @@ fun EditorBloques(
         }
     }
     LaunchedEffect(Unit) { s.repo.cambios.collect { if (it == "bloques:${fuente.id}") sincro.refresca() } }
-    // Al salir de la página, lo pendiente se manda ya (en el alcance de la app, no de la pantalla).
-    DisposableEffect(fuente) { onDispose { s.alcance.launch { sincro.envia() } } }
+    // Al salir de la página (o girar el móvil), lo pendiente se guarda y se manda ya (en el alcance de la app).
+    DisposableEffect(fuente) { onDispose { sincro.alCerrar(s.alcance) } }
     LaunchedEffect(oscuro) { estado.pal = pal }
 
     val v = estado.version
@@ -166,6 +167,9 @@ fun EditorBloques(
                 }
                 itemsIndexed(filas, key = { _, f -> f.b.id }) { i, f ->
                     val enArrastre = arrastre?.id == f.b.id
+                    // El gesto se monta una vez por bloque: al soltar, la posición y la lista de ahora.
+                    val posicion by rememberUpdatedState(i)
+                    val filasAhora by rememberUpdatedState(filas)
                     Box(
                         Modifier.fillMaxWidth()
                             .let { if (enArrastre) it.offset(y = arrastre!!.dy.dp / ctx.resources.displayMetrics.density).alpha(0.85f).background(C.hover) else it },
@@ -177,7 +181,7 @@ fun EditorBloques(
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { arrastre = Arrastre(f.b.id, 0f) },
                                     onDragEnd = {
-                                        arrastre?.let { a -> suelta(a, i, filas, lista, estado) }
+                                        arrastre?.let { a -> suelta(a, posicion, filasAhora, lista, estado) }
                                         arrastre = null
                                     },
                                     onDragCancel = { arrastre = null },

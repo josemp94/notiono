@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.ui.pagina
 
 import android.content.ClipData
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +76,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val n = LocalNavegador.current
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var hoja by remember { mutableStateOf<String?>(null) }
     var borrar by remember { mutableStateOf(false) }
     val id = info.id
@@ -157,7 +157,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             }
         }
         FilaMenu("Abrir en el navegador", "external-link") {
-            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${BuildConfig.BASE_URL}/p/$id"))); onCerrar()
+            com.monrealperez.notiono.util.Enlaces.abre(ctx, "${BuildConfig.BASE_URL}/p/$id"); onCerrar()
         }
         if (info.puedeEditar) {
             Separador(Modifier.padding(vertical = 4.dp))
@@ -178,7 +178,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
 @Composable
 fun HojaComentarios(pageId: String, recordId: String?, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val input = if (recordId != null) objeto("pageId" to pageId, "recordId" to recordId) else objeto("pageId" to pageId)
     val etiqueta = "comentarios:$pageId:${recordId.orEmpty()}"
     val q = rememberConsulta("comments.list", input, etiquetas = setOf(etiqueta), cadaMs = 20_000)
@@ -250,7 +250,7 @@ fun HojaComentarios(pageId: String, recordId: String?, onCerrar: () -> Unit) {
 @Composable
 fun HojaHistorial(info: PaginaInfo, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val q = rememberConsulta("pages.versions.list", objeto("pageId" to info.id))
     val lista = q.datos?.comoLista?.map { it.comoObjeto }
     var viendo by remember { mutableStateOf<JsonObject?>(null) }
@@ -305,7 +305,7 @@ fun HojaEntrantes(id: String, onCerrar: () -> Unit) {
 fun HojaPublicar(id: String, onCerrar: () -> Unit) {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     val q = rememberConsulta("app.pagina", objeto("id" to id), etiquetas = setOf("pagina:$id"))
     val info = q.datos?.comoObjeto
     var clave by remember { mutableStateOf("") }
@@ -333,7 +333,7 @@ fun HojaPublicar(id: String, onCerrar: () -> Unit) {
                     Avisos.di("Enlace copiado")
                 }) { Text("Copiar enlace", color = Marca) }
                 TextButton({
-                    ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url), "Compartir"))
+                    com.monrealperez.notiono.util.Enlaces.lanza(ctx, Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url), "Compartir"))
                 }) { Text("Compartir…", color = Marca) }
             }
             Separador()

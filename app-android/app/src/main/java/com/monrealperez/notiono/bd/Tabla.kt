@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.bd
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.monrealperez.notiono.ui.comun.rememberAlcance
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -289,7 +290,7 @@ private fun HojaCalculo(est: EstadoBD, c: Campo, onCerrar: () -> Unit) {
 /** Menú de una fila: abrir, subtarea, duplicar, mover, plantilla y borrar. */
 @Composable
 fun MenuFila(est: EstadoBD, f: Fila, abrir: (String) -> Unit, onCerrar: () -> Unit) {
-    val alcance = androidx.compose.runtime.rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var plantilla by remember { mutableStateOf(false) }
     val ordenada = (est.vista?.cfg()?.get("sorts") as? kotlinx.serialization.json.JsonArray)?.isNotEmpty() == true || est.datos?.grupos != null
     Hoja(onCerrar, est.tituloDe(f)) {

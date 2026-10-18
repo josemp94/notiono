@@ -16,17 +16,18 @@ lo tiene en la web, o no tiene sentido en el teléfono: no se hace).
 - [x] Inventario abajo, con lo que falta.
 
 ### R2 · Robustez (que no se cierre nunca)
-- [ ] Red: todo error (cuerpo cortado, HTML o JSON raro) sale como `ErrorApi` (`canjear`, `subir`, `getJson`, `versionPublicada`, `postJson`).
-- [ ] Enlaces e intents raros: ids de página validados en `Destino.de`; `?v=` codificado; los destinos se consumen una vez (no se repiten al volver a entrar).
-- [ ] `startActivity`/lanzadores sin app que los atienda (navegador, correo, teléfono, cámara, permisos, descargas en Android 8–9).
-- [ ] Claves repetidas en listas perezosas (bloques, filas, columnas del Kanban).
-- [ ] Índices sin comprobar: gráfica (`valores[i]`), tabla del editor (formas raras de `tableContent`), menús «/» y «@» con el texto cambiado.
-- [ ] Datos que se pierden: el título de la página pisado por la respuesta del servidor mientras se escribe; lo escrito justo antes de girar el móvil / cambiar de tema; la foto de la cámara si Android mata la app mientras está abierta la cámara.
-- [ ] BD: respuestas viejas que pisan la vista elegida; valores optimistas que parpadean al refrescar.
-- [ ] Avisos: se repetían cuando la lista de vistos pasaba de 500.
-- [ ] Compartir: texto con formato (`CharSequence`) llegaba vacío.
-- [ ] Lecturas/escrituras de caché grandes fuera del hilo principal; árbol releído del disco en cada recomposición de la página.
-- [ ] Pruebas de todo lo anterior (rojas antes cuando se pueda) y `testDebugUnitTest` verde.
+- [x] Red: todo error (cuerpo cortado, HTML o JSON raro) sale como `ErrorApi` (`canjear`, `subir`, `getJson`, `versionPublicada`, `postJson`): un único `Api.llama`.
+- [x] Enlaces e intents raros: ids validados en `Destino.de` y en `Navegador`; los destinos se consumen una vez (canal, no flujo con repetición).
+- [x] `startActivity`/lanzadores sin app que los atienda: `Enlaces.lanza` (correo, teléfono, cámara, permisos, instalador, compartir) y descargas en Android 8–9 o con URL que no es http.
+- [x] Claves repetidas en listas perezosas: bloques (`visibles`), filas y grupos (`EstadoBD`), columnas del Kanban, búsqueda, bandeja, favoritos, papelera, menciones.
+- [x] Índices sin comprobar: gráfica, tabla del editor (`Tabla.*` con `as?`), menús «/» y «@» con el texto cambiado (`quitaConsulta`).
+- [x] Datos que se perdían: título pisado mientras se escribe (`TituloEnEdicion`); lo escrito justo antes de girar con un envío en camino (`Sincro.alCerrar`); la foto de la cámara si Android mata la app (`rememberSaveable`).
+- [x] BD: respuestas viejas que pisaban la vista elegida; valores optimistas que volvían a su valor viejo al refrescar o sin red.
+- [x] Gestos que leían valores viejos (Kanban y arrastre de bloques): `rememberUpdatedState`.
+- [x] Avisos que se repetían; compartir texto con formato (`CharSequence`); fotos de 12 MP en Android 8 (reducidas al leer).
+- [x] Caché escrita fuera del hilo principal; árbol leído una vez por página; iconos en un mapa concurrente.
+- [x] Red de seguridad: las corrutinas de las pantallas y la de la app apuntan un fallo inesperado en el registro («fallo») y avisan en vez de cerrar la app.
+- [x] Pruebas (`RedTest`, `DestinoTest`, `RobustezEditorTest`, `SincroTest`, `EstadoBDTest`, `GraficaTest`, `KanbanTest`, `TituloTest`, `CompartirTest`, `EnlacesTest`): 53 en total, verdes. Las 9 que se podían pasar al código de la 2.0.3, rojas con él.
 
 ### R3 · Recorrido real contra Notiono local
 - [ ] Notiono local (PGlite + `server.mjs` + SSO falso) con datos realistas.
@@ -172,3 +173,21 @@ Propuestas (grandes o dudosas, no se hacen a medias):
 - Compartir hacia una BD como fila nueva.
 
 ## Bitácora
+- **R2 (18-oct)**. Leído todo el código buscando lo que cierra la app. Lo más gordo:
+  - *Entrar con el proxy contestando HTML*: `canjear` leía y decodificaba fuera del `catch` y
+    `MainActivity` solo captura `ErrorApi` → cierre al volver del SSO. Igual al subir archivos.
+  - *Un enlace `notiono://pagina/a%2Fb`* (o una mención rota dentro de un documento): la ruta no
+    casaba con ningún destino de la navegación → `IllegalArgumentException` y cierre.
+  - *Un id repetido* en un documento o una BD: dos claves iguales en una `LazyColumn` cierran la
+    app, y además cada vez que se abre esa página.
+  - *Sin app de correo, cámara o navegador* (`ActivityNotFoundException`), y descargar en
+    Android 8–9 (`SecurityException`: escribir en Descargas pide un permiso que no tenemos).
+  - *Perder lo escrito*: el título volvía a lo guardado si la respuesta llegaba mientras se
+    seguía escribiendo; girar el móvil con un envío en camino dejaba al editor nuevo sin lo
+    último (y su siguiente envío lo deshacía).
+  - *Destinos repetidos*: el flujo con `replay = 1` volvía a entregar el último destino al
+    volver a entrar tras caducar la sesión (otra fila nueva desde el widget, la cámara…).
+  - Pruebas rojas antes del arreglo comprobadas en una copia del código de la 2.0.3
+    (`git worktree` en `~/Dobby/tmp`, ya borrada): 9 de 9 (la de la gráfica, dibujando la
+    ventana a mano en un bitmap: `captureToImage` no funciona con este montaje de Robolectric).
+

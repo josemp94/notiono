@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -135,7 +134,7 @@ object AccionesPagina {
 fun HojaMover(id: String, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
     val arbol = Arbol.de(rememberConsulta("pages.tree").datos)
-    val alcance = rememberCoroutineScope()
+    val alcance = rememberAlcance()
     var filtro by remember { mutableStateOf("") }
     HojaLista(onCerrar, "Mover a") {
         Box(Modifier.padding(horizontal = 16.dp)) { Campo(filtro, { filtro = it }, placeholder = "Buscar página…") }

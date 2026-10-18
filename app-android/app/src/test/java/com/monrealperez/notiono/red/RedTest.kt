@@ -81,6 +81,28 @@ class RedTest {
     }
 
     @Test
+    fun respuestasRarasSonErrorApiYNoCierranLaApp() = runBlocking {
+        // La página del proxy con un 200 (o un JSON con otra forma) al canjear el código del
+        // SSO, al subir, en una ruta propia y al mirar la versión: siempre ErrorApi, que es lo
+        // único que capturan las pantallas (MainActivity solo captura ErrorApi al entrar).
+        val html = { MockResponse.Builder().code(200).body("<html>Synology</html>").build() }
+        servidor.enqueue(html())
+        try { api.canjear("c", "v"); fail() } catch (e: ErrorApi) { assertEquals(ErrorApi.Tipo.Servidor, e.tipo) }
+        servidor.enqueue(MockResponse.Builder().code(200).body("""{"token":"t"}""").build())
+        try { api.canjear("c", "v"); fail() } catch (e: ErrorApi) { assertEquals(ErrorApi.Tipo.Servidor, e.tipo) }
+        servidor.enqueue(html())
+        try { api.subir(ByteArray(3), "a.txt", "text/plain"); fail() } catch (e: ErrorApi) { assertEquals(ErrorApi.Tipo.Servidor, e.tipo) }
+        servidor.enqueue(html())
+        try { api.getJson("/api/geo?q=x"); fail() } catch (e: ErrorApi) { assertEquals(ErrorApi.Tipo.Servidor, e.tipo) }
+        servidor.enqueue(MockResponse.Builder().code(200).body("{}").build())
+        try { api.versionPublicada(); fail() } catch (e: ErrorApi) { assertEquals(ErrorApi.Tipo.Servidor, e.tipo) }
+        // Y sin servidor, «sin conexión» en todas.
+        servidor.close()
+        try { api.canjear("c", "v"); fail() } catch (e: ErrorApi) { assertTrue(e.sinConexion) }
+        try { api.postJson("/api/app/registro", JsonObject(emptyMap())); fail() } catch (e: ErrorApi) { assertTrue(e.sinConexion) }
+    }
+
+    @Test
     fun sinConexionSeLeeLaCacheYLosCambiosVanALaCola() = runBlocking {
         val dir = File(ApplicationProvider.getApplicationContext<android.content.Context>().filesDir, "prueba-cola").apply { deleteRecursively(); mkdirs() }
         val repo = Repo(api, Cache(dir), Cola(dir)) {}

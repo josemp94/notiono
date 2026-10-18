@@ -26,7 +26,7 @@ object Archivos {
         f.writeText(texto)
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", f)
         val envio = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        ctx.startActivity(Intent.createChooser(envio, "Exportar $nombre").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        Enlaces.lanza(ctx, Intent.createChooser(envio, "Exportar $nombre").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     suspend fun exportaMarkdown(ctx: Context, pageId: String) {
