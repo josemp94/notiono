@@ -40,7 +40,7 @@ import com.monrealperez.notiono.ui.tema.C
 
 /** Una página: documento (editor de bloques) o base de datos, con su barra y su menú «⋯». */
 @Composable
-fun PantallaPagina(id: String, alFinal: Boolean = false) {
+fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) {
     val s = Servicios.de(LocalContext.current)
     val n = LocalNavegador.current
     val q = rememberConsulta("app.pagina", objeto("id" to id), etiquetas = setOf("pagina:$id"))
@@ -79,7 +79,7 @@ fun PantallaPagina(id: String, alFinal: Boolean = false) {
             },
         )
         when {
-            info != null && info.esBd -> PantallaBD(info)
+            info != null && info.esBd -> PantallaBD(info, vista)
             info != null -> EditorPagina(info, alFinal)
             q.error != null -> Vacio(
                 when (q.error?.tipo) {

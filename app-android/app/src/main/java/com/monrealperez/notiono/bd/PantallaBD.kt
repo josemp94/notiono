@@ -81,8 +81,8 @@ fun rememberEstadoBD(pageId: String, vistaInicial: String? = null): EstadoBD {
 
 /** Una página de base de datos: cabecera, vistas y la vista elegida, como en la web. */
 @Composable
-fun PantallaBD(info: PaginaInfo) {
-    val est = rememberEstadoBD(info.id)
+fun PantallaBD(info: PaginaInfo, vista: String? = null) {
+    val est = rememberEstadoBD(info.id, vista)
     Column(Modifier.fillMaxSize()) {
         CuerpoBD(est, info, embebida = false, modifier = Modifier.weight(1f))
     }

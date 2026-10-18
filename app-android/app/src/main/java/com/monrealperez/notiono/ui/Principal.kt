@@ -80,7 +80,8 @@ class Navegador(
     val abrirPanel: () -> Unit,
     val nuevaPagina: (parentId: String?) -> Unit,
 ) {
-    fun pagina(id: String, alFinal: Boolean = false) = nav.navigate("pagina/$id?final=$alFinal") { launchSingleTop = true }
+    fun pagina(id: String, alFinal: Boolean = false, vista: String? = null) =
+        nav.navigate("pagina/$id?final=$alFinal" + (vista?.let { "&v=$it" } ?: "")) { launchSingleTop = true }
     fun fila(pageId: String, recordId: String) = nav.navigate("fila/$pageId/$recordId")
     fun a(ruta: String) = nav.navigate(ruta) { launchSingleTop = true }
     fun atras() {
@@ -118,7 +119,7 @@ fun Principal(destinos: SharedFlow<Destino>) {
     LaunchedEffect(Unit) {
         destinos.collect { d ->
             when (d) {
-                is Destino.Pagina -> navegador.pagina(d.id)
+                is Destino.Pagina -> navegador.pagina(d.id, vista = d.vista)
                 is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
                 Destino.Buscar -> navegador.a("buscar")
                 Destino.Bandeja -> navegador.a("bandeja")
@@ -172,13 +173,14 @@ fun Principal(destinos: SharedFlow<Destino>) {
                         composable("papelera") { PantallaPapelera() }
                         composable("plantillas") { PantallaPlantillas() }
                         composable(
-                            "pagina/{id}?final={final}",
+                            "pagina/{id}?final={final}&v={v}",
                             arguments = listOf(
                                 navArgument("id") { type = NavType.StringType },
                                 navArgument("final") { type = NavType.BoolType; defaultValue = false },
+                                navArgument("v") { type = NavType.StringType; nullable = true; defaultValue = null },
                             ),
                         ) { e ->
-                            PantallaPagina(e.arguments!!.getString("id")!!, alFinal = e.arguments!!.getBoolean("final"))
+                            PantallaPagina(e.arguments!!.getString("id")!!, alFinal = e.arguments!!.getBoolean("final"), vista = e.arguments!!.getString("v"))
                         }
                         composable("fila/{pageId}/{recordId}") { e ->
                             PantallaFila(e.arguments!!.getString("pageId")!!, e.arguments!!.getString("recordId")!!)
