@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notiono</string>
+    <string name="atajo_nueva">Nueva página</string>
+    <string name="atajo_nueva_larga">Crear una página nueva</string>
+    <string name="atajo_buscar">Buscar</string>
+    <string name="atajo_buscar_larga">Buscar en Notiono</string>
+    <string name="compartir_con">Compartir con Notiono</string>
+    <string name="widget_nota">Nota de Notiono</string>
+    <string name="widget_nota_desc">Enseña una página y deja marcar sus casillas</string>
+    <string name="widget_lista">Lista de una base de datos</string>
+    <string name="widget_lista_desc">Las filas de una vista, con casilla y botón para añadir</string>
+    <string name="widget_rapida">Nota rápida</string>
+    <string name="widget_rapida_desc">Abre una nota nueva para escribir</string>
+    <string name="canal_avisos">Avisos de la bandeja</string>
+    <string name="canal_avisos_desc">Menciones, asignaciones, comentarios y fechas que vencen</string>
+</resources>

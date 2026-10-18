@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pantalla de arranque: el naranja de marca con la N, como el icono. -->
+    <style name="Theme.Notiono.Arranque" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/marca</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Notiono</item>
+    </style>
+
+    <style name="Theme.Notiono" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:colorAccent">@color/marca</item>
+    </style>
+
+    <style name="Theme.Notiono.Dialogo" parent="android:Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:colorAccent">@color/marca</item>
+    </style>
+</resources>

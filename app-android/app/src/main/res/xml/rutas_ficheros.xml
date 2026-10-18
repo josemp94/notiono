@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider: fotos de la cámara, exportaciones y el APK de una actualización. -->
+<paths>
+    <cache-path name="cache" path="." />
+    <external-files-path name="descargas" path="Download/" />
+</paths>

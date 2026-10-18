@@ -66,6 +66,43 @@ async function filaDelEspacio(ctx: Ctx, id: string) {
 
 export const appNativaRouter = router({
   /**
+   * Lo que la app enseña de una página, sin su contenido ni el estado Yjs (que
+   * `pages.get` devuelve enteros y en el móvil pesan): título, icono, portada, tipo,
+   * candado, tipografía, publicación, si la sigo, si es favorita y mi nivel.
+   */
+  pagina: workspaceProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const page = await ctx.db.page.findFirst({
+        where: { id: input.id, workspaceId: ctx.workspace.id },
+        select: {
+          id: true, parentId: true, title: true, icon: true, cover: true, type: true, embedded: true,
+          fullWidth: true, locked: true, font: true, publicToken: true, publicExpiresAt: true,
+          publicPassword: true, restricted: true, archivedAt: true, createdAt: true, updatedAt: true,
+        },
+      });
+      if (!page) throw new TRPCError({ code: "NOT_FOUND" });
+      const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const [sigo, fav, ultima] = await Promise.all([
+        ctx.db.pageFollow.findUnique({ where: { userId_pageId: { userId: ctx.user.id, pageId: page.id } }, select: { id: true } }),
+        ctx.db.favorite.findUnique({ where: { userId_pageId: { userId: ctx.user.id, pageId: page.id } }, select: { id: true } }),
+        ctx.db.version.findFirst({ where: { pageId: page.id, authorId: { not: null } }, orderBy: { createdAt: "desc" }, select: { authorId: true } }),
+      ]);
+      const autor = ultima?.authorId
+        ? await ctx.db.user.findUnique({ where: { id: ultima.authorId }, select: { name: true, email: true } })
+        : null;
+      const { publicPassword, ...resto } = page;
+      return {
+        ...resto,
+        hasPublicPassword: !!publicPassword,
+        siguiendo: !!sigo,
+        favorita: !!fav,
+        nivel,
+        editadoPor: autor ? autor.name || autor.email : null,
+      };
+    }),
+
+  /**
    * Bloques de una página (del documento compartido si lo hay). Con `huella` (la de
    * la última respuesta) y sin cambios, no reenvía los bloques: la app consulta cada
    * pocos segundos mientras tiene la página abierta.

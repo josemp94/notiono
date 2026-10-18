@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="nueva"
+        android:enabled="true"
+        android:icon="@drawable/atajo_nueva"
+        android:shortcutShortLabel="@string/atajo_nueva"
+        android:shortcutLongLabel="@string/atajo_nueva_larga">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="notiono://nueva"
+            android:targetPackage="com.monrealperez.notiono"
+            android:targetClass="com.monrealperez.notiono.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="buscar"
+        android:enabled="true"
+        android:icon="@drawable/atajo_buscar"
+        android:shortcutShortLabel="@string/atajo_buscar"
+        android:shortcutLongLabel="@string/atajo_buscar_larga">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="notiono://buscar"
+            android:targetPackage="com.monrealperez.notiono"
+            android:targetClass="com.monrealperez.notiono.MainActivity" />
+    </shortcut>
+</shortcuts>
