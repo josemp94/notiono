@@ -1,0 +1,112 @@
+package com.monrealperez.notiono.ui.pagina
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.monrealperez.notiono.Servicios
+import com.monrealperez.notiono.bd.PantallaBD
+import com.monrealperez.notiono.bd.PantallaFicha
+import com.monrealperez.notiono.datos.PaginaInfo
+import com.monrealperez.notiono.datos.Reciente
+import com.monrealperez.notiono.editor.EditorPagina
+import com.monrealperez.notiono.red.ErrorApi
+import com.monrealperez.notiono.red.json
+import com.monrealperez.notiono.red.objeto
+import com.monrealperez.notiono.ui.LocalNavegador
+import com.monrealperez.notiono.ui.comun.Arbol
+import com.monrealperez.notiono.ui.comun.BarraSuperior
+import com.monrealperez.notiono.ui.comun.BotonIcono
+import com.monrealperez.notiono.ui.comun.Esqueleto
+import com.monrealperez.notiono.ui.comun.Icono
+import com.monrealperez.notiono.ui.comun.IconoPagina
+import com.monrealperez.notiono.ui.comun.Vacio
+import com.monrealperez.notiono.ui.comun.rememberConsulta
+import com.monrealperez.notiono.ui.tema.C
+
+/** Una página: documento (editor de bloques) o base de datos, con su barra y su menú «⋯». */
+@Composable
+fun PantallaPagina(id: String, alFinal: Boolean = false) {
+    val s = Servicios.de(LocalContext.current)
+    val n = LocalNavegador.current
+    val q = rememberConsulta("app.pagina", objeto("id" to id), etiquetas = setOf("pagina:$id"))
+    val info = q.datos?.let { runCatching { json.decodeFromJsonElement(PaginaInfo.serializer(), it) }.getOrNull() }
+    val arbol = Arbol.de(s.repo.cacheada("pages.tree"))
+    var menu by remember { mutableStateOf(false) }
+    var comentarios by remember { mutableStateOf(false) }
+
+    LaunchedEffect(info?.id, info?.title, info?.icon) {
+        if (info != null && !info.embedded) s.recientes.anota(s.espacioActivo(), Reciente(info.id, info.title, info.icon, System.currentTimeMillis()))
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        BarraSuperior(
+            izquierda = { BotonIcono("panel-left", n.abrirPanel) },
+            centro = {
+                // Miga de pan: la madre (toca para ir) y la página.
+                val camino = arbol.camino(id)
+                val madre = camino.getOrNull(camino.size - 2)
+                if (madre != null) {
+                    Row(Modifier.clickable { n.pagina(madre.id) }, verticalAlignment = Alignment.CenterVertically) {
+                        IconoPagina(madre.icon, 16.dp)
+                        Text(madre.title.ifBlank { "Sin título" }, fontSize = 14.sp, color = C.apagado, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp).weight(1f, fill = false))
+                        Text("  /  ", fontSize = 14.sp, color = C.borde)
+                    }
+                }
+                if (info != null) {
+                    IconoPagina(info.icon, 16.dp, porDefecto = if (info.esBd) "database" else "file-text")
+                    Text(info.title.ifBlank { "Sin título" }, fontSize = 14.sp, color = C.texto, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+                }
+            },
+            acciones = {
+                if (info?.locked == true) Icono("lock", tam = 16.dp, color = C.apagado, modifier = Modifier.padding(horizontal = 4.dp))
+                BotonIcono("message-square", { comentarios = true })
+                BotonIcono("ellipsis", { menu = true })
+            },
+        )
+        when {
+            info != null && info.esBd -> PantallaBD(info)
+            info != null -> EditorPagina(info, alFinal)
+            q.error != null -> Vacio(
+                when (q.error?.tipo) {
+                    ErrorApi.Tipo.NoEncontrado -> "Esta página no existe o no tienes acceso."
+                    ErrorApi.Tipo.SinConexion -> "Sin conexión y sin copia guardada de esta página."
+                    else -> q.error?.message ?: "No se pudo abrir"
+                },
+                icono = "file-text",
+            )
+            else -> Esqueleto(6)
+        }
+    }
+    if (menu && info != null) MenuPagina(info, onCerrar = { menu = false }, onComentarios = { menu = false; comentarios = true })
+    if (comentarios) HojaComentarios(id, null) { comentarios = false }
+}
+
+/** Una fila de BD abierta como página completa (enlace ?r=, Mis tareas, widgets). */
+@Composable
+fun PantallaFila(pageId: String, recordId: String) {
+    val n = LocalNavegador.current
+    var comentarios by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        BarraSuperior(izquierda = { BotonIcono("arrow-left", { n.atras() }) }, acciones = {
+            BotonIcono("message-square", { comentarios = true })
+            BotonIcono("table", { n.pagina(pageId) })
+        })
+        PantallaFicha(pageId, recordId, onBorrada = { n.atras() })
+    }
+    if (comentarios) HojaComentarios(pageId, recordId) { comentarios = false }
+}

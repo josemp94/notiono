@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Saca de lucide-react los iconos que usa la app nativa de Android y los deja como
- * trazos SVG en app-android/app/src/main/assets/lucide.json. Así la app usa los MISMOS
+ * trazos SVG en app-android/app/src/main/assets/lucide.json (y el orden y las palabras de
+ * búsqueda de los de página en iconos-pagina.json). Así la app usa los MISMOS
  * dibujos que la web: los de la interfaz y los 257 iconos de página («icono:<nombre>:<color>»).
  *
  *   node scripts/iconos-android.mjs
@@ -32,7 +33,8 @@ square circle-dot loader-circle wand-sparkles letter-text text
 `.split(/\s+/).filter(Boolean);
 
 // Los de página: los mismos que la pestaña «Iconos» del selector de la web.
-const pagina = [...readFileSync("src/components/iconosPagina.tsx", "utf8").matchAll(/\["([a-z0-9-]+)", [A-Za-z0-9]+, "/g)].map((m) => m[1]);
+const conPalabras = [...readFileSync("src/components/iconosPagina.tsx", "utf8").matchAll(/\["([a-z0-9-]+)", [A-Za-z0-9]+, "([^"]*)"\]/g)].map((m) => [m[1], m[2]]);
+const pagina = conPalabras.map(([n]) => n);
 
 const n = (v) => Number(v);
 function aTrazo([tag, a]) {
@@ -80,4 +82,6 @@ if (faltan.length) {
   process.exit(1);
 }
 writeFileSync("app-android/app/src/main/assets/lucide.json", JSON.stringify(salida));
+// El orden y las palabras de búsqueda de la pestaña «Iconos» del selector.
+writeFileSync("app-android/app/src/main/assets/iconos-pagina.json", JSON.stringify(conPalabras));
 console.log(`${Object.keys(salida).length} iconos → app-android/app/src/main/assets/lucide.json`);

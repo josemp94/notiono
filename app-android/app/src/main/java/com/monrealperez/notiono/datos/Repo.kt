@@ -68,7 +68,7 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         input: JsonElement? = null,
         encolable: Boolean = true,
         pagina: String? = null,
-        vararg etiquetas: String,
+        etiquetas: List<String> = emptyList(),
     ): JsonElement? {
         if (encolable && !cola.estaVacia()) {
             cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina))
@@ -78,14 +78,14 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         return try {
             val r = envio.withLock { api.mutation(ruta, input) }
             _sinConexion.value = false
-            avisa(*etiquetas)
+            avisa(*etiquetas.toTypedArray())
             r
         } catch (e: ErrorApi) {
             anota(e)
             if (e.sinConexion && encolable) {
                 cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina))
                 alEncolar()
-                avisa(*etiquetas)
+                avisa(*etiquetas.toTypedArray())
                 null
             } else throw e
         }

@@ -8,6 +8,7 @@ sealed interface Destino {
     data class Fila(val pageId: String, val recordId: String) : Destino
     data object Nueva : Destino
     data object Buscar : Destino
+    data object Bandeja : Destino
     data class NotaRapida(val paginaDestino: String?) : Destino
 
     companion object {
@@ -16,6 +17,7 @@ sealed interface Destino {
             return when {
                 uri.scheme == "notiono" && uri.host == "nueva" -> Nueva
                 uri.scheme == "notiono" && uri.host == "buscar" -> Buscar
+                uri.scheme == "notiono" && uri.host == "bandeja" -> Bandeja
                 uri.scheme == "notiono" && uri.host == "rapida" -> NotaRapida(uri.getQueryParameter("en"))
                 uri.scheme == "notiono" && uri.host == "pagina" && seg.isNotEmpty() -> Pagina(seg[0])
                 uri.scheme == "notiono" && uri.host == "fila" && seg.size >= 2 -> Fila(seg[0], seg[1])

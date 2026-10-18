@@ -1,10 +1,226 @@
 package com.monrealperez.notiono.ui
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.monrealperez.notiono.Servicios
+import com.monrealperez.notiono.red.ErrorApi
+import com.monrealperez.notiono.red.int
+import com.monrealperez.notiono.red.objeto
+import com.monrealperez.notiono.red.str
+import com.monrealperez.notiono.red.comoObjeto
+import com.monrealperez.notiono.ui.ajustes.PantallaAjustes
+import com.monrealperez.notiono.ui.bandeja.PantallaBandeja
+import com.monrealperez.notiono.ui.buscar.PantallaBuscar
+import com.monrealperez.notiono.ui.comun.Avisos
+import com.monrealperez.notiono.ui.comun.Icono
+import com.monrealperez.notiono.ui.comun.rememberConsulta
+import com.monrealperez.notiono.ui.inicio.PantallaInicio
+import com.monrealperez.notiono.ui.pagina.PantallaFila
+import com.monrealperez.notiono.ui.pagina.PantallaPagina
+import com.monrealperez.notiono.ui.panel.Panel
+import com.monrealperez.notiono.ui.papelera.PantallaPapelera
+import com.monrealperez.notiono.ui.plantillas.PantallaPlantillas
+import com.monrealperez.notiono.ui.tareas.PantallaTareas
+import com.monrealperez.notiono.ui.tema.C
+import com.monrealperez.notiono.ui.tema.Marca
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
 
+/** Lo que cualquier pantalla puede pedir al armazón: navegar, abrir el panel, crear. */
+class Navegador(
+    val nav: NavHostController,
+    val abrirPanel: () -> Unit,
+    val nuevaPagina: (parentId: String?) -> Unit,
+) {
+    fun pagina(id: String, alFinal: Boolean = false) = nav.navigate("pagina/$id?final=$alFinal") { launchSingleTop = true }
+    fun fila(pageId: String, recordId: String) = nav.navigate("fila/$pageId/$recordId")
+    fun a(ruta: String) = nav.navigate(ruta) { launchSingleTop = true }
+    fun atras() {
+        if (!nav.popBackStack()) nav.navigate("inicio")
+    }
+}
+
+val LocalNavegador = staticCompositionLocalOf<Navegador> { error("sin navegador") }
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Principal(destinos: SharedFlow<Destino>) {
-    Text("Notiono")
+    val ctx = LocalContext.current
+    val s = Servicios.de(ctx)
+    val nav = rememberNavController()
+    val panel = rememberDrawerState(DrawerValue.Closed)
+    val alcance = rememberCoroutineScope()
+    val avisos = remember { SnackbarHostState() }
+
+    val nuevaPagina: (String?) -> Unit = { padre ->
+        alcance.launch {
+            try {
+                val r = s.repo.mutacion("pages.create", objeto("parentId" to padre, "title" to ""), encolable = false, etiquetas = listOf("arbol"))
+                r?.comoObjeto?.str("id")?.let { id -> nav.navigate("pagina/$id?final=false") }
+            } catch (e: ErrorApi) {
+                Avisos.di(if (e.sinConexion) "Sin conexión: no se puede crear la página" else (e.message ?: "No se pudo crear"))
+            }
+        }
+    }
+    val navegador = remember(nav) {
+        Navegador(nav, abrirPanel = { alcance.launch { panel.open() } }, nuevaPagina = nuevaPagina)
+    }
+
+    // Enlaces, atajos y widgets.
+    LaunchedEffect(Unit) {
+        destinos.collect { d ->
+            when (d) {
+                is Destino.Pagina -> navegador.pagina(d.id)
+                is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
+                Destino.Buscar -> navegador.a("buscar")
+                Destino.Bandeja -> navegador.a("bandeja")
+                Destino.Nueva -> nuevaPagina(null)
+                is Destino.NotaRapida -> if (d.paginaDestino != null) navegador.pagina(d.paginaDestino, alFinal = true) else nuevaPagina(null)
+            }
+        }
+    }
+    // Avisos de fechas que vencen (como la web al abrir) y sesión caducada.
+    LaunchedEffect(Unit) {
+        runCatching { s.repo.mutacion("notifications.checkDue", encolable = false) }
+    }
+    LaunchedEffect(Unit) { s.repo.noAutorizado.collect { s.sesion.olvida() } }
+    LaunchedEffect(Unit) {
+        Avisos.flujo.collect { a ->
+            val r = avisos.showSnackbar(a.texto, actionLabel = a.accion, withDismissAction = a.accion == null)
+            if (r == SnackbarResult.ActionPerformed) a.alPulsar?.invoke()
+        }
+    }
+
+    CompositionLocalProvider(LocalNavegador provides navegador) {
+        ModalNavigationDrawer(
+            drawerState = panel,
+            drawerContent = {
+                ModalDrawerSheet(drawerContainerColor = C.superficie, modifier = Modifier.width(310.dp)) {
+                    Panel(onCerrar = { alcance.launch { panel.close() } })
+                }
+            },
+        ) {
+            val entrada by nav.currentBackStackEntryAsState()
+            val ruta = entrada?.destination?.route ?: "inicio"
+            Box(Modifier.fillMaxSize().background(C.fondo)) {
+                Column(Modifier.fillMaxSize()) {
+                    NavHost(nav, startDestination = "inicio", modifier = Modifier.weight(1f)) {
+                        composable("inicio") { PantallaInicio() }
+                        composable("buscar") { PantallaBuscar() }
+                        composable("tareas") { PantallaTareas() }
+                        composable("bandeja") { PantallaBandeja() }
+                        composable("ajustes") { PantallaAjustes() }
+                        composable("papelera") { PantallaPapelera() }
+                        composable("plantillas") { PantallaPlantillas() }
+                        composable(
+                            "pagina/{id}?final={final}",
+                            arguments = listOf(
+                                navArgument("id") { type = NavType.StringType },
+                                navArgument("final") { type = NavType.BoolType; defaultValue = false },
+                            ),
+                        ) { e ->
+                            PantallaPagina(e.arguments!!.getString("id")!!, alFinal = e.arguments!!.getBoolean("final"))
+                        }
+                        composable("fila/{pageId}/{recordId}") { e ->
+                            PantallaFila(e.arguments!!.getString("pageId")!!, e.arguments!!.getString("recordId")!!)
+                        }
+                    }
+                    // La barra de abajo, como la web en el móvil; se esconde con el teclado.
+                    if (!WindowInsets.isImeVisible) BarraInferior(ruta, navegador)
+                }
+                SnackbarHost(avisos, Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp).navigationBarsPadding())
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarraInferior(ruta: String, n: Navegador) {
+    val s = Servicios.de(LocalContext.current)
+    val sinLeer = rememberConsulta("notifications.unreadCount", etiquetas = setOf("bandeja"), cadaMs = 60_000)
+    val cuantas = (sinLeer.datos as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+    val sinRed by s.repo.sinConexion.collectAsState()
+    Column(Modifier.fillMaxWidth().background(C.superficie).navigationBarsPadding()) {
+        if (sinRed) {
+            Text(
+                "Sin conexión · lo que cambies se enviará al volver",
+                fontSize = 12.sp, color = C.apagado,
+                modifier = Modifier.fillMaxWidth().background(C.hover).padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+        Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
+            ElementoBarra("house", "Inicio", ruta == "inicio") { n.nav.navigate("inicio") { popUpTo("inicio") { inclusive = true } } }
+            ElementoBarra("search", "Buscar", ruta == "buscar") { n.a("buscar") }
+            ElementoBarra("square-pen", "Nueva", false) { n.nuevaPagina(null) }
+            ElementoBarra("circle-check", "Tareas", ruta == "tareas") { n.a("tareas") }
+            ElementoBarra("inbox", "Bandeja", ruta == "bandeja", insignia = cuantas) { n.a("bandeja") }
+        }
+    }
+}
+
+@Composable
+private fun ElementoBarra(icono: String, texto: String, activo: Boolean, insignia: Int = 0, onClick: () -> Unit) {
+    Column(
+        Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            Icono(icono, tam = 22.dp, color = if (activo) C.texto else C.apagado, trazo = if (activo) 2.2f else 1.75f)
+            if (insignia > 0) {
+                Box(
+                    Modifier.offset(x = 12.dp, y = (-4).dp).size(16.dp).clip(CircleShape).background(Marca),
+                    contentAlignment = Alignment.Center,
+                ) { Text(if (insignia > 9) "9+" else "$insignia", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+        Text(texto, fontSize = 11.sp, color = if (activo) C.texto else C.apagado)
+    }
 }

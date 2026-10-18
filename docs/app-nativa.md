@@ -26,13 +26,13 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] Markdown ↔ bloques en el servidor (jsdom + conversor de BlockNote) y galería de plantillas. (Lo que surja al hacer la app, aquí.)
 
 ### F4 · App: esqueleto
-- [ ] Proyecto Gradle `app-android/` (Kotlin DSL + catálogo), firma desde `~/notiono-apk/firma.properties`.
+- [x] Proyecto Gradle `app-android/` (Kotlin DSL + catálogo), firma desde `~/notiono-apk/firma.properties`.
 - [ ] Tema (marca, claro/oscuro), arranque, edge-to-edge, atrás predictivo, icono adaptativo.
-- [ ] Red: cliente tRPC/superjson, sesión (Custom Tab + PKCE), caché sin conexión y cola de cambios.
-- [ ] Navegación: panel lateral con el árbol, Inicio, Buscar, Mis tareas, Bandeja, Ajustes.
+- [x] Red: cliente tRPC/superjson, sesión (Custom Tab + PKCE), caché sin conexión y cola de cambios.
+- [x] Navegación: panel lateral con el árbol, Inicio, Buscar, Mis tareas, Bandeja, Ajustes, Papelera, Plantillas, página (cabecera, menú «⋯», comentarios, historial, enlaces entrantes, publicar, mover).
 
 ### F5 · App: editor de bloques
-- [ ] Modelo de bloques ↔ JSON BlockNote (conserva lo desconocido) ↔ Spannable.
+- [x] Modelo de bloques ↔ JSON BlockNote (conserva lo desconocido) ↔ Spannable, y operaciones por bloque (`Diff`), con pruebas JVM.
 - [ ] EditText con InputConnection propio; teclado (Enter, Retroceso, Markdown), menú `/`, `@`, barra de formato.
 - [ ] Todos los tipos de bloque; subir archivos; tabla; ecuación; columnas apiladas; BD embebida.
 - [ ] Sincronía por operaciones (rebote 1 s), cambios remotos por bloque, indicador de estado.
@@ -77,8 +77,18 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - **Markdown en el servidor con jsdom** (`serverExternalPackages`): el mismo conversor que
   la web; `@blocknote/server-util` no sirve en Next porque importa React.
 
-- **18-oct-2026 · Versiones**: AGP 9.4.1 (Kotlin integrado), Kotlin 2.4.21, Gradle 9.x,
-  Compose BOM 2026.09.00, JDK 17 de `~/.bubblewrap`. Son las estables del día.
+- **18-oct-2026 · Versiones**: AGP 9.4.1 (Kotlin integrado), Kotlin 2.4.21, Gradle 9.8.1,
+  JDK 17 de `~/.bubblewrap`. Lo último de AndroidX/OkHttp/Coil exige compileSdk 37 y la tarea
+  pide 36: por eso Compose BOM 2026.06.01, core 1.18, lifecycle 2.10, navigation 2.9.6,
+  OkHttp 5.4 y Coil 3.5 (las más nuevas que compilan con 36).
+- **Robolectric con Android 35** (`app/src/test/resources/robolectric.properties`): el
+  SDK 36 de Robolectric exige Java 21 y aquí hay JDK 17. Las pruebas usan la Application
+  vacía (la de verdad programa WorkManager al arrancar).
+- **17:42 · systemd-oomd mató la sesión** (Gradle 4g + demonio de Kotlin + lo de Jose).
+  Desde entonces: Gradle 3g, 2 workers, Kotlin in-process, tests a 1g y un solo fork.
+- **Iconos**: los de lucide de la web, sacados a `assets/lucide.json` por
+  `scripts/iconos-android.mjs` (interfaz + los 257 de página) y pintados como vector.
+- **Emojis**: el selector nativo de AndroidX (`EmojiPickerView`), con búsqueda y recientes.
 - **Caché local sin Room**: respuestas guardadas como JSON en ficheros por clave y la cola
   de cambios en un fichero; Room obligaría a KSP para guardar lo mismo. Si un día hace
   falta consultar la caché (no solo leerla), entonces Room.
