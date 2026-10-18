@@ -28,6 +28,7 @@ model User {
   archivedPages     Page[]         @relation("archivedPages")
   pageFollows       PageFollow[]
   appAuthCodes      AppAuthCode[]
+  appRegistros      AppRegistro[]
 }
 
 /**
@@ -68,6 +69,30 @@ model AppAuthCode {
   challenge String // S256 del verificador que solo conoce la app
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+/**
+ * Registro de diagnóstico de la app nativa (widgets, cierres inesperados, fallos del
+ * servidor), sin contenido de páginas. Lo manda la app en lote (`POST /api/app/registro`);
+ * no tiene pantalla: se lee en la BD (consulta en docs/app-nativa.md). Tope por usuario
+ * en `src/server/appRegistro.ts`.
+ */
+model AppRegistro {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dispositivo String // id al azar de la instalación
+  version     String
+  modelo      String
+  fabricante  String
+  android     String
+  tipo        String // widget | cierre | red
+  mensaje     String
+  traza       String?
+  fecha       DateTime // cuándo pasó, según el móvil
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Workspace {
