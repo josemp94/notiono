@@ -11,8 +11,4 @@
         <item name="android:windowBackground">@color/fondo</item>
         <item name="android:colorAccent">@color/marca</item>
     </style>
-
-    <style name="Theme.Notiono.Dialogo" parent="android:Theme.Material.Light.Dialog.NoActionBar">
-        <item name="android:colorAccent">@color/marca</item>
-    </style>
 </resources>
