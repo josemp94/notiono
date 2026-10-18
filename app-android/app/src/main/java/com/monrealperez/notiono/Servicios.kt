@@ -22,7 +22,7 @@ class Servicios private constructor(ctx: Context) {
         .writeTimeout(120, TimeUnit.SECONDS)
         .cache(CacheHttp(File(ctx.cacheDir, "http"), 64L * 1024 * 1024))
         .build()
-    val api = Api(BuildConfig.BASE_URL, http, sesion)
+    val api = Api(baseDePrueba ?: BuildConfig.BASE_URL, http, sesion)
     val cache = Cache(ctx.filesDir)
     val cola = Cola(ctx.filesDir)
     val repo = Repo(api, cache, cola) { ColaWorker.programa(ctx) }
@@ -39,6 +39,10 @@ class Servicios private constructor(ctx: Context) {
 
     companion object {
         @Volatile private var instancia: Servicios? = null
+
+        /** Las pruebas y las capturas apuntan la app entera a un Notiono local. */
+        @androidx.annotation.VisibleForTesting
+        var baseDePrueba: String? = null
 
         fun de(ctx: Context): Servicios =
             instancia ?: synchronized(this) { instancia ?: Servicios(ctx.applicationContext).also { instancia = it } }

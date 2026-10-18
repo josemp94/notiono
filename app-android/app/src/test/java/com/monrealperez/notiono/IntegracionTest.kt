@@ -1,6 +1,5 @@
 package com.monrealperez.notiono
 
-import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.monrealperez.notiono.datos.Cache
 import com.monrealperez.notiono.datos.Cola
@@ -10,7 +9,6 @@ import com.monrealperez.notiono.editor.Fuente
 import com.monrealperez.notiono.editor.Inline
 import com.monrealperez.notiono.editor.Paleta
 import com.monrealperez.notiono.editor.Sincro
-import com.monrealperez.notiono.red.Acceso
 import com.monrealperez.notiono.red.Api
 import com.monrealperez.notiono.red.Sesion
 import com.monrealperez.notiono.red.arr
@@ -25,7 +23,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -42,40 +39,21 @@ import java.io.File
  */
 @RunWith(RobolectricTestRunner::class)
 class IntegracionTest {
-    private val base = System.getProperty("notiono.integracion").orEmpty()
+    private val base = NotionoLocal.base
     private val paginaNavegador = System.getProperty("notiono.pagina").orEmpty()
-
-    /** La Custom Tab: recorre las redirecciones del SSO hasta `notiono://auth?code=…`. */
-    private fun recorreSso(http: OkHttpClient, inicio: String): String {
-        var url = inicio
-        val cookies = mutableListOf<String>()
-        repeat(5) {
-            val res = http.newCall(Request.Builder().url(url).header("Cookie", cookies.joinToString("; ")).build()).execute()
-            res.use { r ->
-                cookies += r.headers("Set-Cookie").map { it.substringBefore(';') }
-                val destino = r.header("Location") ?: error("el SSO no redirige (${r.code})")
-                if (destino.startsWith("notiono://")) return destino
-                url = destino
-            }
-        }
-        error("demasiadas redirecciones")
-    }
 
     @Test
     fun laAppContraNotionoDeVerdad() = runBlocking {
         assumeTrue("sin Notiono local (scripts/integracion-android.ts)", base.isNotEmpty())
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
         val sesion = Sesion(ctx, "integracion").apply { olvida() }
-        val http = OkHttpClient.Builder().followRedirects(false).build()
+        val http = OkHttpClient()
         val api = Api(base, http, sesion)
         val dir = File(ctx.filesDir, "integracion").apply { deleteRecursively(); mkdirs() }
         val repo = Repo(api, Cache(dir), Cola(dir)) {}
 
         // --- Inicio de sesión: SSO + PKCE, canje del código ---
-        val verificador = Acceso.nuevoVerificador()
-        val vuelta = Uri.parse(recorreSso(http, Acceso.urlInicio(base, verificador).toString()))
-        val codigo = Acceso.codigoDe(vuelta)!!
-        sesion.guarda(api.canjear(codigo, verificador))
+        NotionoLocal.entra(api, sesion, http)
         assertEquals("ana@example.com", repo.consulta("auth.me").comoObjeto.str("email"))
 
         // --- Páginas y filas ---

@@ -1,10 +1,10 @@
 /**
  * Un SSO de mentira (OIDC mínimo) para las pruebas de integración: autoriza a «Ana»
- * sin preguntar. El servidor de Notiono se arranca con OIDC_ISSUER=http://127.0.0.1:55433.
+ * (u otra persona) sin preguntar. El servidor de Notiono se arranca con OIDC_ISSUER=http://127.0.0.1:55433.
  */
 import { createServer } from "node:http";
 
-export function ssoFalso() {
+export function ssoFalso(persona = { sub: "ana", email: "ana@example.com", name: "Ana" }) {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1:55433");
     const json = (o: unknown) => {
@@ -23,7 +23,7 @@ export function ssoFalso() {
       vuelta.searchParams.set("state", url.searchParams.get("state")!);
       res.writeHead(302, { Location: vuelta.toString() }).end();
     } else if (url.pathname === "/token") json({ access_token: "at-ana" });
-    else if (url.pathname === "/userinfo") json({ sub: "ana", email: "ana@example.com", name: "Ana" });
+    else if (url.pathname === "/userinfo") json(persona);
     else res.writeHead(404).end();
   });
   return new Promise<typeof server>((ok) => server.listen(55433, "127.0.0.1", () => ok(server)));
