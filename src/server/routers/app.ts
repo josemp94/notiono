@@ -144,6 +144,19 @@ export const appNativaRouter = router({
       return { ...v, nivel, locked: page.locked };
     }),
 
+  /** Una fila con sus propiedades ya resueltas y sus subtareas (la ficha), sin filtros de vista. */
+  fila: workspaceProcedure
+    .input(z.object({ pageId: z.string(), recordId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.pageId);
+      const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id }, page.id, null, null, input.recordId);
+      if (!v) throw new TRPCError({ code: "NOT_FOUND" });
+      const fila = v.filas.find((f) => f.id === input.recordId);
+      if (!fila) throw new TRPCError({ code: "NOT_FOUND", message: "Esta fila ya no existe (¿la borraron?)." });
+      return { ...v, fila, subtareas: v.filas.filter((f) => f.parentId === input.recordId), nivel, locked: page.locked };
+    }),
+
   /** Importar un .md: los bloques que saldrían en la web (la app crea la página con ellos). */
   markdownABloques: workspaceProcedure
     .input(z.object({ markdown: z.string().max(2_000_000) }))

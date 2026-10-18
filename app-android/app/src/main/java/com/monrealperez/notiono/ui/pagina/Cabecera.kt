@@ -59,7 +59,7 @@ fun familia(font: String): FontFamily = when (font) {
  * El título se guarda solo (a los 600 ms de dejar de escribir) y avisa al árbol.
  */
 @Composable
-fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false, onEnter: () -> Unit = {}) {
+fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false, compacta: Boolean = false, onEnter: () -> Unit = {}) {
     val s = Servicios.de(LocalContext.current)
     val alcance = rememberCoroutineScope()
     var titulo by remember(info.id) { mutableStateOf(info.title) }
@@ -80,11 +80,11 @@ fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false
     if (enfocarTitulo) LaunchedEffect(Unit) { runCatching { foco.requestFocus() } }
 
     Column(Modifier.fillMaxWidth()) {
-        portada?.let { BandaPortada(it, Modifier.fillMaxWidth().height(150.dp).clickable(enabled = editable) { eligePortada = true }) }
+        portada?.let { BandaPortada(it, Modifier.fillMaxWidth().height(if (compacta) 90.dp else 150.dp).clickable(enabled = editable) { eligePortada = true }) }
         Column(Modifier.padding(horizontal = 20.dp).padding(top = if (portada != null) 0.dp else 16.dp)) {
             if (icono != null) {
                 Box(Modifier.offset(y = if (portada != null) (-30).dp else 0.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = editable) { eligeIcono = true }) {
-                    IconoPagina(icono, 60.dp)
+                    IconoPagina(icono, if (compacta) 44.dp else 60.dp)
                 }
             }
             if (editable && (icono == null || portada == null)) {
@@ -97,14 +97,14 @@ fun Cabecera(info: PaginaInfo, editable: Boolean, enfocarTitulo: Boolean = false
                 titulo,
                 { titulo = it.replace("\n", "") },
                 readOnly = !editable,
-                textStyle = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold, color = C.texto, lineHeight = 36.sp, fontFamily = familia(info.font)),
+                textStyle = TextStyle(fontSize = if (compacta) 26.sp else 30.sp, fontWeight = FontWeight.Bold, color = C.texto, lineHeight = 36.sp, fontFamily = familia(info.font)),
                 cursorBrush = SolidColor(Marca),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(onNext = { onEnter() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(foco).padding(vertical = 4.dp),
                 decorationBox = { campo ->
                     Box {
-                        if (titulo.isEmpty()) Text("Sin título", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = C.borde, fontFamily = familia(info.font))
+                        if (titulo.isEmpty()) Text("Sin título", fontSize = if (compacta) 26.sp else 30.sp, fontWeight = FontWeight.Bold, color = C.borde, fontFamily = familia(info.font))
                         campo()
                     }
                 },

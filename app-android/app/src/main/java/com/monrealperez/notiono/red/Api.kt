@@ -138,6 +138,21 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
         }
     }
 
+    /** GET a una ruta propia de la web (no tRPC) con la sesión: /api/geo… */
+    suspend fun getJson(ruta: String): JsonElement = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(absoluta(ruta)).get().conSesion().build()
+        val res = try {
+            http.newCall(req).execute()
+        } catch (e: IOException) {
+            throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
+        }
+        res.use {
+            val texto = it.body.string()
+            if (!it.isSuccessful) throw errorHttp(it.code, mensajeDe(texto) ?: "Error del servidor (${it.code})")
+            json.parseToJsonElement(texto)
+        }
+    }
+
     /** URL absoluta para lo que el servidor da como ruta («/api/asset/…»). */
     fun absoluta(ruta: String): String =
         if (ruta.startsWith("http://") || ruta.startsWith("https://")) ruta else base + (if (ruta.startsWith("/")) ruta else "/$ruta")

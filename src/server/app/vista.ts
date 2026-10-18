@@ -33,6 +33,8 @@ export async function calculaVista(
   pageId: string,
   viewId: string | null | undefined,
   q: string | null | undefined,
+  /** Solo esta fila y sus subtareas, sin los filtros de la vista (la ficha de una fila). */
+  soloFila?: string,
 ) {
   const col = await db.collection.findUnique({
     where: { pageId },
@@ -67,7 +69,9 @@ export async function calculaVista(
     })),
     computados.rollups,
   );
-  let filas = applyViewConfig(base, fields, cfg, quien.userId);
+  let filas = soloFila
+    ? base.filter((r) => r.id === soloFila || col.records.find((x) => x.id === r.id)?.parentId === soloFila)
+    : applyViewConfig(base, fields, cfg, quien.userId);
   const aguja = (q ?? "").trim().toLowerCase();
   if (aguja) {
     filas = filas.filter((r) => fields.some((f) => displayValue(f, r.cells?.[f.id], people).toLowerCase().includes(aguja)));

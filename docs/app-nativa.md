@@ -34,12 +34,12 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 ### F5 · App: editor de bloques
 - [x] Modelo de bloques ↔ JSON BlockNote (conserva lo desconocido) ↔ Spannable, y operaciones por bloque (`Diff`), con pruebas JVM.
 - [x] EditText con InputConnection propio; teclado (Enter, Retroceso, Markdown), menú `/`, `@`, barra de formato (pruebas en `TecladoTest`).
-- [~] Todos los tipos de bloque; subir archivos; tabla; ecuación; columnas apiladas (hecho) · BD embebida (pendiente de la fase BD).
+- [x] Todos los tipos de bloque; subir archivos; tabla; ecuación; columnas apiladas; BD embebida.
 - [x] Sincronía por operaciones (rebote 1 s), cambios remotos por bloque, indicador de estado (`Sincro`).
 
 ### F6 · App: bases de datos
-- [ ] Tabla, Kanban, Lista, Galería, Calendario, Cronograma, Gráfica, Formulario.
-- [ ] Filtros/orden/agrupación/búsqueda, ficha de fila con todas las propiedades, crear BD/columnas/vistas.
+- [x] Tabla, Kanban, Lista, Galería, Calendario, Cronograma, Gráfica, Formulario.
+- [x] Filtros/orden/agrupación/búsqueda, ficha de fila con todas las propiedades, crear BD/columnas/vistas (servidor: `app.fila`).
 
 ### F7 · App: resto de Notiono
 - [ ] Comentarios, bandeja, enlaces entrantes, historial, papelera, plantillas, publicar, icono/portada, bloquear, tipografía, espacios, importar/exportar, compartir hacia Notiono, atajos, avisos con WorkManager, actualizaciones.
@@ -59,6 +59,13 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [ ] CLAUDE.md, `docs/android.md`, este fichero.
 
 ## Bitácora (decisiones y comprobaciones)
+
+- **BD**: las filas siempre salen de `app.vista` (motor de la web en el servidor); la app
+  solo guarda la config de la vista (`db.updateView`) y vuelve a pedirla. Las celdas se
+  pintan con el texto que manda el servidor (`textos`) y se editan con una hoja por tipo
+  (como la app de Notion). Abrir una fila va siempre a su ficha a pantalla completa (lo
+  que hace Notion en Android). Pendiente de pulir: flechas de dependencias del
+  Cronograma y configurar las acciones del campo Botón (se hace en la web).
 
 - **Editor: un EditText por bloque dentro de una LazyColumn de Compose** (AndroidView). Su
   `Editable` ES el `SpannableStringBuilder` del modelo (fábrica de Editable propia), con
