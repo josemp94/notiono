@@ -1,11 +1,19 @@
 package com.monrealperez.notiono.widgets
 
+import android.app.PendingIntent
 import android.content.Context
+import android.os.SystemClock
+import android.widget.RemoteViews
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,9 +38,7 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -48,7 +54,9 @@ import androidx.glance.layout.width
 import androidx.glance.material3.ColorProviders
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.ColorFilter
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
+import androidx.glance.currentState
 import androidx.glance.layout.fillMaxHeight
 import androidx.glance.text.FontWeight
 import androidx.glance.text.TextDecoration
@@ -69,7 +77,9 @@ import com.monrealperez.notiono.editor.Inline
 import com.monrealperez.notiono.red.ErrorApi
 import com.monrealperez.notiono.red.comoLista
 import com.monrealperez.notiono.red.comoObjeto
+import com.monrealperez.notiono.red.obj
 import com.monrealperez.notiono.red.objeto
+import com.monrealperez.notiono.red.objs
 import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.tema.ColoresClaros
 import com.monrealperez.notiono.ui.tema.ColoresOscuros
@@ -77,7 +87,10 @@ import com.monrealperez.notiono.ui.comun.emojiDe
 import com.monrealperez.notiono.ui.tema.Marca
 import com.monrealperez.notiono.util.Fechas
 import java.time.Instant
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.TimeUnit
@@ -85,12 +98,29 @@ import java.util.concurrent.TimeUnit
 /**
  * Los widgets de la pantalla de inicio (Glance): Nota, Lista de una base de datos,
  * Nota rápida, Acciones rápidas y Páginas recientes. Se refrescan solos cada ~30 min,
- * al momento cuando la app cambia algo que enseñan y con su botón de refrescar.
+ * al momento cuando la app cambia algo que enseñan, al abrir la app, tras reiniciar el
+ * móvil o actualizar la app, y con su botón de refrescar.
+ *
+ * Nunca esperan a la red para pintar (ver «Widgets en blanco» en docs/app-nativa.md):
+ * pintan al instante lo último bueno de la caché y refrescan detrás; si el refresco
+ * falla, siguen enseñando lo último con la marca «Sin actualizar · hace 2 h».
  */
 object Widgets {
     val CLAVE_PAGINA = stringPreferencesKey("pagina")
     val CLAVE_VISTA = stringPreferencesKey("vista")
     val CLAVE_TITULO = stringPreferencesKey("titulo")
+
+    /**
+     * «motivo@ms», nuevo en cada petición de repintar: con la sesión de Glance ya abierta,
+     * `update` no vuelve a llamar a `provideGlance`, solo recarga este estado; al cambiar,
+     * el widget vuelve a pedir sus datos.
+     */
+    val CLAVE_PEDIDO = stringPreferencesKey("pedido")
+
+    const val INICIA_SESION = "Inicia sesión en la app"
+
+    private val todos get() = listOf(NotaWidget(), ListaWidget(), RapidaWidget(), AccionesWidget(), RecientesWidget())
+    private val receptores = listOf(NotaReceiver::class.java, ListaReceiver::class.java, RapidaReceiver::class.java, AccionesReceiver::class.java, RecientesReceiver::class.java)
 
     fun programa(ctx: Context) {
         val req = PeriodicWorkRequestBuilder<WidgetsWorker>(30, TimeUnit.MINUTES)
@@ -99,12 +129,66 @@ object Widgets {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork("widgets", ExistingPeriodicWorkPolicy.KEEP, req)
     }
 
-    suspend fun actualizaTodo(ctx: Context) {
-        runCatching { NotaWidget().updateAll(ctx) }
-        runCatching { ListaWidget().updateAll(ctx) }
-        runCatching { RapidaWidget().updateAll(ctx) }
-        runCatching { AccionesWidget().updateAll(ctx) }
-        runCatching { RecientesWidget().updateAll(ctx) }
+    /** Repinta todos los widgets puestos y que vuelvan a pedir sus datos. */
+    suspend fun actualizaTodo(ctx: Context, motivo: String) {
+        val m = GlanceAppWidgetManager(ctx)
+        for (w in todos) seguro(ctx, "repintar ${w.javaClass.simpleName}") {
+            m.getGlanceIds(w.javaClass).forEach { pide(ctx, w, it, motivo) }
+        }
+    }
+
+    /** Repinta un widget y que vuelva a pedir sus datos. */
+    suspend fun pide(ctx: Context, w: GlanceAppWidget, id: GlanceId, motivo: String) {
+        updateAppWidgetState(ctx, id) { it[CLAVE_PEDIDO] = "$motivo@${System.currentTimeMillis()}" }
+        w.update(ctx, id)
+    }
+
+    /** ¿Hay algún widget de Notiono en la pantalla de inicio? */
+    fun hay(ctx: Context): Boolean {
+        val m = android.appwidget.AppWidgetManager.getInstance(ctx) ?: return false
+        return receptores.any { runCatching { m.getAppWidgetIds(android.content.ComponentName(ctx, it)).isNotEmpty() }.getOrDefault(false) }
+    }
+
+    /** Lo de un widget que puede fallar: se apunta en el registro y no tumba nada (salvo cancelar). */
+    suspend fun <T> seguro(ctx: Context, que: String, bloque: suspend () -> T): T? =
+        try {
+            bloque()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Servicios.de(ctx).registro.anota("widget", "$que: fallo", e)
+            null
+        }
+
+    /** Lo último bueno de la caché, para pintar sin esperar. */
+    fun guardado(s: Servicios, consultas: List<Consulta>, valida: (List<JsonElement>) -> Boolean): EstadoWidget {
+        val v = consultas.map { s.repo.cacheada(it.ruta, it.input) ?: return EstadoWidget(null, null, null) }
+        if (!runCatching { valida(v) }.getOrDefault(false)) return EstadoWidget(null, null, null)
+        return EstadoWidget(v, consultas.mapNotNull { s.cache.fecha(s.cache.clave(it.ruta, it.input)) }.minOrNull(), null)
+    }
+
+    /**
+     * Pide los datos al servidor. Si llegan bien (y con la forma esperada) se guardan y
+     * se enseñan; si no, se queda lo que había con el motivo del fallo. Nunca lanza.
+     */
+    suspend fun refresca(s: Servicios, nombre: String, motivo: String, consultas: List<Consulta>, valida: (List<JsonElement>) -> Boolean, antes: EstadoWidget): EstadoWidget {
+        val t0 = SystemClock.elapsedRealtime()
+        return try {
+            val v = consultas.map { s.repo.fresca(it.ruta, it.input, cachear = false) }
+            check(valida(v)) { "Respuesta con forma inesperada" }
+            consultas.zip(v).forEach { (c, r) -> s.cache.guarda(s.cache.clave(c.ruta, c.input), r) }
+            s.registro.anota("widget", "$nombre · $motivo · ok · ${SystemClock.elapsedRealtime() - t0} ms")
+            EstadoWidget(v, System.currentTimeMillis(), null, cargando = false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            s.registro.anota("widget", "$nombre · $motivo · fallo · ${SystemClock.elapsedRealtime() - t0} ms", e)
+            antes.copy(fallo = when {
+                e is ErrorApi && e.sinConexion -> "Sin conexión"
+                e is ErrorApi && e.tipo == ErrorApi.Tipo.NoAutorizado -> INICIA_SESION
+                else -> "No se pudo actualizar"
+            }, cargando = false)
+        }
     }
 
     /**
@@ -134,9 +218,98 @@ object Widgets {
 
 class WidgetsWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
     override suspend fun doWork(): Result {
-        Widgets.actualizaTodo(applicationContext)
+        Widgets.actualizaTodo(applicationContext, "periodico")
+        val s = Servicios.de(applicationContext)
+        s.registro.envia(s.api, s.sesion.token != null)
         return Result.success()
     }
+}
+
+/** Tras reiniciar el móvil o actualizar la app nadie repinta los widgets: se repintan aquí. */
+class RepintaReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(ctx: Context, intent: Intent) {
+        val motivo = if (intent.action == Intent.ACTION_BOOT_COMPLETED) "reinicio" else "actualizacion"
+        val pendiente = goAsync()
+        Servicios.de(ctx).alcance.launch {
+            try {
+                Widgets.actualizaTodo(ctx.applicationContext, motivo)
+            } finally {
+                pendiente.finish()
+            }
+        }
+    }
+}
+
+/** Una consulta de la que vive un widget (la misma clave de caché que usa la app). */
+data class Consulta(val ruta: String, val input: JsonElement?)
+
+/** Lo que enseña un widget de datos: lo último bueno, de cuándo es y cómo fue el último refresco. */
+data class EstadoWidget(val datos: List<JsonElement>?, val fecha: Long?, val fallo: String?, val cargando: Boolean = true) {
+    /** La línea de estado: «Cargando…», el fallo si no hay nada que enseñar, o la marca de viejo. */
+    fun aviso(ahora: Instant = Instant.now()): String? = when {
+        datos == null && fallo == null -> "Cargando…"
+        datos == null -> "$fallo. Toca para reintentar."
+        fallo != null -> "Sin actualizar" + (fecha?.let { " · " + Fechas.haceCuanto(Instant.ofEpochMilli(it).toString(), ahora) } ?: "") +
+            (if (fallo == Widgets.INICIA_SESION) " · $fallo" else "")
+        else -> null
+    }
+}
+
+/**
+ * Los datos de un widget: al instante lo guardado y, detrás, el refresco (otra vez cada
+ * vez que se pide repintar). Si no hay sesión no se pide nada.
+ */
+@Composable
+fun rememberDatos(nombre: String, consultas: List<Consulta>, valida: (List<JsonElement>) -> Boolean): EstadoWidget {
+    val ctx = LocalContext.current
+    val s = Servicios.de(ctx)
+    val pedido = currentState(Widgets.CLAVE_PEDIDO)
+    var estado by remember(consultas) { mutableStateOf(Widgets.guardado(s, consultas, valida)) }
+    LaunchedEffect(consultas, pedido) {
+        if (consultas.isEmpty() || s.sesion.token == null) return@LaunchedEffect
+        estado = Widgets.refresca(s, nombre, pedido?.substringBefore('@') ?: "sistema", consultas, valida, estado)
+    }
+    return estado
+}
+
+/**
+ * Lo común: tamaño exacto, estado en preferencias y, si algo revienta al pintar, se apunta
+ * y sale un aviso propio (que abre la app) en vez del «Can't show content» de Glance.
+ */
+abstract class WidgetNotiono : GlanceAppWidget() {
+    override val sizeMode = SizeMode.Exact
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
+    override fun onCompositionError(context: Context, glanceId: GlanceId, appWidgetId: Int, throwable: Throwable) {
+        Servicios.de(context).registro.anota("widget", "${javaClass.simpleName}: error al pintar", throwable)
+        val abrir = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val rv = RemoteViews(context.packageName, R.layout.widget_cargando).apply {
+            setTextViewText(R.id.widget_cargando_texto, "No se pudo pintar. Toca para abrir Notiono.")
+            setOnClickPendingIntent(R.id.widget_cargando_raiz, abrir)
+        }
+        android.appwidget.AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, rv)
+    }
+}
+
+/** El widget sin nada que enseñar (sin sesión, sin elegir página): un mensaje y a dónde lleva tocarlo. */
+@Composable
+fun MensajeWidget(texto: String, abrir: Intent) {
+    GlanceTheme(colors = coloresWidget) {
+        Column(
+            GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp).clickable(actionStartActivity(abrir)),
+            verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Notiono", style = TextStyle(color = GlanceTheme.colors.primary, fontWeight = FontWeight.Bold, fontSize = 15.sp))
+            Text(texto, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
+        }
+    }
+}
+
+/** La línea de estado bajo la cabecera; tocarla refresca. Grande si no hay nada más que enseñar. */
+@Composable
+fun AvisoWidget(texto: String, solo: Boolean) {
+    Text(texto, maxLines = 2, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = if (solo) 13.sp else 11.sp),
+        modifier = GlanceModifier.padding(bottom = 4.dp).clickable(actionRunCallback<Refrescar>()))
 }
 
 /**
@@ -178,33 +351,30 @@ fun CabeceraWidget(titulo: String, abrir: Intent, extra: (@Composable () -> Unit
 
 class Refrescar : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        Widgets.actualizaTodo(context)
+        Widgets.actualizaTodo(context, "boton")
     }
 }
 
 // ---------------- Nota ----------------
 
 /** Widget «Nota»: una página (texto, títulos, listas) y sus casillas, marcables desde aquí. */
-class NotaWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
-    override val stateDefinition = PreferencesGlanceStateDefinition
-
+class NotaWidget : WidgetNotiono() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        val pagina = prefs[Widgets.CLAVE_PAGINA]
         val s = Servicios.de(context)
-        var titulo = prefs[Widgets.CLAVE_TITULO] ?: "Nota"
-        var bloques: List<JsonObject> = emptyList()
-        var error: String? = null
-        if (pagina != null) {
-            try {
-                titulo = s.repo.consulta("app.pagina", objeto("id" to pagina)).comoObjeto.str("title")?.ifBlank { null } ?: titulo
-                bloques = (s.repo.consulta("app.bloques", objeto("id" to pagina)).comoObjeto["bloques"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
-            } catch (e: ErrorApi) {
-                error = if (e.sinConexion) "Sin conexión" else e.message
+        provideContent {
+            val pagina = currentState(Widgets.CLAVE_PAGINA)
+            val consultas = remember(pagina) { if (pagina == null) emptyList() else listOf(Consulta("app.pagina", objeto("id" to pagina)), Consulta("app.bloques", objeto("id" to pagina))) }
+            val e = rememberDatos("nota", consultas) { v -> v[0] is JsonObject && (v[1] as? JsonObject)?.get("bloques") is JsonArray }
+            when {
+                pagina != null && s.sesion.token == null -> MensajeWidget("${Widgets.INICIA_SESION} para ver esta nota.", Widgets.abre(context, "notiono://inicio"))
+                else -> ContenidoNota(
+                    context, pagina,
+                    e.datos?.get(0)?.comoObjeto?.str("title")?.ifBlank { null } ?: currentState(Widgets.CLAVE_TITULO) ?: "Nota",
+                    (e.datos?.get(1)?.comoObjeto?.get("bloques") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList(),
+                    e.aviso(),
+                ) { Widgets.configura(context, id) }
             }
         }
-        provideContent { ContenidoNota(context, pagina, titulo, bloques, error) { Widgets.configura(context, id) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) =
@@ -213,7 +383,7 @@ class NotaWidget : GlanceAppWidget() {
 
 /** Lo que pinta el widget «Nota» (aparte, para poder fotografiarlo en las pruebas). */
 @Composable
-fun ContenidoNota(context: Context, pagina: String?, titulo: String, bloques: List<JsonObject>, error: String?, configurar: () -> Intent) {
+fun ContenidoNota(context: Context, pagina: String?, titulo: String, bloques: List<JsonObject>, aviso: String?, configurar: () -> Intent) {
     GlanceTheme(colors = coloresWidget) {
         Column(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp)) {
             if (pagina == null) {
@@ -223,7 +393,7 @@ fun ContenidoNota(context: Context, pagina: String?, titulo: String, bloques: Li
             }
             val abrir = Widgets.abre(context, "notiono://pagina/$pagina")
             CabeceraWidget(titulo, abrir)
-            if (error != null && bloques.isEmpty()) Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
+            if (aviso != null) AvisoWidget(aviso, solo = bloques.isEmpty())
             LazyColumn(GlanceModifier.fillMaxSize()) {
                 items(planos(bloques).take(60), itemId = { it.first.str("id").hashCode().toLong() }) { (b, nivel, numero) -> FilaNota(pagina, b, nivel, numero, abrir) }
             }
@@ -272,16 +442,16 @@ class MarcaCasilla : ActionCallback {
         val pagina = parameters[PAGINA] ?: return
         val id = parameters[BLOQUE] ?: return
         val s = Servicios.de(context)
-        runCatching {
-            val bloques = (s.repo.consulta("app.bloques", objeto("id" to pagina), cachear = false).comoObjeto["bloques"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: return
+        Widgets.seguro(context, "marcar casilla") {
+            val bloques = (s.repo.consulta("app.bloques", objeto("id" to pagina), cachear = false).comoObjeto["bloques"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: return@seguro
             fun busca(bs: List<JsonObject>): JsonObject? = bs.firstNotNullOfOrNull { b -> if (b.str("id") == id) b else busca((b["children"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()) }
-            val b = busca(bloques) ?: return
+            val b = busca(bloques) ?: return@seguro
             val props = b["props"] as? JsonObject ?: JsonObject(emptyMap())
             val hecho = (props["checked"] as? JsonPrimitive)?.content == "true"
             val nuevo = JsonObject(b - "children" + ("props" to JsonObject(props + ("checked" to JsonPrimitive(!hecho)))))
             s.repo.mutacion("app.aplicar", objeto("id" to pagina, "ops" to listOf(objeto("op" to "upsert", "block" to nuevo))), pagina = pagina, etiquetas = listOf("bloques:$pagina"))
         }
-        NotaWidget().update(context, glanceId)
+        Widgets.seguro(context, "repintar nota") { Widgets.pide(context, NotaWidget(), glanceId, "casilla") }
     }
 
     companion object {
@@ -297,28 +467,27 @@ class NotaReceiver : GlanceAppWidgetReceiver() {
 // ---------------- Lista de una BD ----------------
 
 /** Widget «Lista»: las filas de una vista (p. ej. Tareas pendientes), con casilla y «+». */
-class ListaWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
-    override val stateDefinition = PreferencesGlanceStateDefinition
-
+class ListaWidget : WidgetNotiono() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        val pagina = prefs[Widgets.CLAVE_PAGINA]
-        val vista = prefs[Widgets.CLAVE_VISTA]
         val s = Servicios.de(context)
-        var datos: JsonObject? = null
-        var error: String? = null
-        if (pagina != null) {
-            try {
-                datos = s.repo.consulta("app.vista", JsonObject(objeto("pageId" to pagina) + (vista?.let { mapOf("viewId" to JsonPrimitive(it)) } ?: emptyMap()))).comoObjeto
-            } catch (e: ErrorApi) {
-                error = if (e.sinConexion) "Sin conexión" else e.message
+        provideContent {
+            val pagina = currentState(Widgets.CLAVE_PAGINA)
+            val vista = currentState(Widgets.CLAVE_VISTA)
+            val consultas = remember(pagina, vista) {
+                if (pagina == null) emptyList()
+                else listOf(Consulta("app.vista", JsonObject(objeto("pageId" to pagina) + (vista?.let { mapOf("viewId" to JsonPrimitive(it)) } ?: emptyMap()))))
+            }
+            val e = rememberDatos("lista", consultas) { v -> (v[0] as? JsonObject)?.let { it["filas"] is JsonArray && it["fields"] is JsonArray } == true }
+            val datos = e.datos?.get(0)?.comoObjeto
+            when {
+                pagina != null && s.sesion.token == null -> MensajeWidget("${Widgets.INICIA_SESION} para ver esta lista.", Widgets.abre(context, "notiono://inicio"))
+                else -> ContenidoLista(
+                    context, pagina,
+                    currentState(Widgets.CLAVE_TITULO) ?: datos?.obj("collection")?.str("name") ?: "Base de datos",
+                    datos?.objs("fields") ?: emptyList(), datos?.objs("filas") ?: emptyList(), e.aviso(),
+                ) { Widgets.configura(context, id) }
             }
         }
-        val campos = (datos?.get("fields") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
-        val filas = (datos?.get("filas") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
-        val nombre = prefs[Widgets.CLAVE_TITULO] ?: (datos?.get("collection") as? JsonObject)?.str("name") ?: "Base de datos"
-        provideContent { ContenidoLista(context, pagina, nombre, campos, filas, error) { Widgets.configura(context, id) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) =
@@ -327,7 +496,7 @@ class ListaWidget : GlanceAppWidget() {
 
 /** Lo que pinta el widget «Lista». */
 @Composable
-fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: List<JsonObject>, filas: List<JsonObject>, error: String?, configurar: () -> Intent) {
+fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: List<JsonObject>, filas: List<JsonObject>, aviso: String?, configurar: () -> Intent) {
     val titulo = campos.firstOrNull { it.str("type") == "text" } ?: campos.firstOrNull()
     val casilla = campos.firstOrNull { it.str("type") == "checkbox" }
     val clave = campos.firstOrNull { it.str("type") == "date" } ?: campos.firstOrNull { it.str("type") == "status" } ?: campos.firstOrNull { it.str("type") == "select" }
@@ -341,8 +510,8 @@ fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: Li
             CabeceraWidget(nombre, Widgets.abre(context, "notiono://pagina/$pagina")) {
                 BotonMas(Widgets.abre(context, "notiono://nuevafila/$pagina"), "Nueva fila")
             }
-            if (error != null && filas.isEmpty()) Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
-            if (filas.isEmpty() && error == null) Text("Nada por aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
+            if (aviso != null) AvisoWidget(aviso, solo = filas.isEmpty())
+            else if (filas.isEmpty()) Text("Nada por aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
             LazyColumn(GlanceModifier.fillMaxSize()) {
                 items(filas.take(50), itemId = { it.str("id").hashCode().toLong() }) { f ->
                     val celdas = f["cells"] as? JsonObject ?: JsonObject(emptyMap())
@@ -380,12 +549,12 @@ fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: Li
 class MarcaFila : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val s = Servicios.de(context)
-        runCatching {
+        Widgets.seguro(context, "marcar fila") {
             s.repo.mutacion("db.updateCell", objeto(
                 "recordId" to parameters[FILA], "fieldId" to parameters[CAMPO], "value" to (parameters[VALOR] == "true"),
             ), pagina = parameters[PAGINA], etiquetas = listOf("vista:${parameters[PAGINA]}"))
         }
-        ListaWidget().update(context, glanceId)
+        Widgets.seguro(context, "repintar lista") { Widgets.pide(context, ListaWidget(), glanceId, "casilla") }
     }
 
     companion object {
@@ -403,16 +572,12 @@ class ListaReceiver : GlanceAppWidgetReceiver() {
 // ---------------- Nota rápida ----------------
 
 /** Widget «Nota rápida»: un botón que abre una nota nueva (o el final de la página elegida). */
-class RapidaWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
-    override val stateDefinition = PreferencesGlanceStateDefinition
-
+class RapidaWidget : WidgetNotiono() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        val destino = prefs[Widgets.CLAVE_PAGINA]
-        val titulo = prefs[Widgets.CLAVE_TITULO]
-        val uri = if (destino != null) "notiono://rapida?en=$destino" else "notiono://nueva"
-        provideContent { ContenidoRapida(context, uri, titulo) }
+        provideContent {
+            val destino = currentState(Widgets.CLAVE_PAGINA)
+            ContenidoRapida(context, if (destino != null) "notiono://rapida?en=$destino" else "notiono://nueva", currentState(Widgets.CLAVE_TITULO))
+        }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) =
@@ -448,20 +613,16 @@ suspend fun configuraWidget(ctx: Context, appWidgetId: Int, pagina: String?, vis
         if (vista != null) p[Widgets.CLAVE_VISTA] = vista else p.remove(Widgets.CLAVE_VISTA)
         if (titulo != null) p[Widgets.CLAVE_TITULO] = titulo else p.remove(Widgets.CLAVE_TITULO)
     }
-    Widgets.actualizaTodo(ctx)
+    Widgets.actualizaTodo(ctx, "configurar")
 }
 
 // ---------------- Acciones rápidas ----------------
 
 /** Widget «Acciones rápidas»: barra de botones (página nueva, tarea nueva, foto, buscar). */
-class AccionesWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
-    override val stateDefinition = PreferencesGlanceStateDefinition
-
+class AccionesWidget : WidgetNotiono() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // La BD de «Nueva tarea» (si no se eligió ninguna, no sale ese botón).
-        val bd = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)[Widgets.CLAVE_PAGINA]
-        provideContent { ContenidoAcciones(context, bd) }
+        provideContent { ContenidoAcciones(context, currentState(Widgets.CLAVE_PAGINA)) }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) =
@@ -507,19 +668,24 @@ class AccionesReceiver : GlanceAppWidgetReceiver() {
 data class PaginaWidget(val id: String, val titulo: String, val icono: String?, val detalle: String, val favorita: Boolean = false)
 
 /** Widget «Páginas recientes»: las favoritas arriba y luego las últimas abiertas en el móvil. */
-class RecientesWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
-
+class RecientesWidget : WidgetNotiono() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val s = Servicios.de(context)
-        val favoritas = if (s.sesion.token == null) emptyList() else runCatching {
-            s.repo.consulta("favorites.list").comoLista.map { it.comoObjeto }
-                .map { PaginaWidget(it.str("id").orEmpty(), it.str("title").orEmpty(), it.str("icon"), "", favorita = true) }
-        }.getOrDefault(emptyList())
-        val ids = favoritas.map { it.id }.toSet()
-        val vistas = s.recientes.lista(s.espacioActivo()).filter { it.pageId !in ids }
-            .map { PaginaWidget(it.pageId, it.title, it.icon, Fechas.haceCuanto(Instant.ofEpochMilli(it.visto).toString())) }
-        provideContent { ContenidoRecientes(context, (favoritas + vistas).take(30)) }
+        val consultas = listOf(Consulta("favorites.list", null))
+        provideContent {
+            val e = rememberDatos("recientes", consultas) { v -> v[0] is JsonArray }
+            if (s.sesion.token == null) {
+                MensajeWidget("${Widgets.INICIA_SESION} para ver tus páginas.", Widgets.abre(context, "notiono://inicio"))
+                return@provideContent
+            }
+            val favoritas = e.datos?.get(0)?.comoLista?.map { it.comoObjeto }
+                ?.map { PaginaWidget(it.str("id").orEmpty(), it.str("title").orEmpty(), it.str("icon"), "", favorita = true) } ?: emptyList()
+            val ids = favoritas.map { it.id }.toSet()
+            val vistas = s.recientes.lista(s.espacioActivo()).filter { it.pageId !in ids }
+                .map { PaginaWidget(it.pageId, it.title, it.icon, Fechas.haceCuanto(Instant.ofEpochMilli(it.visto).toString())) }
+            // Las recientes son del móvil: con ellas, el fallo de las favoritas va como marca.
+            ContenidoRecientes(context, (favoritas + vistas).take(30), e.aviso()?.takeIf { e.datos != null || vistas.isEmpty() })
+        }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) =
@@ -528,13 +694,14 @@ class RecientesWidget : GlanceAppWidget() {
 
 /** Lo que pinta el widget «Páginas recientes». */
 @Composable
-fun ContenidoRecientes(context: Context, paginas: List<PaginaWidget>) {
+fun ContenidoRecientes(context: Context, paginas: List<PaginaWidget>, aviso: String? = null) {
     GlanceTheme(colors = coloresWidget) {
         Column(GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.widget_fondo)).cornerRadius(16.dp).padding(12.dp)) {
             CabeceraWidget("Páginas recientes", Widgets.abre(context, "notiono://inicio")) {
                 BotonMas(Widgets.abre(context, "notiono://nueva"), "Nueva página")
             }
-            if (paginas.isEmpty()) Text("Las páginas que abras en la app saldrán aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
+            if (aviso != null) AvisoWidget(aviso, solo = paginas.isEmpty())
+            else if (paginas.isEmpty()) Text("Las páginas que abras en la app saldrán aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
             LazyColumn(GlanceModifier.fillMaxSize()) {
                 items(paginas, itemId = { it.id.hashCode().toLong() }) { p ->
                     Row(

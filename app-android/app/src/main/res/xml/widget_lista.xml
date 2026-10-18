@@ -2,7 +2,7 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.monrealperez.notiono.widgets.ConfigWidgetActivity"
     android:description="@string/widget_lista_desc"
-    android:initialLayout="@layout/glance_default_loading_layout"
+    android:initialLayout="@layout/widget_cargando"
     android:previewImage="@drawable/widget_previa_lista"
     android:previewLayout="@layout/widget_previa_lista"
     android:minWidth="250dp"

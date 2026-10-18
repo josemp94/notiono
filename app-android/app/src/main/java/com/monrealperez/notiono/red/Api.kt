@@ -1,6 +1,7 @@
 package com.monrealperez.notiono.red
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -62,7 +63,9 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
                 addQueryParameter("input", json.encodeToString(JsonElement.serializer(), envoltorio(input)))
             }
         }.build()
-        return ejecuta(Request.Builder().url(url).get().conSesion().build())
+        // Las consultas se pueden cortar a medias (un widget al que se le acaba el tiempo);
+        // las mutaciones no: que se corte la pantalla no puede dejar un cambio a medio mandar.
+        return ejecuta(Request.Builder().url(url).get().conSesion().build(), interrumpible = true)
     }
 
     suspend fun mutation(ruta: String, input: JsonElement? = null): JsonElement {
@@ -76,13 +79,27 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
 
     private fun envoltorio(input: JsonElement) = buildJsonObject { put("json", input) }
 
-    private suspend fun ejecuta(req: Request): JsonElement = withContext(Dispatchers.IO) {
-        val res = try {
-            http.newCall(req).execute()
+    private suspend fun ejecuta(req: Request, interrumpible: Boolean = false): JsonElement {
+        // La respuesta también se lee de la red: un corte o un tiempo agotado a mitad del
+        // cuerpo es «sin conexión», no una excepción suelta.
+        val llamada = {
+            try {
+                http.newCall(req).execute().use { leeTrpc(it) }
+            } catch (e: IOException) {
+                throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
+            }
+        }
+        return if (interrumpible) runInterruptible(Dispatchers.IO) { llamada() } else withContext(Dispatchers.IO) { llamada() }
+    }
+
+    /** POST de JSON a una ruta propia de la web (no tRPC) con la sesión: /api/app/registro. */
+    suspend fun postJson(ruta: String, cuerpo: JsonElement): Unit = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(absoluta(ruta)).post(cuerpo.toString().toRequestBody(JSON)).conSesion().build()
+        try {
+            http.newCall(req).execute().use { if (!it.isSuccessful) throw errorHttp(it.code, "Error del servidor (${it.code})") }
         } catch (e: IOException) {
             throw ErrorApi(ErrorApi.Tipo.SinConexion, "Sin conexión con Notiono")
         }
-        res.use { leeTrpc(it) }
     }
 
     /** Sube un archivo a `/api/upload` (portadas, adjuntos, imágenes del editor). */

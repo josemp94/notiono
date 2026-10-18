@@ -25,6 +25,9 @@ class Cache(dir: File) {
         if (f.exists()) json.parseToJsonElement(f.readText()) else null
     }.getOrNull()
 
+    /** Cuándo se guardó (ms), o null si no hay nada guardado. */
+    fun fecha(clave: String): Long? = fichero(clave).takeIf { it.exists() }?.lastModified()
+
     fun guarda(clave: String, valor: JsonElement) {
         runCatching {
             val f = fichero(clave)

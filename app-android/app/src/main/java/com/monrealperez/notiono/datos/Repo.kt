@@ -31,8 +31,12 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         etiquetas.forEach { _cambios.tryEmit(it) }
     }
 
-    private fun anota(e: Throwable) {
+    /** Para el registro de diagnóstico: los fallos del servidor (5xx, respuestas raras). */
+    var alFallar: ((ruta: String, e: ErrorApi) -> Unit)? = null
+
+    private fun anota(e: Throwable, ruta: String) {
         if (e is ErrorApi) {
+            if (e.tipo == ErrorApi.Tipo.Servidor) alFallar?.invoke(ruta, e)
             if (e.sinConexion) _sinConexion.value = true
             if (e.tipo == ErrorApi.Tipo.NoAutorizado) _noAutorizado.tryEmit(Unit)
         }
@@ -45,18 +49,24 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
      * Consulta al servidor y guarda la respuesta. Sin red, devuelve lo guardado; si no
      * hay nada guardado, lanza el error de conexión.
      */
-    suspend fun consulta(ruta: String, input: JsonElement? = null, cachear: Boolean = true): JsonElement {
-        val clave = cache.clave(ruta, input)
-        return try {
+    suspend fun consulta(ruta: String, input: JsonElement? = null, cachear: Boolean = true): JsonElement =
+        try {
+            fresca(ruta, input, cachear)
+        } catch (e: ErrorApi) {
+            if (e.sinConexion) cacheada(ruta, input) ?: throw e else throw e
+        }
+
+    /** Solo del servidor (y se guarda): para quien quiere saber si falló, como los widgets. */
+    suspend fun fresca(ruta: String, input: JsonElement? = null, cachear: Boolean = true): JsonElement =
+        try {
             val r = api.query(ruta, input)
             _sinConexion.value = false
-            if (cachear) cache.guarda(clave, r)
+            if (cachear) cache.guarda(cache.clave(ruta, input), r)
             r
         } catch (e: ErrorApi) {
-            anota(e)
-            if (e.sinConexion) cache.lee(clave) ?: throw e else throw e
+            anota(e, ruta)
+            throw e
         }
-    }
 
     /**
      * Cambia algo en el servidor. Sin red (o con cambios anteriores aún en cola) y
@@ -81,7 +91,7 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
             avisa(*etiquetas.toTypedArray())
             r
         } catch (e: ErrorApi) {
-            anota(e)
+            anota(e, ruta)
             if (e.sinConexion && encolable) {
                 cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina))
                 alEncolar()
@@ -104,7 +114,7 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
                 _sinConexion.value = false
                 p.pagina?.let { avisa("pagina:$it") }
             } catch (e: ErrorApi) {
-                anota(e)
+                anota(e, p.ruta)
                 if (e.sinConexion || e.tipo == ErrorApi.Tipo.NoAutorizado || e.tipo == ErrorApi.Tipo.Servidor) return false
                 cola.quita(p.id)
             }

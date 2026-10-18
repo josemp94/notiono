@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Actualizar la app desde Ajustes: Android pide permiso para instalar el APK. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Repintar los widgets tras reiniciar el móvil (si no, se quedan con el «Cargando…» del lanzador). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Ajustes → Widgets: pedir «batería sin restricciones» para que se actualicen solos (la app no va por Play). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <queries>
         <!-- Custom Tabs para el SSO y abrir adjuntos/enlaces con otras apps. -->
@@ -20,6 +24,8 @@
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
+        <!-- Xiaomi/HyperOS: la pantalla de «Inicio automático». -->
+        <package android:name="com.miui.securitycenter" />
     </queries>
 
     <application
@@ -109,6 +115,13 @@
         <receiver android:name=".widgets.RecientesReceiver" android:exported="true" android:label="@string/widget_recientes">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_recientes" />
+        </receiver>
+
+        <receiver android:name=".widgets.RepintaReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
 
         <provider

@@ -13,6 +13,7 @@ import com.monrealperez.notiono.red.ErrorApi
 import com.monrealperez.notiono.ui.App
 import com.monrealperez.notiono.ui.Destino
 import com.monrealperez.notiono.ui.tema.TemaNotiono
+import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -36,6 +37,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (savedInstanceState == null) maneja(intent)
+        // Al abrir la app: widgets al día (si el sistema no dejó repintarlos en segundo
+        // plano, aquí se recuperan) y el registro de diagnóstico al servidor.
+        s.alcance.launch {
+            Widgets.actualizaTodo(applicationContext, "abrir")
+            s.registro.envia(s.api, s.sesion.token != null)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -1,6 +1,14 @@
 package com.monrealperez.notiono.ui.ajustes
 
+import android.annotation.SuppressLint
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.core.content.edit
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +21,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,9 +54,11 @@ import com.monrealperez.notiono.ui.comun.rememberConsulta
 import com.monrealperez.notiono.ui.tema.C
 import com.monrealperez.notiono.ui.tema.Marca
 import com.monrealperez.notiono.util.Actualizador
+import com.monrealperez.notiono.util.Fechas
+import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.launch
 
-/** Ajustes: perfil, espacio, avisos, versión de la app y cerrar sesión. Lo de administrar, en la web. */
+/** Ajustes: perfil, espacio, avisos, versión de la app, widgets, diagnóstico y cerrar sesión. Lo de administrar, en la web. */
 @Composable
 fun PantallaAjustes() {
     val ctx = LocalContext.current
@@ -118,6 +129,8 @@ fun PantallaAjustes() {
             }
             progreso?.let { LinearProgressIndicator({ it }, Modifier.padding(horizontal = 16.dp), color = Marca) }
             FilaMenu("Abrir Notiono en el navegador", "globe") { web("/") }
+            SeccionWidgets()
+            SeccionDiagnostico()
             Separador(Modifier.padding(vertical = 8.dp))
             FilaMenu("Cerrar sesión", "log-out", color = Color(0xFFD44C47)) { salir = true }
             Text("Notiono ${BuildConfig.VERSION_NAME} · ${BuildConfig.BASE_URL.removePrefix("https://")}", color = C.apagado, fontSize = 12.sp, modifier = Modifier.padding(16.dp))
@@ -136,6 +149,80 @@ fun PantallaAjustes() {
             s.sesion.olvida()
         }
     }, onNo = { salir = false })
+}
+
+/** Fabricantes que no dejan arrancar la app en segundo plano sin «Inicio automático» (ni hay permiso que lo dé). */
+private val conInicioAutomatico get() = Build.MANUFACTURER.lowercase() in setOf("xiaomi", "redmi", "poco")
+
+private fun bateriaLibre(ctx: Context) = ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName) == true
+
+/**
+ * Widgets: con el ahorro de batería de HyperOS/MIUI (y otros), el sistema no deja a la app
+ * repintarlos en segundo plano. La explicación sale solo si falta algo; los botones se quedan
+ * para volver a abrir esas pantallas (el inicio automático no se puede comprobar).
+ */
+@Composable
+private fun SeccionWidgets() {
+    val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE) }
+    var vuelta by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        vuelta++
+        onPauseOrDispose {}
+    }
+    val hay = remember(vuelta) { Widgets.hay(ctx) }
+    if (!hay) return
+    val bateria = remember(vuelta) { bateriaLibre(ctx) }
+    var ofrecido by remember { mutableStateOf(prefs.getBoolean("inicioOfrecido", false)) }
+    Separador(Modifier.padding(vertical = 8.dp))
+    TituloSeccion("Widgets")
+    if (!bateria || (conInicioAutomatico && !ofrecido)) Text(
+        "Para que los widgets se actualicen solos: " + (if (conInicioAutomatico) "permite Inicio automático y " else "") + "pon la batería en Sin restricciones.",
+        color = C.apagado, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+    if (conInicioAutomatico) FilaMenu("Inicio automático", "rocket", detalle = if (ofrecido) "Toca para revisarlo" else "Permítelo para Notiono") {
+        ofrecido = true
+        prefs.edit { putBoolean("inicioOfrecido", true) }
+        val miui = Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+        runCatching { ctx.startActivity(miui) }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
+    }
+    FilaMenu("Batería sin restricciones", "battery", detalle = if (bateria) "Concedido" else "Toca para pedirlo") {
+        if (bateria) runCatching { ctx.startActivity(detallesApp(ctx)) }
+        else runCatching { ctx.startActivity(pideBateria(ctx)) }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
+    }
+}
+
+private fun detallesApp(ctx: Context) = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+
+// La app no va por Play: puede pedir que no la duerman (widgets y avisos dependen de ello).
+@SuppressLint("BatteryLife")
+private fun pideBateria(ctx: Context) = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}"))
+
+/** Diagnóstico: lo último del registro (widgets, cierres, fallos del servidor) y enviarlo ya. */
+@Composable
+private fun SeccionDiagnostico() {
+    val ctx = LocalContext.current
+    val s = Servicios.de(ctx)
+    val alcance = rememberCoroutineScope()
+    var abierto by remember { mutableStateOf(false) }
+    var vuelta by remember { mutableIntStateOf(0) }
+    val eventos = remember(vuelta, abierto) { s.registro.eventos() }
+    val pendientes = remember(vuelta, abierto) { s.registro.pendientes().size }
+    Separador(Modifier.padding(vertical = 8.dp))
+    TituloSeccion("Diagnóstico")
+    FilaMenu("Registro de la app", "activity", detalle = "${eventos.size} eventos · " + if (pendientes == 0) "todo enviado" else "$pendientes sin enviar") { abierto = !abierto }
+    if (!abierto) return
+    FilaMenu("Enviar ahora", "send") {
+        alcance.launch {
+            val ok = s.registro.envia(s.api, s.sesion.token != null)
+            Avisos.di(if (ok) "Registro enviado" else "No se pudo enviar; se reintentará")
+            vuelta++
+        }
+    }
+    for (e in eventos.takeLast(40).asReversed()) Text(
+        Fechas.haceCuanto(e.fecha) + " · " + e.tipo + " · " + e.mensaje,
+        color = C.apagado, fontSize = 12.sp, maxLines = 3, modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp),
+    )
 }
 
 private fun rolTexto(r: String) = when (r) {

@@ -109,7 +109,10 @@ Una versión de depuración contra un Notiono local:
 
 - `./gradlew :app:testDebugUnitTest`: modelo del editor con documentos reales del
   editor web (`scripts/fixtures/*.json`), teclado, red/caché/cola y sincronía contra
-  un servidor de mentira, y las capturas de los widgets.
+  un servidor de mentira, y las capturas de los widgets. `WidgetsFallosTest` corre la
+  sesión de Glance de verdad contra un servidor que falla (lento, 500, 401, HTML, JSON
+  raro, sin sesión): los widgets nunca pueden quedarse en blanco. Las capturas solo se
+  graban con `-Proborazzi.test.record=true` (si no, se queda la de la vez anterior).
 - **Vistas previas de los widgets** (lo que enseña el launcher al añadirlos): PNG en
   `res/drawable-nodpi` (claro) y `res/drawable-night-nodpi` (oscuro), sacados de los
   composables reales con el contenido de `widgets/Muestras.kt`. Si cambias cómo se ve

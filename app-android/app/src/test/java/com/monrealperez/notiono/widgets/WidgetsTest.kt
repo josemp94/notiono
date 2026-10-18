@@ -53,6 +53,25 @@ class WidgetsTest {
     @Config(qualifiers = "+night")
     @Test fun oscuro() = pinta("oscuro")
 
+    /** Lo que se ve cuando no hay datos frescos: nunca un hueco (ver «Widgets en blanco» en docs/app-nativa.md). */
+    @Test fun estados() {
+        val nota = json.parseToJsonElement(javaClass.getResource("/bloques-todos.json")!!.readText()).jsonArray.map { it.comoObjeto }.take(3)
+        val inicial = android.view.LayoutInflater.from(ctx).inflate(com.monrealperez.notiono.R.layout.widget_cargando, null)
+        val vistas = listOf(
+            Triple(300, 200, widget(300, 200) { ContenidoNota(ctx, "p", "Lista de la compra", nota, "Sin actualizar · hace 2 h · Inicia sesión en la app") { error("") } }),
+            Triple(300, 120, widget(300, 120) { ContenidoLista(ctx, "bd", Muestras.TITULO_LISTA, emptyList(), emptyList(), "Cargando…") { error("") } }),
+            Triple(300, 120, widget(300, 120) { ContenidoLista(ctx, "bd", Muestras.TITULO_LISTA, emptyList(), emptyList(), "Sin conexión. Toca para reintentar.") { error("") } }),
+            Triple(300, 120, widget(300, 120) { MensajeWidget("Inicia sesión en la app para ver esta nota.", android.content.Intent()) }),
+            Triple(300, 120, inicial),
+        )
+        compose.setContent {
+            Column(Modifier.fillMaxSize().background(Color(0xFF7A8B99)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                for ((w, h, v) in vistas) Box(Modifier.size(w.dp, h.dp)) { AndroidView({ v }, Modifier.fillMaxSize()) }
+            }
+        }
+        compose.onRoot().captureRoboImage("build/capturas/estados-widgets.png")
+    }
+
     /** El widget tal cual: `setRemoteAdapter` (las listas) solo se aplica dentro de un AppWidgetHostView. */
     @OptIn(ExperimentalGlanceRemoteViewsApi::class)
     private fun widget(ancho: Int, alto: Int, contenido: @Composable () -> Unit): View = runBlocking {

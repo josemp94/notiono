@@ -49,6 +49,8 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] 2.0.1: Acciones rápidas (página, tarea en la BD elegida, foto, buscar) y Páginas recientes (favoritas + últimas abiertas); casilla de Lista en círculo; vistas previas en el selector (`previewImage` PNG + `previewLayout` + `providePreview` de Android 15).
 - [x] 2.0.1 publicada en la web (`public/notiono.apk`, `src/lib/apk.json`): `versionCode 4`, `lintRelease` 0 errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `c1d26d52…aa1d05f`; copia en `~/notiono-apk/notiono-2.0.1.apk`. Falta desplegar.
 - [x] 2.0.2 (`versionCode 5`): la app se cerraba al soltar una tarjeta del Kanban (NPE de `arrastre!!` dentro de `graphicsLayer {}`, que Compose repite al cambiar el estado antes de recomponer); además el clic se quedaba el «soltar» y la pulsación larga sin mover no sacaba el menú. Prueba sin servidor en `bd/KanbanTest.kt` (roja antes del arreglo). Copia en `~/notiono-apk/notiono-2.0.2.apk`, misma firma (`8c9bb7dc…cb8e9a`). Falta desplegar.
+- [x] 2.0.3 (`versionCode 6`): los widgets se quedaban en blanco (Xiaomi 13T, HyperOS 3). Pintan al instante lo último bueno y refrescan detrás, repintado al abrir/reiniciar/actualizar/cambiar de sesión, `initialLayout` propio, tarjeta de Inicio automático y batería, y registro de diagnóstico que llega al servidor (`AppRegistro`, migración `20261018220000_registro_app`). Ver «Widgets en blanco (2.0.3)» abajo. Copia en `~/notiono-apk/notiono-2.0.3.apk`, misma firma (`8c9bb7dc…cb8e9a`). Falta desplegar.
+
 
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.
@@ -73,6 +75,118 @@ app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuev
 compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
+- **Widgets en blanco (2.0.3, 18-oct-2026)**. Jose, con la 2.0.1 en un Xiaomi 13T
+  (HyperOS 3): «al principio pintaban, luego ya nada». Sin móvil ni emulador: razonado
+  con las fuentes de Glance 1.2.0 (`glance-*-sources.jar` de Google Maven) y con pruebas.
+
+  **Diagnóstico**, sospechoso a sospechoso:
+  - *Red antes de `provideContent`* — **confirmado, causa principal.** Nota, Lista y
+    Recientes pedían al servidor (connect 15 s + read 60 s) antes de dar contenido, y
+    hasta entonces Glance no publica nada: se ve el `initialLayout`, que era
+    `glance_default_loading_layout` (fondo y un `ProgressBar`; en el lanzador de Xiaomi,
+    un hueco). Antes de la primera composición no corre el plazo de 45 s
+    (`TimeoutOptions.initialTimeout` arranca tras el primer `processEmittableTree`), pero
+    `SessionWorker` vigila el reposo: si el móvil está en Doze, *light idle* o *low power
+    standby* (`IdleEventBroadcastReceiver`), pone el plazo a **5 s** (`idleTimeout`). Con
+    la pantalla apagada eso es lo normal, y en Doze la red de las apps en segundo plano
+    está cortada (los paquetes se tiran: el `connect` se cuelga hasta los 15 s). Resultado:
+    la sesión se cancela sin haber pintado nada; si el lanzador no tenía vistas guardadas
+    (tras reiniciar, actualizar la app o recargarse el lanzador) el widget queda vacío.
+  - *Proceso matado a media sesión* — **confirmado.** HyperOS mata la app a menudo. Si
+    muere con un `SessionWorker` en marcha, WorkManager lo relanza en el proceso nuevo,
+    la `Session` ya no existe (no es persistible) y `doWork` devuelve `success` **sin
+    pintar** (`runAttemptCount > 0`, ver `SessionWorker.doWork`).
+  - *Actualizar la app / reiniciar* — **confirmado** en nuestro código y en Glance: el
+    `MyPackageReplacedReceiver` de Glance solo hace `cleanReceivers()`, y la app no
+    escuchaba ni `MY_PACKAGE_REPLACED` ni `BOOT_COMPLETED`; `actualizaTodo` solo saltaba
+    con cambios hechos en la app. Android sí manda `APPWIDGET_UPDATE` tras reiniciar o
+    actualizar, pero sin «Inicio automático» HyperOS no deja arrancar el proceso por un
+    broadcast (*plausible*, no comprobable sin el móvil: el registro lo dirá).
+  - *Solo se capturaba `ErrorApi`* — **confirmado, y con un fallo más:** en
+    `Api.ejecuta` el cuerpo se leía **fuera** del `catch (IOException)`, así que un
+    tiempo agotado o un corte a mitad de respuesta salía como `SocketTimeoutException`
+    suelta → error de composición → layout de error de Glance («Can't show content»).
+  - *Caché solo sin conexión* — **confirmado** (pruebas rojas): con 401, 5xx o la página
+    HTML del proxy con un 200, el widget enseñaba título y mensaje de error, nada de lo
+    guardado. Con un JSON de forma rara (sin `bloques`), una nota vacía.
+  - *`update` con la sesión abierta* — **confirmado:** `GlanceAppWidget.update` sobre
+    una sesión viva solo recarga el estado (`updateGlance`), no vuelve a llamar a
+    `provideGlance`: el botón de refrescar o un cambio en la app durante los 45 s de
+    sesión no traían datos nuevos.
+  - *Sesión en segundo plano* — **descartado:** `Application.onCreate` corre siempre
+    antes que cualquier receptor o worker, y el token vive en `SharedPreferences`. Un
+    token caducado es el caso 401 de arriba.
+  - *Periódico* (`WidgetsWorker`, 30 min, KEEP + red) — bien programado (al arrancar con
+    sesión y al entrar), pero solo encolaba sesiones que luego hacían lo de arriba; en el
+    cubo «restringido» de HyperOS puede tardar horas.
+  - *`SizeMode.Exact`* — cada cambio de opciones del lanzador abre otra composición: con
+    el código viejo, otra vuelta por la red antes de pintar.
+
+  **Arreglo** (`widgets/Widgets.kt`):
+  - `provideContent` al momento. `rememberDatos` pinta lo último bueno de la caché de
+    `Repo` (en `filesDir`: sobrevive a que maten el proceso y a actualizar; su fecha es la
+    del fichero) y refresca en un `LaunchedEffect`. El refresco va por `Repo.fresca`
+    (solo red, sin caer a la caché), valida la forma y solo entonces guarda; si falla,
+    sigue lo último con «Sin actualizar · hace 2 h» (y «· Inicia sesión en la app» con
+    401). Sin datos: «Cargando…», «Sin conexión. Toca para reintentar.», «Inicia sesión
+    en la app…» o «Toca para elegir…». El aviso se toca para refrescar.
+  - Cada petición de repintar escribe `pedido = motivo@ms` en el estado del widget:
+    con la sesión abierta, el cambio de estado relanza el refresco (ver arriba).
+  - Todo `Throwable` (salvo cancelar) capturado y apuntado: refresco, acciones
+    (`MarcaCasilla`, `MarcaFila`, `Refrescar`) y repintados. `WidgetNotiono` sobreescribe
+    `onCompositionError`: lo apunta y pinta `widget_cargando` con «No se pudo pintar.
+    Toca para abrir Notiono.» en vez del de Glance.
+  - `initialLayout` propio (`layout/widget_cargando.xml`: fondo de la app, «Notiono»,
+    «Cargando…»). Los widgets ya puestos lo toman al actualizar (es del provider).
+  - Se repintan al abrir la app (`MainActivity`), tras reiniciar y actualizar
+    (`RepintaReceiver`), al entrar o salir (`Sesion.conectada`), con cambios de la app y
+    cada 30 min.
+  - `Api`: el cuerpo se lee dentro del `catch`, y las **consultas** son interrumpibles
+    (`runInterruptible`: una sesión de widget cancelada corta su petición). Las
+    mutaciones no, a propósito: que se cierre una pantalla no puede cortar un cambio.
+  - Ajustes → **Widgets** (solo si hay alguno puesto): la explicación sale si la batería
+    no está en «Sin restricciones» (se comprueba con `isIgnoringBatteryOptimizations`) o,
+    en Xiaomi/Redmi/POCO, si aún no se abrió la pantalla de Inicio automático (no se puede
+    comprobar: se recuerda que se ofreció). Los botones se quedan para volver a abrirlas
+    (`AutoStartManagementActivity` de `com.miui.securitycenter`, o los detalles de la app
+    si no existe; `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, permitido fuera de Play).
+
+  **Pruebas** (`widgets/WidgetsFallosTest.kt`, sesión de Glance real con
+  `compose`/`runComposition` y MockWebServer): servidor lento (8 s) en Nota y en Lista,
+  500, 401, HTML con 200, JSON sin bloques, proceso nuevo, sin sesión, sin configurar.
+  **Con el código de la 2.0.2, 7 de 8 rojas** (la de «sin configurar» ya pasaba); ahora
+  verdes. `WidgetsTest.estados` fotografía los estados nuevos
+  (`app/build/capturas/estados-widgets.png`, con `-Proborazzi.test.record=true`).
+
+  **Registro de diagnóstico**. En la app, `datos/Registro.kt`: líneas JSON en
+  `filesDir/registro.jsonl` (las últimas ~200), con refrescos de widget (widget, motivo,
+  resultado, duración, error), cierres inesperados (`setDefaultUncaughtExceptionHandler`,
+  que luego deja seguir el cierre) y respuestas 5xx o raras del servidor (`Repo.alFallar`).
+  Sin contenido: tipo, clase y **primera línea** del mensaje (las siguientes de un error
+  de JSON traen el texto recibido) y la traza solo con clases y líneas. Se manda en lote
+  al abrir la app y en el periódico; si falla, queda para la próxima. Ajustes →
+  Diagnóstico enseña lo último y tiene «Enviar ahora». Pruebas en `datos/RegistroTest.kt`.
+  En el servidor, `POST /api/app/registro` (sesión de la app, 30 envíos/10 min, cuerpo de
+  2 MB como mucho, entradas recortadas) y tope de 30 días y 2000 filas por usuario en
+  `src/server/appRegistro.ts`; probado en `scripts/checkRegistro.ts` (`npm run check`).
+  Para leerlo en el NAS:
+
+  ```bash
+  sudo docker exec -it notiono-db psql -U notely notely
+  ```
+  ```sql
+  -- Lo último de todos los móviles
+  SELECT r."createdAt", u.email, r.fabricante, r.modelo, r.android, r.version, r.tipo, r.mensaje
+  FROM "AppRegistro" r JOIN "User" u ON u.id = r."userId"
+  WHERE r."createdAt" > now() - interval '3 days'
+  ORDER BY r.fecha DESC LIMIT 200;
+  -- Cierres inesperados con su traza
+  SELECT r.fecha, r.version, r.modelo, r.mensaje, r.traza
+  FROM "AppRegistro" r WHERE r.tipo = 'cierre' ORDER BY r.fecha DESC LIMIT 20;
+  -- Cómo les va a los widgets: fallos frente a aciertos por día
+  SELECT date_trunc('day', r.fecha) AS dia, split_part(r.mensaje, ' · ', 3) AS resultado, count(*)
+  FROM "AppRegistro" r WHERE r.tipo = 'widget' GROUP BY 1, 2 ORDER BY 1 DESC;
+  ```
 - **Widgets 2.0.1 (18-oct-2026)**: Jose vio en su Xiaomi (HyperOS) el icono en grande
   al añadir los widgets: no había vista previa. Ahora cada widget lleva
   `android:previewImage` (PNG claro/oscuro sacado de los composables reales por

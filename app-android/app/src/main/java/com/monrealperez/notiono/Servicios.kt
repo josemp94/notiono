@@ -5,6 +5,7 @@ import com.monrealperez.notiono.datos.Cache
 import com.monrealperez.notiono.datos.Cola
 import com.monrealperez.notiono.datos.ColaWorker
 import com.monrealperez.notiono.datos.Recientes
+import com.monrealperez.notiono.datos.Registro
 import com.monrealperez.notiono.datos.Repo
 import com.monrealperez.notiono.red.Api
 import com.monrealperez.notiono.red.Sesion
@@ -27,6 +28,9 @@ class Servicios private constructor(ctx: Context) {
     val cola = Cola(ctx.filesDir)
     val repo = Repo(api, cache, cola) { ColaWorker.programa(ctx) }
     val recientes = Recientes(ctx)
+    val registro = Registro(ctx.filesDir, ctx.getSharedPreferences("registro", Context.MODE_PRIVATE)).also { r ->
+        repo.alFallar = { ruta, e -> r.anota("red", "$ruta: ${e.estado} ${e.tipo}") }
+    }
 
     /** Para lo que tiene que terminar aunque se cierre la pantalla (mandar lo pendiente al salir). */
     val alcance = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)

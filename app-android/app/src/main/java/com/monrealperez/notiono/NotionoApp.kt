@@ -8,7 +8,9 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.monrealperez.notiono.datos.ColaWorker
 import kotlinx.coroutines.FlowPreview
+import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
@@ -17,6 +19,8 @@ class NotionoApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         val s = Servicios.de(this)
+        // Los cierres inesperados quedan en el registro de diagnóstico (y se mandan al volver).
+        s.registro.capturaCierres()
         // Lo que quedó sin enviar la última vez sale en cuanto haya red.
         ColaWorker.programa(this)
         if (s.sesion.token != null) Tareas.programaPeriodicas(this)
@@ -25,9 +29,11 @@ class NotionoApp : Application(), SingletonImageLoader.Factory {
             s.repo.cambios
                 .filter { it.startsWith("bloques:") || it.startsWith("vista:") || it.startsWith("pagina:") || it == "arbol" || it == "favoritos" || it == "recientes" }
                 .debounce(1500)
-                .collect { com.monrealperez.notiono.widgets.Widgets.actualizaTodo(this@NotionoApp) }
+                .collect { Widgets.actualizaTodo(this@NotionoApp, "cambio") }
         }
-        s.alcance.launch { runCatching { com.monrealperez.notiono.widgets.Widgets.publicaVistasPrevias(this@NotionoApp) } }
+        // Entrar o salir cambia lo que pueden enseñar.
+        s.alcance.launch { s.sesion.conectada.drop(1).collect { Widgets.actualizaTodo(this@NotionoApp, "sesion") } }
+        s.alcance.launch { runCatching { Widgets.publicaVistasPrevias(this@NotionoApp) } }
     }
 
     // Las imágenes (portadas, adjuntos, iconos subidos) por el mismo cliente HTTP.

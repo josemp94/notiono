@@ -6,6 +6,7 @@
     <string name="atajo_buscar">Buscar</string>
     <string name="atajo_buscar_larga">Buscar en Notiono</string>
     <string name="compartir_con">Compartir con Notiono</string>
+    <string name="widget_cargando">Cargando…</string>
     <string name="widget_nota">Notiono · Nota</string>
     <string name="widget_nota_desc">Una página a la vista; sus casillas se marcan desde el widget</string>
     <string name="widget_lista">Notiono · Lista de base de datos</string>
