@@ -138,7 +138,7 @@ fun Principal(destinos: Flow<Destino>) {
         if (ok && u != null) alcance.launch {
             Avisos.di("Subiendo la foto…")
             try {
-                val bloques = bloquesCompartidos(ctx, null, u)
+                val bloques = bloquesCompartidos(ctx, null, listOf(u))
                 val titulo = "Foto ${Fechas.fechaHora(java.time.Instant.now().toString())}"
                 val id = s.repo.mutacion("pages.create", objeto("title" to titulo), encolable = false, etiquetas = listOf("arbol"))?.comoObjeto?.str("id")!!
                 s.repo.mutacion("app.aplicar", objeto("id" to id, "ops" to bloques.map { objeto("op" to "upsert", "block" to it) }), encolable = false)

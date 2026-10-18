@@ -69,7 +69,9 @@ class ConfigWidgetActivity : ComponentActivity() {
             }
         }
         setContent {
-            TemaNotiono {
+            val oscuro = com.monrealperez.notiono.ui.tema.esOscuro()
+            com.monrealperez.notiono.ui.tema.BarrasDelTema(this, oscuro)
+            TemaNotiono(oscuro) {
                 Column(Modifier.fillMaxSize().background(C.fondo).safeDrawingPadding().padding(16.dp)) {
                     if (Servicios.de(this@ConfigWidgetActivity).sesion.token == null) {
                         Text("Entra primero en Notiono para configurar el widget.", color = C.texto)

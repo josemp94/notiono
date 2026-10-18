@@ -128,6 +128,14 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             cm.setPrimaryClip(ClipData.newPlainText("Notiono", "${BuildConfig.BASE_URL}/p/$id"))
             Avisos.di("Enlace copiado"); onCerrar()
         }
+        FilaMenu("Compartir enlace", "share-2", detalle = "Para quien ya tiene acceso a Notiono") {
+            com.monrealperez.notiono.util.Enlaces.lanza(
+                ctx,
+                Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, info.title.ifBlank { "Sin título" })
+                    .putExtra(Intent.EXTRA_TEXT, "${BuildConfig.BASE_URL}/p/$id"), "Compartir enlace"),
+            )
+            onCerrar()
+        }
         FilaMenu("Compartir y publicar en la web", "globe", detalle = if (info.publicToken != null) "Publicada" else null) { hoja = "publicar" }
         Separador(Modifier.padding(vertical = 4.dp))
         if (info.puedeEditar) {

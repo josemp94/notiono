@@ -118,6 +118,12 @@ object AccionesPagina {
         )
     }
 
+    /** Cambia el orden de los favoritos (el arrastrar del panel de la web). */
+    suspend fun mueveFavorito(repo: Repo, id: String, antesDe: String? = null, despuesDe: String? = null) = intenta(null) {
+        val input = if (antesDe != null) objeto("pageId" to id, "beforePageId" to antesDe) else objeto("pageId" to id, "afterPageId" to despuesDe)
+        repo.mutacion("favorites.move", input, etiquetas = listOf("favoritos"))
+    }
+
     /** Sube o baja una página entre sus hermanas (reordenar sin arrastrar). */
     suspend fun desplazar(repo: Repo, arbol: Arbol, id: String, delta: Int) {
         val nodo = arbol.porId[id] ?: return

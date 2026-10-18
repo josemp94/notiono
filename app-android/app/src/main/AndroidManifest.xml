@@ -68,7 +68,7 @@
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- «Compartir con Notiono»: texto, enlaces e imágenes de otras apps. -->
+        <!-- «Compartir con Notiono»: texto, enlaces, imágenes y archivos (uno o varios) de otras apps. -->
         <activity
             android:name=".compartir.CompartirActivity"
             android:exported="true"
@@ -83,7 +83,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 

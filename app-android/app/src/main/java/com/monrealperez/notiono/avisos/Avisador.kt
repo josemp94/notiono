@@ -26,7 +26,6 @@ import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.red.bool
 import com.monrealperez.notiono.red.comoLista
 import com.monrealperez.notiono.red.comoObjeto
-import com.monrealperez.notiono.red.obj
 import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.bandeja.textoAviso
 import java.util.concurrent.TimeUnit
@@ -82,9 +81,8 @@ object Avisador {
         // La primera vez no se avisa de lo viejo: solo se apunta como visto.
         if (!primeraVez && permitido(ctx)) {
             for (a in nuevos.take(5)) {
-                val pagina = a.obj("page")?.str("id")
                 val abrir = Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
-                    .setData(Uri.parse(if (pagina != null) "notiono://pagina/$pagina" else "notiono://bandeja"))
+                    .setData(Uri.parse(com.monrealperez.notiono.ui.bandeja.enlaceDeAviso(a)))
                 val pi = PendingIntent.getActivity(ctx, a.str("id").hashCode(), abrir, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 val n = NotificationCompat.Builder(ctx, CANAL)
                     .setSmallIcon(R.drawable.ic_notificacion)

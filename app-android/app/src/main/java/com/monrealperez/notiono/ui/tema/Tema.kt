@@ -1,6 +1,5 @@
 package com.monrealperez.notiono.ui.tema
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -128,7 +127,7 @@ private val tipografia = Typography(
 )
 
 @Composable
-fun TemaNotiono(oscuro: Boolean = isSystemInDarkTheme(), contenido: @Composable () -> Unit) {
+fun TemaNotiono(oscuro: Boolean = esOscuro(), contenido: @Composable () -> Unit) {
     val c = if (oscuro) ColoresOscuros else ColoresClaros
     val esquema = if (oscuro) {
         darkColorScheme(

@@ -76,6 +76,8 @@ fun Panel(onCerrar: () -> Unit) {
     val favoritos = favQ.datos?.comoLista?.map { it.comoObjeto }?.distinctBy { it.str("id") } ?: emptyList()
     var abiertos by rememberSaveable { mutableStateOf(setOf<String>()) }
     var menuDe by remember { mutableStateOf<NodoArbol?>(null) }
+    // La pulsación larga en un favorito: Subir/Bajar mueven entre los favoritos, no en el árbol.
+    var menuEnFavoritos by remember { mutableStateOf(false) }
     var moviendo by remember { mutableStateOf<String?>(null) }
     var renombrando by remember { mutableStateOf<NodoArbol?>(null) }
     var espacios by remember { mutableStateOf(false) }
@@ -133,7 +135,7 @@ fun Panel(onCerrar: () -> Unit) {
                 FilaArbol(
                     titulo = f.str("title").orEmpty(), icono = f.str("icon"), nivel = 0, abierto = false, tieneHijos = false,
                     onClick = { ir { n.pagina(f.str("id")!!) } },
-                    onLargo = { arbol.porId[f.str("id")]?.let { menuDe = it } },
+                    onLargo = { arbol.porId[f.str("id")]?.let { menuDe = it; menuEnFavoritos = true } },
                 )
             }
         }
@@ -153,7 +155,7 @@ fun Panel(onCerrar: () -> Unit) {
                 abierto = nodo.id in abiertos, tieneHijos = nodo.hasChildren,
                 onAlternar = { abiertos = if (nodo.id in abiertos) abiertos - nodo.id else abiertos + nodo.id },
                 onClick = { ir { n.pagina(nodo.id) } },
-                onLargo = { menuDe = nodo },
+                onLargo = { menuDe = nodo; menuEnFavoritos = false },
                 onMas = { abiertos = abiertos + nodo.id; ir { n.nuevaPagina(nodo.id) } },
             )
         }
@@ -187,8 +189,18 @@ fun Panel(onCerrar: () -> Unit) {
             FilaMenu("Renombrar", "pencil") { menuDe = null; renombrando = nodo }
             FilaMenu("Duplicar", "copy-plus") { menuDe = null; alcance.launch { AccionesPagina.duplicar(s.repo, nodo.id) } }
             FilaMenu("Mover a…", "folder-input") { menuDe = null; moviendo = nodo.id }
-            FilaMenu("Subir", "arrow-up") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, -1) } }
-            FilaMenu("Bajar", "arrow-down") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, 1) } }
+            if (menuEnFavoritos) {
+                val i = favoritos.indexOfFirst { it.str("id") == nodo.id }
+                favoritos.getOrNull(i - 1)?.str("id")?.let { antes ->
+                    FilaMenu("Subir en favoritos", "arrow-up") { menuDe = null; alcance.launch { AccionesPagina.mueveFavorito(s.repo, nodo.id, antesDe = antes) } }
+                }
+                favoritos.getOrNull(i + 1)?.str("id")?.takeIf { i >= 0 }?.let { despues ->
+                    FilaMenu("Bajar en favoritos", "arrow-down") { menuDe = null; alcance.launch { AccionesPagina.mueveFavorito(s.repo, nodo.id, despuesDe = despues) } }
+                }
+            } else {
+                FilaMenu("Subir", "arrow-up") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, -1) } }
+                FilaMenu("Bajar", "arrow-down") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, 1) } }
+            }
             FilaMenu("Enviar a la papelera", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {
                 menuDe = null
                 alcance.launch { AccionesPagina.archivar(s.repo, nodo.id) { alcance.launch { AccionesPagina.restaurar(s.repo, nodo.id) } } }

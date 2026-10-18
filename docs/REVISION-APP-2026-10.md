@@ -36,13 +36,13 @@ lo tiene en la web, o no tiene sentido en el teléfono: no se hace).
 
 ### R4 · Lo que falta para igualar a Notion (por uso diario)
 - [x] 1. Deshacer / rehacer en el editor (barra, Ctrl+Z/Ctrl+Mayús+Z, «Deshacer» al eliminar un bloque). Etiquetas de TalkBack en la barra, el asa y las casillas.
-- [ ] 2. Abrir el aviso en su sitio (vencimiento → la fila) y deslizar para marcarlo leído.
-- [ ] 3. Compartir el enlace de la página con el menú del sistema.
-- [ ] 4. Modo oscuro a mano (Sistema / Claro / Oscuro).
-- [ ] 5. Zoom con pellizco en las imágenes.
-- [ ] 6. Compartir hacia la app: varias imágenes y archivos cualquiera.
-- [ ] 7. Papelera de filas de una BD.
-- [ ] 8. Reordenar favoritos.
+- [x] 2. Abrir el aviso en su sitio (vencimiento → la ficha de la fila, también desde la notificación) y deslizar para marcarlo leído.
+- [x] 3. Compartir el enlace de la página con el menú del sistema («Compartir enlace» en «⋯»).
+- [x] 4. Modo oscuro a mano: Ajustes → Apariencia (Como el sistema / Claro / Oscuro); en Android 12+ también lo sabe el sistema (`setApplicationNightMode`).
+- [x] 5. Imágenes a pantalla completa con pellizco, arrastre y doble toque.
+- [x] 6. Compartir hacia la app: uno o varios archivos de cualquier tipo (imagen, vídeo, audio o archivo, cada uno su bloque).
+- [x] 7. Papelera de filas: ya estaba (ajustes de la vista → «Papelera de filas»); el inventario se equivocó.
+- [x] 8. Reordenar favoritos («Subir/Bajar en favoritos» en la pulsación larga; `favorites.move`).
 
 ### Entrega
 - [ ] `versionCode` 7, `versionName` 2.1.0; `npm run build` + `npm run check`.
@@ -126,7 +126,7 @@ a medias: lo que no documenta para el móvil se compara con lo que hace la web d
 | Kanban: arrastrar entre columnas | ✅ | ✅ (2.0.2) | ✅ |
 | Calendario: arrastrar a otro día | — | ❌ | ➖ (no en la ayuda móvil) |
 | Cronograma: dependencias | — | sin flechas (la web sí) | 🟡 propuesta |
-| Papelera de filas | ✅ | ❌ (la web sí: `db.archivedRecords`) | ❌ |
+| Papelera de filas | ✅ | ✅ ajustes de la vista → «Papelera de filas» | ✅ |
 | Bloquear vista | ✅ | — | ➖ (la web no lo tiene) |
 | Crear/personalizar formularios | no en el móvil | se rellenan | ✅ |
 
@@ -156,7 +156,7 @@ a medias: lo que no documenta para el móvil se compara con lo que hace la web d
 | Modo oscuro | sistema / claro / oscuro | sigue al sistema | 🟡 sin elegir a mano |
 | Rendimiento | — | listas perezosas; caché leída en el hilo principal | 🟡 (R2) |
 
-**Resumen:** 74 puntos: 49 ✅ · 13 🟡 · 4 ❌ · 8 ➖.
+**Resumen:** 74 puntos: 50 ✅ · 13 🟡 · 3 ❌ · 8 ➖ (corregido: la papelera de filas ya estaba).
 
 ## Orden de R4
 

@@ -21,6 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -89,6 +90,14 @@ fun PantallaAjustes() {
             }) {}
             for (m in miembros) FilaMenu(m.nombre, "circle-user", detalle = m.email + " · " + rolTexto(m.role)) {}
             FilaMenu("Miembros, API y avisos salientes", "external-link", detalle = "Se administran en la web") { web("/settings") }
+            Separador(Modifier.padding(vertical = 8.dp))
+            TituloSeccion("Apariencia")
+            val modo by com.monrealperez.notiono.ui.tema.Apariencia.modo(ctx).collectAsState()
+            for (m in com.monrealperez.notiono.ui.tema.Apariencia.Modo.entries) {
+                FilaMenu(m.etiqueta, m.icono, derecha = { if (m == modo) com.monrealperez.notiono.ui.comun.Icono("check", color = Marca) }) {
+                    com.monrealperez.notiono.ui.tema.Apariencia.pon(ctx, m)
+                }
+            }
             Separador(Modifier.padding(vertical = 8.dp))
             TituloSeccion("Avisos")
             FilaMenu("Avisos en el móvil", "bell", detalle = "Menciones, asignaciones y fechas que vencen; se miran cada 15 minutos",

@@ -31,7 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -74,12 +80,12 @@ fun BloqueVisual(b: Bloque, estado: EstadoEditor, editable: Boolean, acciones: A
                 Pie(b, editable, acciones)
             }
             if (grande) Dialog({ grande = false }, DialogProperties(usePlatformDefaultWidth = false)) {
-                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black).clickable { grande = false }, contentAlignment = Alignment.Center) {
-                    AsyncImage(model = api.absoluta(url), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black), contentAlignment = Alignment.Center) {
+                    VisorImagen(api.absoluta(url), onCerrar = { grande = false })
                     Row(Modifier.align(Alignment.TopEnd).padding(16.dp)) {
-                        Box(Modifier.size(40.dp).clickable { Enlaces.descarga(ctx, api.absoluta(url), b.prop("name") ?: "imagen") }, contentAlignment = Alignment.Center) {
-                            Icono("download", color = androidx.compose.ui.graphics.Color.White)
-                        }
+                        val blanco = androidx.compose.ui.graphics.Color.White
+                        com.monrealperez.notiono.ui.comun.BotonIcono("download", { Enlaces.descarga(ctx, api.absoluta(url), b.prop("name") ?: "imagen") }, color = blanco)
+                        com.monrealperez.notiono.ui.comun.BotonIcono("x", { grande = false }, color = blanco)
                     }
                 }
             }
@@ -155,6 +161,42 @@ fun BloqueVisual(b: Bloque, estado: EstadoEditor, editable: Boolean, acciones: A
             Text("Bloque «${b.tipo}»: se ve en la web", fontSize = 13.sp, color = C.apagado, modifier = Modifier.padding(start = 8.dp))
         }
     }
+}
+
+/**
+ * La imagen a pantalla completa: pellizcar para acercar, arrastrar para moverla, doble
+ * toque para acercar o volver, y un toque (sin zoom) la cierra.
+ */
+@Composable
+fun VisorImagen(url: String, onCerrar: () -> Unit) {
+    var escala by remember { mutableStateOf(1f) }
+    var desplazamiento by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    AsyncImage(
+        model = url, contentDescription = null, contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { if (escala <= 1f) onCerrar() },
+                    onDoubleTap = { p ->
+                        if (escala > 1f) { escala = 1f; desplazamiento = androidx.compose.ui.geometry.Offset.Zero }
+                        else { escala = 2.5f; desplazamiento = (androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f) - p) * 1.5f }
+                    },
+                )
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    escala = (escala * zoom).coerceIn(1f, 5f)
+                    desplazamiento = if (escala == 1f) androidx.compose.ui.geometry.Offset.Zero else desplazamiento + pan
+                }
+            }
+            .graphicsLayer {
+                scaleX = escala
+                scaleY = escala
+                translationX = desplazamiento.x
+                translationY = desplazamiento.y
+            }
+            .semantics { contentDescription = "Imagen a pantalla completa" },
+    )
 }
 
 @Composable

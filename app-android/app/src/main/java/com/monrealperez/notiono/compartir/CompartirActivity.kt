@@ -63,15 +63,16 @@ class CompartirActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val texto = textoCompartido(intent, Intent.EXTRA_TEXT)
         val asunto = textoCompartido(intent, Intent.EXTRA_SUBJECT)
-        val imagen: Uri? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-        else @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
+        val archivos = archivosCompartidos(intent)
         setContent {
-            TemaNotiono {
+            val oscuro = com.monrealperez.notiono.ui.tema.esOscuro()
+            com.monrealperez.notiono.ui.tema.BarrasDelTema(this, oscuro)
+            TemaNotiono(oscuro) {
                 if (Servicios.de(this).sesion.token == null) {
                     Box(Modifier.fillMaxSize().background(C.fondo).safeDrawingPadding().padding(24.dp)) {
                         Text("Entra primero en Notiono para guardar cosas en él.", color = C.texto)
                     }
-                } else Compartir(texto, asunto, imagen, onListo = { id ->
+                } else Compartir(texto, asunto, archivos, onListo = { id ->
                     if (id != null) startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("notiono://pagina/$id"), this, MainActivity::class.java))
                     finish()
                 })
@@ -79,6 +80,19 @@ class CompartirActivity : ComponentActivity() {
         }
     }
 }
+
+/** Los archivos de lo compartido: uno (SEND) o varios (SEND_MULTIPLE). */
+fun archivosCompartidos(intent: Intent): List<Uri> = runCatching {
+    if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+        if (Build.VERSION.SDK_INT >= 33) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+        else @Suppress("DEPRECATION") intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+    } else {
+        listOfNotNull(
+            if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            else @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri),
+        )
+    }
+}.getOrDefault(emptyList())
 
 /**
  * Un texto de lo compartido. Hay apps que lo mandan con formato (`CharSequence`, no
@@ -96,18 +110,33 @@ private fun parrafo(contenido: JsonElement) = JsonObject(mapOf(
 private fun nodoTexto(t: String) = JsonObject(mapOf("type" to JsonPrimitive("text"), "text" to JsonPrimitive(t), "styles" to JsonObject(emptyMap())))
 private fun enlace(url: String) = JsonObject(mapOf("type" to JsonPrimitive("link"), "href" to JsonPrimitive(url), "content" to JsonArray(listOf(nodoTexto(url)))))
 
-/** Los bloques que salen de lo compartido: el texto (con el enlace como enlace) o la imagen. */
-suspend fun bloquesCompartidos(ctx: android.content.Context, texto: String?, imagen: Uri?): List<JsonObject> {
+/**
+ * Los bloques que salen de lo compartido: cada archivo subido como su bloque (imagen,
+ * vídeo, audio o archivo, como al arrastrarlo a la web) y el texto, con los enlaces como
+ * enlaces.
+ */
+suspend fun bloquesCompartidos(ctx: android.content.Context, texto: String?, archivos: List<Uri>): List<JsonObject> {
     val s = Servicios.de(ctx)
     val out = ArrayList<JsonObject>()
-    if (imagen != null) {
-        val (bytes, nombre, mime) = Imagenes.lee(ctx, imagen)
+    for (uri in archivos) {
+        val tipoArchivo = ctx.contentResolver.getType(uri).orEmpty()
+        val bloque = when {
+            tipoArchivo.startsWith("image/") -> "image"
+            tipoArchivo.startsWith("video/") -> "video"
+            tipoArchivo.startsWith("audio/") -> "audio"
+            else -> "file"
+        }
+        val (bytes, nombre, mime) = if (bloque == "image") Imagenes.lee(ctx, uri) else Imagenes.leeArchivo(ctx, uri)
         val r = s.api.subir(bytes, nombre, mime)
+        val props = mutableMapOf<String, JsonElement>(
+            "url" to JsonPrimitive(r.url), "name" to JsonPrimitive(r.name ?: nombre), "caption" to JsonPrimitive(""),
+            "backgroundColor" to JsonPrimitive("default"),
+        )
+        if (bloque != "file") props["showPreview"] = JsonPrimitive(true)
+        if (bloque == "image" || bloque == "video") props["textAlignment"] = JsonPrimitive("left")
         out.add(JsonObject(mapOf(
-            "id" to JsonPrimitive(UUID.randomUUID().toString()), "type" to JsonPrimitive("image"),
-            "props" to JsonObject(mapOf("url" to JsonPrimitive(r.url), "name" to JsonPrimitive(r.name ?: nombre), "caption" to JsonPrimitive(""), "showPreview" to JsonPrimitive(true),
-                "textAlignment" to JsonPrimitive("left"), "backgroundColor" to JsonPrimitive("default"))),
-            "children" to JsonArray(emptyList()),
+            "id" to JsonPrimitive(UUID.randomUUID().toString()), "type" to JsonPrimitive(bloque),
+            "props" to JsonObject(props), "children" to JsonArray(emptyList()),
         )))
     }
     if (!texto.isNullOrBlank()) {
@@ -134,7 +163,7 @@ suspend fun añadeAlFinal(ctx: android.content.Context, pageId: String, bloques:
 }
 
 @Composable
-private fun Compartir(texto: String?, asunto: String?, imagen: Uri?, onListo: (String?) -> Unit) {
+private fun Compartir(texto: String?, asunto: String?, archivos: List<Uri>, onListo: (String?) -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val s = Servicios.de(ctx)
     val alcance = rememberAlcance()
@@ -151,9 +180,10 @@ private fun Compartir(texto: String?, asunto: String?, imagen: Uri?, onListo: (S
         trabajando = "Guardando…"
         alcance.launch {
             try {
-                val bloques = bloquesCompartidos(ctx, texto, imagen)
+                val bloques = bloquesCompartidos(ctx, texto, archivos)
                 val id = if (destino == null) {
-                    val titulo = asunto?.takeIf { it.isNotBlank() } ?: texto?.lines()?.firstOrNull { it.isNotBlank() }?.take(80) ?: "Compartido"
+                    val titulo = asunto?.takeIf { it.isNotBlank() } ?: texto?.lines()?.firstOrNull { it.isNotBlank() }?.take(80)
+                        ?: archivos.firstOrNull()?.let { runCatching { Imagenes.nombre(ctx, it).substringBeforeLast('.') }.getOrNull() } ?: "Compartido"
                     val pagina = s.repo.mutacion("pages.create", objeto("title" to titulo), encolable = false, etiquetas = listOf("arbol"))?.comoObjeto?.str("id")!!
                     s.repo.mutacion("app.aplicar", objeto("id" to pagina, "ops" to bloques.mapIndexed { i, b ->
                         JsonObject(mapOf("op" to JsonPrimitive("upsert"), "block" to b) + (if (i > 0) mapOf("afterId" to JsonPrimitive(bloques[i - 1].str("id")!!)) else emptyMap()))
@@ -173,7 +203,7 @@ private fun Compartir(texto: String?, asunto: String?, imagen: Uri?, onListo: (S
     }
     Column(Modifier.fillMaxSize().background(C.fondo).safeDrawingPadding().padding(16.dp)) {
         Text("Guardar en Notiono", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = C.texto)
-        Text(listOfNotNull(texto?.take(200), imagen?.let { "1 imagen" }).joinToString(" · "), fontSize = 13.sp, color = C.apagado, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(vertical = 8.dp))
+        Text(listOfNotNull(texto?.take(200), archivos.size.takeIf { it > 0 }?.let { if (it == 1) "1 archivo" else "$it archivos" }).joinToString(" · "), fontSize = 13.sp, color = C.apagado, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(vertical = 8.dp))
         trabajando?.let { Text(it, color = Marca, fontSize = 14.sp) }
         Row(Modifier.fillMaxWidth().clickable(enabled = trabajando == null) { guarda(null) }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icono("file-plus", color = Marca)

@@ -12,7 +12,9 @@ import com.monrealperez.notiono.red.Acceso
 import com.monrealperez.notiono.red.ErrorApi
 import com.monrealperez.notiono.ui.App
 import com.monrealperez.notiono.ui.Destino
+import com.monrealperez.notiono.ui.tema.BarrasDelTema
 import com.monrealperez.notiono.ui.tema.TemaNotiono
+import com.monrealperez.notiono.ui.tema.esOscuro
 import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -34,7 +36,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val s = Servicios.de(this)
         setContent {
-            TemaNotiono {
+            val oscuro = esOscuro()
+            BarrasDelTema(this, oscuro)
+            TemaNotiono(oscuro) {
                 App(destinos = destinos.receiveAsFlow(), errorAcceso = errorAcceso, onEntrar = {
                     errorAcceso.value = null
                     Acceso.abrir(this, BuildConfig.BASE_URL, s.sesion)
