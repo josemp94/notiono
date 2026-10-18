@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getOidcConfig, exchangeCode, resolveUser, appBaseUrl } from "@/server/oidc";
 import { ensureWorkspace } from "@/server/provision";
 import { createSession, sessionCookie, SESSION_MAX_AGE } from "@/server/auth";
+import { APP_CHALLENGE_COOKIE, emiteCodigoApp, esChallenge } from "@/server/appAuth";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -30,6 +31,17 @@ export async function GET(req: NextRequest) {
       });
     }
     await ensureWorkspace(db, user);
+
+    // La app nativa (entró con ?app=1): nada de cookie en la Custom Tab, un código de
+    // un solo uso de vuelta a la app, que lo canjea con su verificador PKCE.
+    const challenge = req.cookies.get(APP_CHALLENGE_COOKIE)?.value;
+    if (esChallenge(challenge)) {
+      const appCode = await emiteCodigoApp(db, user.id, challenge);
+      const res = NextResponse.redirect(`notiono://auth?code=${encodeURIComponent(appCode)}`);
+      res.headers.append("Set-Cookie", `${APP_CHALLENGE_COOKIE}=; Path=/; Max-Age=0`);
+      res.headers.append("Set-Cookie", "oidc_state=; Path=/; Max-Age=0");
+      return res;
+    }
 
     const token = await createSession(user.id);
     const res = NextResponse.redirect(new URL("/", base));

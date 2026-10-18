@@ -27,6 +27,7 @@ model User {
   pagePermissions   PagePermission[]
   archivedPages     Page[]         @relation("archivedPages")
   pageFollows       PageFollow[]
+  appAuthCodes      AppAuthCode[]
 }
 
 /**
@@ -51,6 +52,20 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+/**
+ * Código de un solo uso con el que la app nativa de Android canjea su sesión tras
+ * el SSO (RFC 8252 + PKCE): el callback OIDC lo emite y `POST /api/app/sesion` lo
+ * consume. Solo se guarda su hash; caduca a los 2 minutos.
+ */
+model AppAuthCode {
+  codeHash  String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge String // S256 del verificador que solo conoce la app
   expiresAt DateTime
   createdAt DateTime @default(now())
 }

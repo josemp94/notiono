@@ -863,6 +863,19 @@ import { seColgo } from "../src/components/editor/ModoSeguro";
   delete g.localStorage;
 }
 
+// --- Sesión de la app nativa: PKCE S256 (vector de prueba del RFC 7636) ---
+import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server/appAuth";
+{
+  const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+  assert.equal(s256(verifier), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+  assert.ok(verificadorCasa(verifier, "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+  assert.ok(!verificadorCasa(verifier + "x", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+  assert.ok(!verificadorCasa(verifier, "corto"));
+  assert.ok(esChallenge("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+  assert.ok(!esChallenge("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-c="));
+  assert.ok(esVerificador(verifier) && !esVerificador("corto"));
+}
+
 compruebaColaboracion()
   .then(() => {
     console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas e import de Notion");
