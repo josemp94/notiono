@@ -1,6 +1,12 @@
 package com.monrealperez.notiono.ui.buscar
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +45,6 @@ import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.LocalNavegador
 import com.monrealperez.notiono.ui.comun.BarraSuperior
 import com.monrealperez.notiono.ui.comun.BotonIcono
-import com.monrealperez.notiono.ui.comun.Campo
 import com.monrealperez.notiono.ui.comun.Icono
 import com.monrealperez.notiono.ui.comun.IconoPagina
 import com.monrealperez.notiono.ui.comun.TituloSeccion
@@ -78,7 +83,7 @@ fun PantallaBuscar() {
     }
     Column(Modifier.fillMaxSize()) {
         BarraSuperior(izquierda = { BotonIcono("arrow-left", { n.atras() }) }, centro = {
-            Box(Modifier.weight(1f)) { Campo(q, { q = it }, placeholder = "Buscar en Notiono…", autofoco = true) }
+            CampoBusqueda(q, { q = it }, Modifier.weight(1f))
         })
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Filtro("Todo", tipo == "all") { tipo = "all" }
@@ -129,4 +134,33 @@ private fun Resultado(titulo: String, icono: String?, detalle: String?, onClick:
         }
         Icono("chevron-right", tam = 16.dp, color = C.borde)
     }
+}
+
+/** El campo de la barra: compacto y relleno, como el de Notion (el de Material no cabe en 52 dp). */
+@Composable
+private fun CampoBusqueda(q: String, onCambio: (String) -> Unit, modifier: Modifier = Modifier) {
+    val foco = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.foundation.text.BasicTextField(
+        q, onCambio,
+        modifier = modifier.focusRequester(foco),
+        singleLine = true,
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = C.texto),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(Marca),
+        decorationBox = { campo ->
+            Row(
+                Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(10.dp)).background(C.hover).padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icono("search", tam = 18.dp, color = C.apagado)
+                Box(Modifier.weight(1f).padding(start = 8.dp)) {
+                    if (q.isEmpty()) Text("Buscar en Notiono…", fontSize = 16.sp, color = C.apagado, maxLines = 1)
+                    campo()
+                }
+                if (q.isNotEmpty()) Box(Modifier.size(28.dp).clip(CircleShape).clickable { onCambio("") }, contentAlignment = Alignment.Center) {
+                    Icono("x", tam = 16.dp, color = C.apagado)
+                }
+            }
+        },
+    )
+    LaunchedEffect(Unit) { runCatching { foco.requestFocus() } }
 }

@@ -37,6 +37,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -49,11 +52,20 @@ import com.monrealperez.notiono.ui.tema.C
 import com.monrealperez.notiono.ui.tema.Marca
 import kotlinx.coroutines.flow.MutableSharedFlow
 
+/** Lo que dice TalkBack de cada botón de solo icono. */
+private val ETIQUETAS_BOTON = mapOf(
+    "arrow-left" to "Atrás", "panel-left" to "Abrir panel", "message-square" to "Comentarios", "ellipsis" to "Más opciones",
+    "chevron-left" to "Anterior", "chevron-right" to "Siguiente", "x" to "Cerrar", "undo-2" to "Deshacer", "trash-2" to "Borrar",
+    "table" to "Abrir la base de datos", "sliders-horizontal" to "Ajustes de la vista", "send" to "Enviar", "search" to "Buscar",
+    "refresh-cw" to "Refrescar", "list-filter" to "Filtrar", "arrow-up-down" to "Ordenar",
+)
+
 /** Botón de icono con zona de toque de 40 dp (la `.toque` de la web). */
 @Composable
 fun BotonIcono(icono: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = C.apagado, tam: Dp = 20.dp, activo: Boolean = true) {
     Box(
-        modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = activo, onClick = onClick),
+        modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = activo, onClickLabel = null, role = Role.Button, onClick = onClick)
+            .semantics { ETIQUETAS_BOTON[icono]?.let { contentDescription = it } },
         contentAlignment = Alignment.Center,
     ) { Icono(icono, tam = tam, color = if (activo) color else color.copy(alpha = 0.4f)) }
 }

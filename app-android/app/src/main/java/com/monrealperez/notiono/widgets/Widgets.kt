@@ -168,52 +168,62 @@ class NotaWidget : GlanceAppWidget() {
                 error = if (e.sinConexion) "Sin conexión" else e.message
             }
         }
-        provideContent {
-            GlanceTheme(colors = coloresWidget) {
-                Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
-                    if (pagina == null) {
-                        Text("Toca para elegir una página", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                            modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(Widgets.configura(context, id))))
-                        return@Column
-                    }
-                    val abrir = Widgets.abre(context, "notiono://pagina/$pagina")
-                    CabeceraWidget(titulo, abrir)
-                    if (error != null && bloques.isEmpty()) Text(error!!, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
-                    LazyColumn(GlanceModifier.fillMaxSize()) {
-                        items(planos(bloques).take(60), itemId = { it.first.str("id").hashCode().toLong() }) { (b, nivel) -> FilaNota(context, pagina, b, nivel, abrir) }
-                    }
-                }
+        provideContent { ContenidoNota(context, pagina, titulo, bloques, error) { Widgets.configura(context, id) } }
+    }
+}
+
+/** Lo que pinta el widget «Nota» (aparte, para poder fotografiarlo en las pruebas). */
+@Composable
+fun ContenidoNota(context: Context, pagina: String?, titulo: String, bloques: List<JsonObject>, error: String?, configurar: () -> Intent) {
+    GlanceTheme(colors = coloresWidget) {
+        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+            if (pagina == null) {
+                Text("Toca para elegir una página", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                    modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(configurar())))
+                return@Column
+            }
+            val abrir = Widgets.abre(context, "notiono://pagina/$pagina")
+            CabeceraWidget(titulo, abrir)
+            if (error != null && bloques.isEmpty()) Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
+            LazyColumn(GlanceModifier.fillMaxSize()) {
+                items(planos(bloques).take(60), itemId = { it.first.str("id").hashCode().toLong() }) { (b, nivel, numero) -> FilaNota(pagina, b, nivel, numero, abrir) }
             }
         }
     }
+}
 
-    /** Bloques con su sangría, en el orden en que se leen. */
-    private fun planos(bs: List<JsonObject>, nivel: Int = 0): List<Pair<JsonObject, Int>> = bs.flatMap { b ->
-        listOf(b to nivel) + planos((b["children"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList(), nivel + 1)
+/** Bloques con su sangría y, en las listas numeradas, su número; en el orden en que se leen. */
+private fun planos(bs: List<JsonObject>, nivel: Int = 0): List<Triple<JsonObject, Int, Int>> {
+    var n = 0
+    return bs.flatMap { b ->
+        n = if (b.str("type") != "numberedListItem") 0
+        else if (n > 0) n + 1
+        else ((b["props"] as? JsonObject)?.get("start") as? JsonPrimitive)?.content?.toIntOrNull() ?: 1
+        listOf(Triple(b, nivel, n)) + planos((b["children"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList(), nivel + 1)
     }
+}
 
-    @Composable
-    private fun FilaNota(ctx: Context, pagina: String, b: JsonObject, nivel: Int, abrir: Intent) {
-        val texto = Inline.textoPlano(b["content"])
-        val props = b["props"] as? JsonObject
-        val sangria = GlanceModifier.padding(start = (nivel * 12).dp, top = 1.dp, bottom = 1.dp)
-        val estilo = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp)
-        when (b.str("type")) {
-            "heading" -> Text(texto, style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold,
-                fontSize = when ((props?.get("level") as? JsonPrimitive)?.content) { "1" -> 17.sp; "2" -> 15.sp; else -> 14.sp }), modifier = sangria.clickable(actionStartActivity(abrir)))
-            "checkListItem" -> CheckBox(
-                checked = (props?.get("checked") as? JsonPrimitive)?.content == "true",
-                onCheckedChange = actionRunCallback<MarcaCasilla>(actionParametersOf(MarcaCasilla.PAGINA to pagina, MarcaCasilla.BLOQUE to (b.str("id") ?: ""))),
-                text = texto, style = estilo, modifier = sangria,
-            )
-            "bulletListItem" -> Text("•  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
-            "numberedListItem" -> Text("–  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
-            "toggleListItem" -> Text("▸  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
-            "quote", "callout" -> Text(texto, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp), modifier = sangria.clickable(actionStartActivity(abrir)))
-            "divider" -> Box(GlanceModifier.fillMaxWidth().height(1.dp).background(GlanceTheme.colors.outline)) {}
-            "paragraph", "codeBlock" -> if (texto.isNotBlank()) Text(texto, style = estilo, modifier = sangria.clickable(actionStartActivity(abrir))) else Spacer(GlanceModifier.height(4.dp))
-            else -> {}
-        }
+@Composable
+private fun FilaNota(pagina: String, b: JsonObject, nivel: Int, numero: Int, abrir: Intent) {
+    val texto = Inline.textoPlano(b["content"])
+    val props = b["props"] as? JsonObject
+    val sangria = GlanceModifier.padding(start = (nivel * 12).dp, top = 1.dp, bottom = 1.dp)
+    val estilo = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp)
+    when (b.str("type")) {
+        "heading" -> Text(texto, style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold,
+            fontSize = when ((props?.get("level") as? JsonPrimitive)?.content) { "1" -> 17.sp; "2" -> 15.sp; else -> 14.sp }), modifier = sangria.clickable(actionStartActivity(abrir)))
+        "checkListItem" -> CheckBox(
+            checked = (props?.get("checked") as? JsonPrimitive)?.content == "true",
+            onCheckedChange = actionRunCallback<MarcaCasilla>(actionParametersOf(MarcaCasilla.PAGINA to pagina, MarcaCasilla.BLOQUE to (b.str("id") ?: ""))),
+            text = texto, style = estilo, modifier = sangria,
+        )
+        "bulletListItem" -> Text("•  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
+        "numberedListItem" -> Text("$numero.  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
+        "toggleListItem" -> Text("▸  $texto", style = estilo, modifier = sangria.clickable(actionStartActivity(abrir)))
+        "quote", "callout" -> Text(texto, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp), modifier = sangria.clickable(actionStartActivity(abrir)))
+        "divider" -> Box(GlanceModifier.fillMaxWidth().height(1.dp).background(GlanceTheme.colors.outline)) {}
+        "paragraph", "codeBlock" -> if (texto.isNotBlank()) Text(texto, style = estilo, modifier = sangria.clickable(actionStartActivity(abrir))) else Spacer(GlanceModifier.height(4.dp))
+        else -> {}
     }
 }
 
@@ -267,47 +277,51 @@ class ListaWidget : GlanceAppWidget() {
             }
         }
         val campos = (datos?.get("fields") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
-        val titulo = campos.firstOrNull { it.str("type") == "text" } ?: campos.firstOrNull()
-        val casilla = campos.firstOrNull { it.str("type") == "checkbox" }
-        val clave = campos.firstOrNull { it.str("type") == "date" } ?: campos.firstOrNull { it.str("type") == "status" } ?: campos.firstOrNull { it.str("type") == "select" }
         val filas = (datos?.get("filas") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
         val nombre = prefs[Widgets.CLAVE_TITULO] ?: (datos?.get("collection") as? JsonObject)?.str("name") ?: "Base de datos"
-        provideContent {
-            GlanceTheme(colors = coloresWidget) {
-                Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
-                    if (pagina == null) {
-                        Text("Toca para elegir una base de datos", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
-                            modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(Widgets.configura(context, id))))
-                        return@Column
-                    }
-                    CabeceraWidget(nombre, Widgets.abre(context, "notiono://pagina/$pagina")) {
-                        Box(GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.primary).clickable(actionStartActivity(Widgets.abre(context, "notiono://nuevafila/$pagina"))),
-                            contentAlignment = Alignment.Center) {
-                            Text("+", style = TextStyle(color = androidx.glance.unit.ColorProvider(Color.White), fontWeight = FontWeight.Bold, fontSize = 16.sp))
-                        }
-                        Spacer(GlanceModifier.width(4.dp))
-                    }
-                    if (error != null && filas.isEmpty()) Text(error!!, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
-                    if (filas.isEmpty() && error == null) Text("Nada por aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
-                    LazyColumn(GlanceModifier.fillMaxSize()) {
-                        items(filas.take(50), itemId = { it.str("id").hashCode().toLong() }) { f ->
-                            val celdas = f["cells"] as? JsonObject ?: JsonObject(emptyMap())
-                            val textos = f["textos"] as? JsonObject ?: JsonObject(emptyMap())
-                            val tit = titulo?.let { (celdas[it.str("id")] as? JsonPrimitive)?.content }?.ifBlank { null } ?: "Sin título"
-                            val abrirFila = actionStartActivity(Widgets.abre(context, "notiono://fila/$pagina/${f.str("id")}"))
-                            Row(GlanceModifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                                if (casilla != null) CheckBox(
-                                    checked = (celdas[casilla.str("id")] as? JsonPrimitive)?.content == "true",
-                                    onCheckedChange = actionRunCallback<MarcaFila>(actionParametersOf(
-                                        MarcaFila.PAGINA to pagina, MarcaFila.FILA to (f.str("id") ?: ""), MarcaFila.CAMPO to (casilla.str("id") ?: ""),
-                                        MarcaFila.VALOR to ((celdas[casilla.str("id")] as? JsonPrimitive)?.content != "true").toString(),
-                                    )),
-                                )
-                                Text(tit, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp), modifier = GlanceModifier.defaultWeight().clickable(abrirFila))
-                                val detalle = clave?.let { (textos[it.str("id")] as? JsonPrimitive)?.content }.orEmpty()
-                                if (detalle.isNotBlank()) Text(detalle, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp), modifier = GlanceModifier.clickable(abrirFila))
-                            }
-                        }
+        provideContent { ContenidoLista(context, pagina, nombre, campos, filas, error) { Widgets.configura(context, id) } }
+    }
+}
+
+/** Lo que pinta el widget «Lista». */
+@Composable
+fun ContenidoLista(context: Context, pagina: String?, nombre: String, campos: List<JsonObject>, filas: List<JsonObject>, error: String?, configurar: () -> Intent) {
+    val titulo = campos.firstOrNull { it.str("type") == "text" } ?: campos.firstOrNull()
+    val casilla = campos.firstOrNull { it.str("type") == "checkbox" }
+    val clave = campos.firstOrNull { it.str("type") == "date" } ?: campos.firstOrNull { it.str("type") == "status" } ?: campos.firstOrNull { it.str("type") == "select" }
+    GlanceTheme(colors = coloresWidget) {
+        Column(GlanceModifier.fillMaxSize().background(GlanceTheme.colors.background).cornerRadius(16.dp).padding(12.dp)) {
+            if (pagina == null) {
+                Text("Toca para elegir una base de datos", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                    modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(configurar())))
+                return@Column
+            }
+            CabeceraWidget(nombre, Widgets.abre(context, "notiono://pagina/$pagina")) {
+                Box(GlanceModifier.size(28.dp).cornerRadius(14.dp).background(GlanceTheme.colors.primary).clickable(actionStartActivity(Widgets.abre(context, "notiono://nuevafila/$pagina"))),
+                    contentAlignment = Alignment.Center) {
+                    Text("+", style = TextStyle(color = androidx.glance.unit.ColorProvider(Color.White), fontWeight = FontWeight.Bold, fontSize = 16.sp))
+                }
+                Spacer(GlanceModifier.width(4.dp))
+            }
+            if (error != null && filas.isEmpty()) Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
+            if (filas.isEmpty() && error == null) Text("Nada por aquí.", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp))
+            LazyColumn(GlanceModifier.fillMaxSize()) {
+                items(filas.take(50), itemId = { it.str("id").hashCode().toLong() }) { f ->
+                    val celdas = f["cells"] as? JsonObject ?: JsonObject(emptyMap())
+                    val textos = f["textos"] as? JsonObject ?: JsonObject(emptyMap())
+                    val tit = titulo?.let { (celdas[it.str("id")] as? JsonPrimitive)?.content }?.ifBlank { null } ?: "Sin título"
+                    val abrirFila = actionStartActivity(Widgets.abre(context, "notiono://fila/$pagina/${f.str("id")}"))
+                    Row(GlanceModifier.fillMaxWidth().padding(top = 3.dp, bottom = 3.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (casilla != null) CheckBox(
+                            checked = (celdas[casilla.str("id")] as? JsonPrimitive)?.content == "true",
+                            onCheckedChange = actionRunCallback<MarcaFila>(actionParametersOf(
+                                MarcaFila.PAGINA to pagina, MarcaFila.FILA to (f.str("id") ?: ""), MarcaFila.CAMPO to (casilla.str("id") ?: ""),
+                                MarcaFila.VALOR to ((celdas[casilla.str("id")] as? JsonPrimitive)?.content != "true").toString(),
+                            )),
+                        )
+                        Text(tit, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 13.sp), modifier = GlanceModifier.defaultWeight().clickable(abrirFila))
+                        val detalle = clave?.let { (textos[it.str("id")] as? JsonPrimitive)?.content }.orEmpty()
+                        if (detalle.isNotBlank()) Text(detalle, maxLines = 1, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp), modifier = GlanceModifier.clickable(abrirFila))
                     }
                 }
             }
@@ -350,19 +364,23 @@ class RapidaWidget : GlanceAppWidget() {
         val destino = prefs[Widgets.CLAVE_PAGINA]
         val titulo = prefs[Widgets.CLAVE_TITULO]
         val uri = if (destino != null) "notiono://rapida?en=$destino" else "notiono://nueva"
-        provideContent {
-            GlanceTheme(colors = coloresWidget) {
-                Row(
-                    GlanceModifier.fillMaxSize().background(GlanceTheme.colors.primary).cornerRadius(18.dp).padding(10.dp)
-                        .clickable(actionStartActivity(Widgets.abre(context, uri))),
-                    verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(ImageProvider(R.drawable.widget_nota), "Nota rápida", modifier = GlanceModifier.size(22.dp))
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text(titulo?.let { "Añadir a $it" } ?: "Nota rápida", maxLines = 1,
-                        style = TextStyle(color = androidx.glance.unit.ColorProvider(Color.White), fontWeight = FontWeight.Medium, fontSize = 14.sp))
-                }
-            }
+        provideContent { ContenidoRapida(context, uri, titulo) }
+    }
+}
+
+/** Lo que pinta el widget «Nota rápida». */
+@Composable
+fun ContenidoRapida(context: Context, uri: String, titulo: String?) {
+    GlanceTheme(colors = coloresWidget) {
+        Row(
+            GlanceModifier.fillMaxSize().background(GlanceTheme.colors.primary).cornerRadius(18.dp).padding(10.dp)
+                .clickable(actionStartActivity(Widgets.abre(context, uri))),
+            verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(ImageProvider(R.drawable.widget_nota), "Nota rápida", modifier = GlanceModifier.size(22.dp))
+            Spacer(GlanceModifier.width(8.dp))
+            Text(titulo?.let { "Añadir a $it" } ?: "Nota rápida", maxLines = 1,
+                style = TextStyle(color = androidx.glance.unit.ColorProvider(Color.White), fontWeight = FontWeight.Medium, fontSize = 14.sp))
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.monrealperez.notiono.bd
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -184,6 +186,12 @@ fun VistaCronograma(est: EstadoBD, abrir: (String) -> Unit) {
     val sinFecha = d.filas.filter { diasDe(est, it, campo, campoFin) == null }
     val desplazamiento = rememberScrollState()
     val hoy = LocalDate.now()
+    // Como Notion: se abre con hoy a la vista (un par de días antes a la izquierda), no en el día 1.
+    val pxDia = with(LocalDensity.current) { anchoDia.dp.toPx() }
+    LaunchedEffect(inicioMes, zoom) {
+        val h = ChronoUnit.DAYS.between(ini, hoy).toInt()
+        if (h in 0 until dias) desplazamiento.scrollTo(((h - 2).coerceAtLeast(0) * pxDia).toInt())
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             for ((k, nombre) in listOf("mes" to "Mes", "trimestre" to "Trimestre", "año" to "Año")) {

@@ -156,7 +156,11 @@ fun VistaGrafica(est: EstadoBD) {
                     }
                 }
                 Row(Modifier.fillMaxWidth()) {
-                    for (c in cats) Text(c, fontSize = 10.sp, color = texto, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    // Categoría y su valor (sin eje con números, es lo que dice cuánto mide cada barra).
+                    for ((i, c) in cats.withIndex()) Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(c, fontSize = 10.sp, color = texto, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text(formatea(series?.sumOf { it.second.getOrElse(i) { 0.0 } } ?: valores.getOrElse(i) { 0.0 }), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = C.texto)
+                    }
                 }
             }
         }

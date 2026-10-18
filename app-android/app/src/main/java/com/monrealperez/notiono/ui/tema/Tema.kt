@@ -11,6 +11,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
@@ -117,8 +118,10 @@ object ColoresTexto {
 }
 
 private val tipografia = Typography(
-    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    // Altura de línea en em: si un Text cambia el tamaño, la línea se ajusta con él
+    // (con sp, un texto de 14 heredaba los 24 sp de línea y quedaba a doble espacio).
+    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 1.45.em),
+    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 1.43.em),
     titleLarge = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
     titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium),
     labelMedium = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),

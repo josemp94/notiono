@@ -208,6 +208,8 @@ private fun TablaEditable(b: Bloque, estado: EstadoEditor, editable: Boolean) {
     val pal = estado.pal
     val tinta = C.texto.toArgb()
     val cabecera = ((b.crudo as? kotlinx.serialization.json.JsonObject)?.get("headerRows") as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+    // En columna: quien la pinta la mete en un Box y, sueltas, tabla y botones se pisaban.
+    Column(Modifier.fillMaxWidth()) {
     Box(Modifier.fillMaxWidth().padding(vertical = 6.dp).horizontalScroll(rememberScrollState())) {
         Column(Modifier.border(1.dp, C.borde)) {
             celdas.forEachIndexed { i, fila ->
@@ -261,6 +263,7 @@ private fun TablaEditable(b: Bloque, estado: EstadoEditor, editable: Boolean) {
     if (editable) Row {
         Text("+ Fila", fontSize = 13.sp, color = C.apagado, modifier = Modifier.clickable { estado.contenido(b, Tabla.añadeFila(b.crudo, celdas.size)) }.padding(6.dp))
         Text("+ Columna", fontSize = 13.sp, color = C.apagado, modifier = Modifier.clickable { estado.contenido(b, Tabla.añadeColumna(b.crudo, celdas.firstOrNull()?.size ?: 0)) }.padding(6.dp))
+    }
     }
     menu?.let { (i, j) ->
         Hoja({ menu = null }, "Fila ${i + 1}, columna ${j + 1}") {
