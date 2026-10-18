@@ -136,6 +136,18 @@ export async function compruebaApp() {
     assert.deepEqual(forma(j), esperado);
   }
 
+  // --- 3b. Markdown ↔ bloques (importar/exportar desde la app), con el conversor de BlockNote ---
+  {
+    const md = await import("../src/server/app/markdown");
+    const bs = (await md.markdownABloques("# Hola\n\nTexto **fuerte**\n\n- uno\n- dos\n")) as Bloque[];
+    assert.deepEqual(bs.map((b) => b.type), ["heading", "paragraph", "bulletListItem", "bulletListItem"]);
+    const salida = await md.bloquesAMarkdown(todos as never);
+    for (const trozo of ["# **Título grande**", "> *Una cita*", "| Ana", "**negrita**", "[un enlace](https://notion.so)", "izquierda", "derecha", "Base de datos"])
+      assert.ok(salida.includes(trozo), `el Markdown exportado debería llevar «${trozo}»`);
+    // jsdom solo mientras convierte: después no queda un document global colgando.
+    assert.equal((globalThis as { document?: unknown }).document, undefined);
+  }
+
   // --- 4. Con Hocuspocus de verdad: un navegador conectado recibe lo que escribe la
   //        app, y lo que escribe él a la vez en otro bloque no se pierde ---
   {

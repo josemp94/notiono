@@ -9,21 +9,21 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] Leer CLAUDE.md, AGENTS.md y docs; plan en este fichero.
 
 ### F1 · Servidor: sesión de la app (RFC 8252)
-- [ ] Migración `AppAuthCode` (código de un solo uso, 2 min, challenge S256).
-- [ ] `/api/auth/oidc/start?app=1&challenge=…` y callback → `notiono://auth?code=…` (el flujo web igual).
-- [ ] `POST /api/app/sesion {code, verifier}` → token de sesión; `DELETE` la borra.
-- [ ] `GET /api/app/version` (lee `src/lib/apk.json`).
+- [x] Migración `AppAuthCode` (código de un solo uso, 2 min, challenge S256).
+- [x] `/api/auth/oidc/start?app=1&challenge=…` y callback → `notiono://auth?code=…` (el flujo web igual).
+- [x] `POST /api/app/sesion {code, verifier}` → token de sesión; cerrar sesión es `auth.logout` (borra la fila).
+- [x] `GET /api/app/version` (lee `src/lib/apk.json`).
 
 ### F2 · Servidor: bloques y Yjs
-- [ ] Config de los bloques propios sin React (`src/components/editor/esquemaBloques.ts`) usada por las specs de React y por el esquema espejo del servidor.
-- [ ] `src/server/app/bloquesYjs.ts`: leer bloques de un Y.Doc (siempre sobre una copia), aplicar operaciones por bloque con diff mínimo, conservar marcas que la app no conoce (comentarios en línea).
-- [ ] Puente con Hocuspocus (`openDirectConnection` en el proceso de `server.mjs`); sin él, sobre `Page.ydoc` con bloqueo de fila. `Page.content` siempre por `jsonLimpio`.
-- [ ] Router `app` (`src/server/routers/app.ts`): `pagina`, `aplicar`, …
-- [ ] Pruebas en `npm run check`: cliente Yjs conectado recibe las ops, edición concurrente en otro bloque no se pierde, ida y vuelta de todos los tipos de bloque.
+- [x] Config de los bloques propios sin React (`src/components/editor/esquemaBloques.ts`) usada por las specs de React y por el esquema espejo del servidor.
+- [x] `src/server/app/bloquesYjs.ts`: leer bloques de un Y.Doc (siempre sobre una copia), aplicar operaciones por bloque con diff mínimo, conservar marcas que la app no conoce (comentarios en línea).
+- [x] Puente con Hocuspocus (`openDirectConnection` en el proceso de `server.mjs`); sin él, sobre `Page.ydoc` con bloqueo de fila. `Page.content` siempre por `jsonLimpio`.
+- [x] Router `app` (`src/server/routers/app.ts`): `bloques`, `aplicar`, `bloquesFila`, `aplicarFila`, `vista`, `markdownABloques`, `exportarMarkdown`, `plantillas`.
+- [x] Pruebas en `npm run check`: cliente Yjs conectado recibe las ops, edición concurrente en otro bloque no se pierde, ida y vuelta de todos los tipos de bloque.
 
 ### F3 · Servidor: datos para la app
-- [ ] `app.vista`: filas de una vista con el motor de la web (filtros, orden, búsqueda, grupos, subtareas, computados, colores, totales).
-- [ ] Lo que pidan los widgets y la app (sin duplicar lógica en Kotlin).
+- [x] `app.vista`: filas de una vista con el motor de la web (filtros, orden, búsqueda, grupos, subtareas, computados, colores, totales).
+- [x] Markdown ↔ bloques en el servidor (jsdom + conversor de BlockNote) y galería de plantillas. (Lo que surja al hacer la app, aquí.)
 
 ### F4 · App: esqueleto
 - [ ] Proyecto Gradle `app-android/` (Kotlin DSL + catálogo), firma desde `~/notiono-apk/firma.properties`.
@@ -59,6 +59,23 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [ ] CLAUDE.md, `docs/android.md`, este fichero.
 
 ## Bitácora (decisiones y comprobaciones)
+
+- **Integración del servidor** (`scripts/integracion-app.ts`, cabecera con cómo lanzarla):
+  servidor de producción (`server.mjs`) sobre PGlite + un SSO falso. Comprobado 18-oct:
+  sesión de la app con PKCE (código de un solo uso, verificador malo rechazado), login
+  web intacto, operaciones de bloque que llegan a un navegador conectado por `/collab`
+  mientras él escribe en otro bloque, vistas, cuerpo de fila, Markdown y logout.
+- **BlockNote en Node solo por import()**: su build CommonJS revienta en Node (interop de
+  tiptap) y la ESM no. `tsx` compila los `.ts` del repo como CommonJS, así que todo lo de
+  BlockNote/Yjs en el servidor se carga con `import()` (esquema.ts, bloquesYjs.ts).
+- **Dos copias de yjs en el proceso de producción** (la que empaqueta Next y la de
+  `collab/dist`): por el puente solo pasan bytes y JSON, nunca objetos Yjs.
+- **En producción la app escribe SIEMPRE por Yjs** (si la página no tenía documento
+  compartido, el puente lo estrena con su `Page.content`): así un navegador que abra la
+  página justo entonces no puede sembrar el contenido viejo encima. Sin Hocuspocus
+  (`next dev`) y sin `Page.ydoc`, basta `Page.content` como pide la tarea.
+- **Markdown en el servidor con jsdom** (`serverExternalPackages`): el mismo conversor que
+  la web; `@blocknote/server-util` no sirve en Next porque importa React.
 
 - **18-oct-2026 · Versiones**: AGP 9.4.1 (Kotlin integrado), Kotlin 2.4.21, Gradle 9.x,
   Compose BOM 2026.09.00, JDK 17 de `~/.bubblewrap`. Son las estables del día.

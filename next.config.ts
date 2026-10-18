@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // jsdom (Markdown ↔ bloques para la app nativa, src/server/app/markdown.ts) se
+  // carga de node_modules tal cual: empaquetado no arranca.
+  serverExternalPackages: ["jsdom"],
   async headers() {
     return [
       {

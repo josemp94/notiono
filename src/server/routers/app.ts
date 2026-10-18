@@ -19,6 +19,9 @@ import { guardaContenidoPagina } from "../services/pages";
 import { jsonLimpio } from "../jsonLimpio";
 import { aplicarOpsJson, type BloqueBN, type OpBloque } from "../app/bloquesYjs";
 import { aplicarOpsPagina, huella, leerBloquesPagina } from "../app/documento";
+import { calculaVista } from "../app/vista";
+import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
+import { TEMPLATES } from "@/lib/templates";
 
 /** Bloque BlockNote tal cual (lo que no conozca el servidor se guarda igual). */
 const bloque: z.ZodType<BloqueBN> = z.lazy(() =>
@@ -88,6 +91,41 @@ export const appNativaRouter = router({
       await guardaContenidoPagina(ctx.db, { workspaceId: ctx.workspace.id, user: ctx.user }, page, bloques);
       return { huella: huella(bloques), bloques };
     }),
+
+  /**
+   * Una vista de base de datos lista para pintar: campos, vistas y las filas ya
+   * filtradas, ordenadas, buscadas y agrupadas por el motor de la web, con fórmulas,
+   * rollups, relaciones, colores y totales resueltos.
+   */
+  vista: workspaceProcedure
+    .input(z.object({ pageId: z.string(), viewId: z.string().nullish(), q: z.string().max(200).nullish() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.pageId);
+      const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id }, page.id, input.viewId, input.q);
+      if (!v) throw new TRPCError({ code: "NOT_FOUND", message: "Esta página no es una base de datos." });
+      return { ...v, nivel, locked: page.locked };
+    }),
+
+  /** Importar un .md: los bloques que saldrían en la web (la app crea la página con ellos). */
+  markdownABloques: workspaceProcedure
+    .input(z.object({ markdown: z.string().max(2_000_000) }))
+    .mutation(({ input }) => markdownABloques(input.markdown)),
+
+  /** Exportar una página a Markdown, como «Exportar → Markdown» de la web. */
+  exportarMarkdown: workspaceProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const { title } = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } });
+      return { titulo: title, markdown: await bloquesAMarkdown(await leerBloquesPagina(page)) };
+    }),
+
+  /** La galería de plantillas (las crea `pages.createFromTemplate`, como en la web). */
+  plantillas: workspaceProcedure.query(() =>
+    Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, icon: t.icon, description: t.description })),
+  ),
 
   /** Cuerpo de una fila (fila = página). Sin documento compartido: es JSON. */
   bloquesFila: workspaceProcedure
