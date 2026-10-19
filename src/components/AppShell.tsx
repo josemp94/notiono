@@ -9,6 +9,7 @@ import { ConfirmHost } from "@/components/Confirmar";
 import { ToastHost } from "@/components/Toast";
 import { SearchPalette } from "@/components/SearchPalette";
 import { BandejaHost } from "@/components/Bandeja";
+import { PanelPaginaHost } from "@/components/PanelPagina";
 import { Shortcuts } from "@/components/Shortcuts";
 import { isTyping, NEW_PAGE_EVENT, SHORTCUTS_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
 import { setTheme } from "@/lib/theme";
@@ -158,6 +159,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ConfirmHost />
       <ToastHost />
       <BandejaHost />
+      <PanelPaginaHost />
       {/* Fondo oscuro al abrir el panel en móvil */}
       {open && (
         <div

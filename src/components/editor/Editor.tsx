@@ -3,31 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Database, FileText, Lightbulb, Link2, MessageSquareQuote, X } from "lucide-react";
+import { Database, FileText, GripVertical, Lightbulb, Link2, MessageSquareQuote, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
-  BlockColorsItem,
   blockTypeSelectItems,
-  DragHandleMenu,
   FloatingComposerController,
   FloatingThreadController,
   FormattingToolbar,
   FormattingToolbarController,
-  RemoveBlockItem,
   SideMenu,
   SideMenuController,
   ThreadsSidebar,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
-  useBlockNoteEditor,
-  useComponentsContext,
   useCreateBlockNote,
-  useExtensionState,
   type BlockTypeSelectItem,
+  type SideMenuProps,
 } from "@blocknote/react";
-import { SideMenuExtension } from "@blocknote/core/extensions";
 import { es } from "@blocknote/core/locales";
 import { CommentsExtension } from "@blocknote/core/comments";
+import { SideMenuExtension } from "@blocknote/core/extensions";
 import { withCollaboration } from "@blocknote/core/yjs";
 import { useCollaboration } from "./useCollaboration";
 import { Presence } from "./Presence";
@@ -38,39 +33,13 @@ import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "./mention";
 import { itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
 import { trpc } from "@/trpc/react";
-import { toast } from "@/components/Toast";
 import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
 import { IconoPagina, PageIcon } from "@/components/PageIcon";
 import { AddCoverButton, CoverBand } from "@/components/PageCover";
 import { TituloGrande } from "@/components/TituloGrande";
-
-/**
- * Item del menú del tirador: copia /p/<página>#<bloque>. Mismo patrón que los
- * items de serie de BlockNote (el bloque llega por el estado del SideMenu).
- */
-function CopiarEnlaceBloqueItem({ pageId }: { pageId: string }) {
-  const Components = useComponentsContext()!;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bnEditor = useBlockNoteEditor<any, any, any>();
-  const block = useExtensionState(SideMenuExtension, {
-    editor: bnEditor,
-    selector: (state) => state?.block,
-  });
-  if (!block) return null;
-  return (
-    <Components.Generic.Menu.Item
-      className="bn-menu-item"
-      onClick={() =>
-        navigator.clipboard
-          .writeText(`${location.origin}/p/${pageId}#${block.id}`)
-          .then(() => toast("Enlace del bloque copiado"))
-      }
-    >
-      Copiar enlace al bloque
-    </Components.Generic.Menu.Item>
-  );
-}
+import { HojaBloque, MenuTirador, useAccionesBloque } from "./menuTirador";
+import { arrastreDeBloques, idsArrastrados, MOVER_BLOQUES_EVENT } from "@/lib/subpaginas";
 
 /** Lo que la página puede pedirle al editor desde fuera (restaurar una versión). */
 export type EditorApi = { reemplazar: (bloques: unknown[]) => void };
@@ -84,6 +53,7 @@ export function Editor({
   fullWidth = false,
   canEdit = true,
   onApi,
+  barraId = "barra-editor",
 }: {
   pageId: string;
   initialTitle: string;
@@ -93,6 +63,8 @@ export function Editor({
   fullWidth?: boolean;
   canEdit?: boolean;
   onApi?: (api: EditorApi | null) => void;
+  /** Hueco de la barra donde van presencia y estado (el panel lateral trae el suyo). */
+  barraId?: string;
 }) {
   const utils = trpc.useUtils();
   const theme = useTheme();
@@ -102,7 +74,7 @@ export function Editor({
   const [showThreads, setShowThreads] = useState(false);
   // El hueco de la barra superior de la página donde va la presencia (page.tsx).
   const [barra, setBarra] = useState<HTMLElement | null>(null);
-  useEffect(() => setBarra(document.getElementById("barra-editor")), []);
+  useEffect(() => setBarra(document.getElementById(barraId)), [barraId]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -172,6 +144,100 @@ export function Editor({
     [collab],
   );
 
+  const acciones = useAccionesBloque(editor, pageId);
+  // El menú del tirador tiene que ser SIEMPRE el mismo componente: si cambia en cada
+  // render del editor (abrir un diálogo, guardar…), Mantine lo desmonta a medio abrir
+  // y el siguiente clic en los 6 puntos ya no lo abría.
+  const ejecutar = useRef(acciones.ejecutar);
+  useEffect(() => {
+    ejecutar.current = acciones.ejecutar;
+  });
+  const colaborativo = !!collab;
+  const MenuDelTirador = useMemo(
+    () =>
+      function MenuDelTirador() {
+        return <MenuTirador pageId={pageId} colaborativo={colaborativo} onAccion={(a, b) => ejecutar.current(a, b)} />;
+      },
+    [pageId, colaborativo],
+  );
+  const BarraDelTirador = useMemo(
+    () =>
+      function BarraDelTirador(props: SideMenuProps) {
+        return <SideMenu {...props} dragHandleMenu={MenuDelTirador} />;
+      },
+    [MenuDelTirador],
+  );
+
+  // Bloques soltados en una página del panel lateral: se mueven allí (si son de este editor).
+  const moverBloques = acciones.moverBloques;
+  useEffect(() => {
+    if (!canEdit) return;
+    const h = (e: Event) => {
+      const { ids, destino } = (e as CustomEvent<{ ids: string[]; destino: string }>).detail;
+      const mios = ids.filter((id) => editor.getBlock(id));
+      if (mios.length) void moverBloques(mios, destino);
+    };
+    window.addEventListener(MOVER_BLOQUES_EVENT, h);
+    return () => window.removeEventListener(MOVER_BLOQUES_EVENT, h);
+  }, [editor, canEdit, moverBloques]);
+
+  // Al arrastrar con los 6 puntos, apuntar qué bloques viajan: el panel lateral los
+  // recoge al soltarlos sobre una página (el navegador no deja leer el arrastre hasta soltar).
+  useEffect(() => {
+    if (!canEdit) return;
+    const inicio = (e: DragEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.(".bn-side-menu")) return;
+      let ids = idsArrastrados(e.dataTransfer?.getData("blocknote/html") ?? "").filter((id) => editor.getBlock(id));
+      // Sin datos legibles, el bloque del tirador (el que BlockNote está arrastrando).
+      if (!ids.length) {
+        const b = (editor.getExtension(SideMenuExtension)?.store.state as { block?: { id: string } } | undefined)?.block;
+        if (b && editor.getBlock(b.id)) ids = [b.id];
+      }
+      if (ids.length) arrastreDeBloques.ids = ids;
+    };
+    const fin = () => setTimeout(() => (arrastreDeBloques.ids = null), 0);
+    document.addEventListener("dragstart", inicio);
+    document.addEventListener("dragend", fin);
+    return () => {
+      document.removeEventListener("dragstart", inicio);
+      document.removeEventListener("dragend", fin);
+    };
+  }, [editor, canEdit]);
+
+  // En táctil no hay tirador de ratón (globals.css): al tocar un bloque sale uno compacto
+  // a su derecha que abre las mismas acciones en una hoja, como la app de Notion.
+  const [tiradorTactil, setTiradorTactil] = useState<{ id: string; top: number } | null>(null);
+  const [hoja, setHoja] = useState<string | null>(null);
+  useEffect(() => {
+    if (!canEdit) return;
+    const coloca = () => {
+      const zona = zonaDropColumnas.current;
+      if (!zona || !matchMedia("(pointer: coarse)").matches || !editor.isFocused()) return setTiradorTactil(null);
+      const id = editor.getTextCursorPosition().block.id;
+      const el = zona.querySelector(`.bn-block-outer[data-id="${CSS.escape(id)}"] > .bn-block > .bn-block-content`);
+      if (!el) return setTiradorTactil(null);
+      setTiradorTactil({ id, top: el.getBoundingClientRect().top - zona.getBoundingClientRect().top });
+    };
+    const quitar = () => setTimeout(() => !editor.isFocused() && setTiradorTactil(null), 150);
+    const offSel = editor.onSelectionChange(coloca);
+    const offCambio = editor.onChange(coloca);
+    const dom = editor.domElement;
+    dom?.addEventListener("focusout", quitar);
+    return () => {
+      offSel?.();
+      offCambio?.();
+      dom?.removeEventListener("focusout", quitar);
+    };
+  }, [editor, canEdit]);
+  const bloqueHoja = hoja ? (editor.getBlock(hoja) as Parameters<typeof acciones.ejecutar>[1] | undefined) : undefined;
+
+  // Ctrl+D duplica el bloque (o los bloques seleccionados), como en Notion.
+  function alTeclear(e: React.KeyboardEvent) {
+    if (!canEdit || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "d" || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    void acciones.duplicar(editor.getSelection()?.blocks ?? [editor.getTextCursorPosition().block]);
+  }
+
   // Soltar un bloque en la franja lateral de otro crea columnas (ver columnDrop.ts).
   const zonaDropColumnas = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -225,6 +291,8 @@ export function Editor({
 
   function onTitleChange(v: string) {
     setTitle(v);
+    // El panel lateral y la miga de pan, al momento (el guardado va con retardo).
+    utils.pages.tree.setData(undefined, (t) => t?.map((p) => (p.id === pageId ? { ...p, title: v } : p)));
     if (titleTimer.current) clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(() => persist(v, icon), 600);
   }
@@ -318,7 +386,23 @@ export function Editor({
         />
       </div>
 
-      <div ref={zonaDropColumnas}>
+      <div ref={zonaDropColumnas} onKeyDownCapture={alTeclear} className="relative">
+      {tiradorTactil && (
+        <button
+          // Sin quitarle el foco al editor: si no, el tirador desaparecería bajo el dedo.
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => setHoja(tiradorTactil.id)}
+          style={{ top: tiradorTactil.top }}
+          className="absolute -right-3.5 z-10 flex h-7 w-5 items-center justify-center rounded text-[var(--muted)] active:bg-[var(--hover)]"
+          aria-label="Acciones del bloque"
+          title="Acciones del bloque"
+        >
+          <GripVertical size={16} />
+        </button>
+      )}
+      {bloqueHoja && (
+        <HojaBloque block={bloqueHoja} pageId={pageId} colaborativo={!!collab} onAccion={acciones.ejecutar} onClose={() => setHoja(null)} />
+      )}
       <BlockNoteView
         editor={editor}
         editable={canEdit}
@@ -339,21 +423,8 @@ export function Editor({
             />
           )}
         />
-        {/* Menú del tirador: lo de siempre + copiar el enlace directo al bloque (#ancla). */}
-        <SideMenuController
-          sideMenu={(props) => (
-            <SideMenu
-              {...props}
-              dragHandleMenu={() => (
-                <DragHandleMenu>
-                  <RemoveBlockItem>Eliminar</RemoveBlockItem>
-                  <BlockColorsItem>Colores</BlockColorsItem>
-                  <CopiarEnlaceBloqueItem pageId={pageId} />
-                </DragHandleMenu>
-              )}
-            />
-          )}
-        />
+        {/* Menú del tirador (6 puntos), como el de Notion: ver menuTirador.tsx. */}
+        <SideMenuController sideMenu={BarraDelTirador} />
         {/* Comentar una selección: el compositor y el hilo flotante solo existen
             con la edición simultánea activa, que es donde viven los hilos. */}
         {collab && (
@@ -439,6 +510,7 @@ export function Editor({
         />
       </BlockNoteView>
       </div>
+      {acciones.dialogos}
       <Backlinks pageId={pageId} />
       </div>
     </div>

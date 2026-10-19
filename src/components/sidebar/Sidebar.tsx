@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BlockNoteEditor } from "@blocknote/core";
 import { Check, ChevronDown, ChevronRight, ChevronsLeft, CircleCheck, Copy, Database, FileText, FolderInput, House, Inbox, Keyboard, Link2, Loader2, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sparkles, SquarePen, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
+import { arrastreDeBloques, idsArrastrados, MOVER_BLOQUES_EVENT } from "@/lib/subpaginas";
 import { IconoPagina } from "@/components/PageIcon";
 import { openShortcuts } from "@/components/Shortcuts";
 import { NEW_PAGE_EVENT, TOGGLE_SIDEBAR_EVENT } from "@/lib/shortcuts";
@@ -825,6 +826,13 @@ function TreeItem({
           e.currentTarget.classList.remove("opacity-50");
         }}
         onDragOver={(e) => {
+          // Un bloque arrastrado desde el editor (6 puntos): se suelta DENTRO de esta página.
+          if (canEdit && !draggedId && (arrastreDeBloques.ids || e.dataTransfer.types.includes("blocknote/html"))) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setDropPos("inside");
+            return;
+          }
           if (!canEdit || !draggedId || isInSubtree(node.id, draggedId, parentById)) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -837,6 +845,12 @@ function TreeItem({
           e.preventDefault();
           const pos = dropPos;
           setDropPos(null);
+          const ids = draggedId ? null : (arrastreDeBloques.ids ?? idsArrastrados(e.dataTransfer.getData("blocknote/html")));
+          if (ids?.length) {
+            // Lo mueve el editor que tiene esos bloques (una subpágina se mueve entera, sin duplicarse).
+            window.dispatchEvent(new CustomEvent(MOVER_BLOQUES_EVENT, { detail: { ids, destino: node.id } }));
+            return;
+          }
           if (!pos || !draggedId || isInSubtree(node.id, draggedId, parentById)) return;
           if (pos === "inside") {
             move.mutate({ id: draggedId, parentId: node.id });

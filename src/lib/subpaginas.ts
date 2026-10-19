@@ -49,3 +49,16 @@ export function ultimoBloque(bs: Bloque[]): string | null {
   return i >= 0 ? bs[i].id : null;
 }
 
+/** Soltar bloques del editor en una página del panel lateral: lo escucha el editor dueño de los bloques. */
+export const MOVER_BLOQUES_EVENT = "notiono:mover-bloques";
+
+/** Los bloques que se están arrastrando con el tirador ahora mismo (lo apunta el editor al empezar). */
+export const arrastreDeBloques: { ids: string[] | null } = { ids: null };
+
+/** Ids de los bloques de primer nivel que lleva un arrastre del tirador (su `blocknote/html`). */
+export function idsArrastrados(html: string): string[] {
+  const raiz = new DOMParser().parseFromString(html, "text/html").body;
+  return [...raiz.querySelectorAll<HTMLElement>('[data-node-type="blockContainer"][data-id]')]
+    .filter((el) => !el.parentElement?.closest('[data-node-type="blockContainer"]'))
+    .map((el) => el.dataset.id!);
+}

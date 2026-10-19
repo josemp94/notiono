@@ -8,6 +8,7 @@ import { trpc } from "@/trpc/react";
 import { useContext, useState } from "react";
 import { opcionesRecordatorio, textoRecordatorio } from "@/lib/recordatorios";
 import { IconoPagina } from "@/components/PageIcon";
+import { abrirEnPanel } from "@/lib/vistazo";
 import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
 import { CalloutBlock } from "./calloutBlock";
@@ -36,6 +37,12 @@ function MentionChip({ inlineContent }: { inlineContent: { props: { pageId: stri
     <span>
       <a
         href={base ? `${base}/${inlineContent.props.pageId}` : `/p/${inlineContent.props.pageId}`}
+        // Alt+clic: echarle un vistazo en el panel lateral sin salir de aquí, como Notion.
+        onClick={(e) => {
+          if (!e.altKey || base) return;
+          e.preventDefault();
+          abrirEnPanel(inlineContent.props.pageId);
+        }}
         className="whitespace-nowrap rounded bg-brand-50 px-1 font-medium text-brand no-underline hover:underline"
       >
         {inlineContent.props.icon ? <IconoPagina icon={inlineContent.props.icon} size={14} /> : <FileText size={13} className="inline align-[-2px]" />}{" "}

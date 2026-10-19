@@ -11,7 +11,18 @@ import { IconoPagina } from "@/components/PageIcon";
  * reparenta con pages.move (el servidor revalida los ciclos). Excluye en cliente
  * la propia página y su subárbol.
  */
-export function MovePageModal({ pageId, onClose }: { pageId: string; onClose: () => void }) {
+export function MovePageModal({
+  pageId,
+  onClose,
+  onElegir,
+  soloDocumentos = false,
+}: {
+  pageId: string;
+  onClose: () => void;
+  /** Elegir destino para otra cosa (mover bloques): solo se excluye la propia página y no hay «Raíz». */
+  onElegir?: (destino: string) => void;
+  soloDocumentos?: boolean;
+}) {
   const utils = trpc.useUtils();
   const { data: me } = trpc.auth.me.useQuery();
   const { data: tree } = trpc.pages.tree.useQuery();
@@ -33,6 +44,7 @@ export function MovePageModal({ pageId, onClose }: { pageId: string; onClose: ()
       if (p.parentId) byParent.set(p.parentId, [...(byParent.get(p.parentId) ?? []), p.id]);
     }
     const set = new Set<string>();
+    if (onElegir) return set.add(pageId);
     const stack = [pageId];
     while (stack.length) {
       const id = stack.pop()!;
@@ -40,11 +52,14 @@ export function MovePageModal({ pageId, onClose }: { pageId: string; onClose: ()
       stack.push(...(byParent.get(id) ?? []));
     }
     return set;
-  }, [tree, pageId]);
+  }, [tree, pageId, onElegir]);
 
   const query = q.trim().toLowerCase();
   const candidates = (tree ?? []).filter(
-    (p) => !excluded.has(p.id) && (p.title || "Sin título").toLowerCase().includes(query),
+    (p) =>
+      !excluded.has(p.id) &&
+      (!soloDocumentos || p.type === "doc") &&
+      (p.title || "Sin título").toLowerCase().includes(query),
   );
 
   if (!mounted) return null;
@@ -70,19 +85,19 @@ export function MovePageModal({ pageId, onClose }: { pageId: string; onClose: ()
           className="mb-2 w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-brand"
         />
         <div className="min-h-0 overflow-y-auto">
-          <button
+          {!onElegir && <button
             disabled={move.isPending}
             onClick={() => move.mutate({ id: pageId, parentId: null })}
             className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
           >
             <Folder size={14} className="shrink-0 text-[var(--muted)]" />
             <span className="truncate">Raíz de {me?.workspace?.name ?? "este espacio"}</span>
-          </button>
+          </button>}
           {candidates.map((p) => (
             <button
               key={p.id}
               disabled={move.isPending}
-              onClick={() => move.mutate({ id: pageId, parentId: p.id })}
+              onClick={() => (onElegir ? onElegir(p.id) : move.mutate({ id: pageId, parentId: p.id }))}
               className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
             >
               {p.icon ? (

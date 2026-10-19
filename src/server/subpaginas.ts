@@ -7,6 +7,7 @@
  * app nativa (`app/documento.ts`): quien la tenga abierta lo ve al momento, en cualquier
  * equipo, y lo que esté escribiendo no se pisa (son operaciones por bloque).
  */
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import type { BloqueBN, OpBloque } from "./app/bloquesYjs";
 import { aplicarOpsPagina, leerBloquesPagina } from "./app/documento";
@@ -57,6 +58,23 @@ export async function enlazar(db: DB, madreId: string, hija: Pagina, detrasDe?: 
       parentId: junto?.parentId ?? null,
       afterId: junto?.id ?? ultimoBloque(bs),
     }];
+  });
+}
+
+/**
+ * Lleva bloques al final de otra página («Mover a», soltar un bloque en el panel
+ * lateral). Con ids nuevos: en la página de destino podría haber ya uno igual.
+ */
+export async function anadirAlFinal(db: DB, pageId: string, bloques: BloqueBN[]) {
+  const nuevo = (b: BloqueBN): BloqueBN => ({ ...b, id: randomUUID(), children: (b.children ?? []).map(nuevo) });
+  await cambiaPagina(db, pageId, (bs) => {
+    let detras = ultimoBloque(bs);
+    return bloques.map((b) => {
+      const block = nuevo(b);
+      const op = { op: "upsert" as const, block, parentId: null, afterId: detras };
+      detras = block.id;
+      return op;
+    });
   });
 }
 

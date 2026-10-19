@@ -126,7 +126,7 @@ const azar = <T,>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
  * buscador en castellano), Iconos (dibujos en 9 colores) y Subir (imagen propia
  * o enlace). El valor sigue siendo un string: emoji, URL o «icono:nombre:color».
  */
-function SelectorIcono({
+export function SelectorIcono({
   icon,
   elegir,
 }: {

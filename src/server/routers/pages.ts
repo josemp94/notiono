@@ -10,7 +10,8 @@ import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage, guardaContenidoPagina } from "../services/pages";
-import { desenlazar, enlazar, renombrarEnlaces, repararMenciones } from "../subpaginas";
+import { anadirAlFinal, desenlazar, enlazar, renombrarEnlaces, repararMenciones } from "../subpaginas";
+import type { BloqueBN } from "../app/bloquesYjs";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
@@ -23,6 +24,7 @@ type TreeNode = {
   icon: string | null;
   parentId: string | null;
   order: string;
+  type: string;
   hasChildren: boolean;
 };
 
@@ -31,7 +33,7 @@ export const pagesRouter = router({
   tree: workspaceProcedure.query(async ({ ctx }): Promise<TreeNode[]> => {
     const todas = await ctx.db.page.findMany({
       where: { workspaceId: ctx.workspace.id, archivedAt: null, embedded: false },
-      select: { id: true, title: true, icon: true, parentId: true, order: true },
+      select: { id: true, title: true, icon: true, parentId: true, order: true, type: true },
       orderBy: { order: "asc" },
     });
     // Una página restringida no existe para quien no está invitado: ni en el árbol.
@@ -620,6 +622,18 @@ export const pagesRouter = router({
         if (movida.parentId) await enlazar(ctx.db, movida.parentId, movida);
       }
       return { id: movida.id, parentId: movida.parentId, order: movida.order };
+    }),
+
+  /** Lleva bloques del editor al final de otra página («Mover a» del menú de los 6 puntos). */
+  anadirBloques: workspaceProcedure
+    .input(z.object({ id: z.string(), bloques: z.array(z.record(z.string(), z.unknown())).min(1).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id);
+      const page = await ctx.db.page.findUniqueOrThrow({ where: { id: input.id }, select: { type: true, locked: true } });
+      if (page.type !== "doc") throw new TRPCError({ code: "BAD_REQUEST", message: "Solo se pueden mover bloques a una página de documento." });
+      if (page.locked) throw new TRPCError({ code: "BAD_REQUEST", message: "Esa página está bloqueada." });
+      await anadirAlFinal(ctx.db, input.id, input.bloques as unknown as BloqueBN[]);
+      return { ok: true as const };
     }),
 
   /** Duplicar una página (copia profunda: contenido, colección y subpáginas). */
