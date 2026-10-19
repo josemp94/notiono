@@ -80,7 +80,8 @@ Tipos de columna: `text`, `number`, `select`, `multiselect`, `status`, `person`,
 `last_edited_time`, `created_by`, `last_edited_by`, `id`.
 El valor de una celda `location` es `{ "nombre": "…", "lat": 40.4, "lng": -3.7 }`.
 Tipos de vista: `table`, `kanban`, `calendar`, `timeline`, `gallery`, `chart`,
-`list`, `form`.
+`list`, `form`, `matrix` (rejilla con un campo de casilla, selección o estado en cada
+eje; al crearla elige sola los dos primeros que valgan, en `config.ejeX` y `config.ejeY`).
 
 ### Añadir una columna
 

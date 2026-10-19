@@ -9,6 +9,7 @@
 import { applyViewConfig, conComputados, matchesFilters, type ColorRule, type DbField, type DbRecord } from "@/lib/viewData";
 import { displayValue, groupBy, optionsOf } from "@/lib/cellText";
 import { computeCalc } from "@/lib/calc";
+import { claveCelda, esEje, gruposVisibles, repartoMatriz, type Celda } from "@/lib/matriz";
 import { calculaComputados } from "../services/computados";
 import { cellToText } from "../services/cells";
 
@@ -120,7 +121,29 @@ export async function calculaVista(
   const campoGrupo = fields.find((f) => f.id === cfg.groupByFieldId);
   const campoSubgrupo =
     campoGrupo && cfg.subGroupByFieldId !== campoGrupo.id ? fields.find((f) => f.id === cfg.subGroupByFieldId) : undefined;
-  const grupos = campoGrupo
+  // La Matriz no existe en la app: se le sirve como tabla agrupada por sus dos ejes
+  // (filas y, dentro, columnas), con el rótulo de cada celda (Hacer, Planificar…).
+  const ejeX = view?.type === "matrix" ? fields.find((f) => f.id === cfg.ejeX && esEje(f)) : undefined;
+  const ejeY = view?.type === "matrix" ? fields.find((f) => f.id === cfg.ejeY && esEje(f) && f.id !== ejeX?.id) : undefined;
+  const matriz =
+    ejeX && ejeY
+      ? (() => {
+          const reparto = repartoMatriz(filas, ejeX, ejeY);
+          const celdas = (cfg.celdas ?? {}) as Record<string, Celda>;
+          const columnas = gruposVisibles(ejeX, ejeY, reparto, true);
+          return gruposVisibles(ejeY, ejeX, reparto, false).map((y) => {
+            const sub = columnas.map((x) => {
+              const recs = reparto.get(claveCelda(x.id, y.id)) ?? [];
+              const rotulo = celdas[claveCelda(x.id, y.id)]?.rotulo;
+              const etiqueta = rotulo ? `${rotulo} · ${x.label}` : x.label;
+              return { clave: etiqueta, etiqueta, ids: recs.map((r) => r.id), totales: totales(recs) };
+            });
+            const recs = columnas.flatMap((x) => reparto.get(claveCelda(x.id, y.id)) ?? []);
+            return { clave: y.label, etiqueta: y.label, ids: recs.map((r) => r.id), totales: totales(recs), subgrupos: sub };
+          });
+        })()
+      : null;
+  const grupos = matriz ?? (campoGrupo
     ? groupBy(filas, campoGrupo, people).map((g) => ({
         clave: g.key,
         etiqueta: g.label,
@@ -135,7 +158,7 @@ export async function calculaVista(
             }))
           : null,
       }))
-    : null;
+    : null);
 
   return {
     collection: { id: col.id, name: col.name, description: col.description, templates: col.templates },

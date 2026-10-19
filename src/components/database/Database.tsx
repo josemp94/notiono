@@ -23,6 +23,7 @@ import { displayValue } from "@/lib/cellText";
 import { AddViewButton, DbToolbar, FilterChips, ViewIcon } from "./DbToolbar";
 import { useDbLive } from "./useDbLive";
 import { TableView } from "./TableView";
+import { MatrixView } from "./MatrixView";
 import { KanbanView } from "./KanbanView";
 import { ChartView } from "./ChartView";
 import { CalendarView } from "./CalendarView";
@@ -393,7 +394,18 @@ export function Database({
         <FilterChips pageId={pageId} view={asAny(active)} fields={fields as unknown as DbField[]} />
       )}
 
-      {active?.type === "kanban" ? (
+      {active?.type === "matrix" ? (
+        <MatrixView
+          pageId={pageId}
+          collectionId={col.id}
+          fields={asAny(fields)}
+          records={asAny(shownRecords)}
+          view={active}
+          canEdit={canEdit}
+          openIn={openIn}
+          openFull={openFull}
+        />
+      ) : active?.type === "kanban" ? (
         <KanbanView
           pageId={pageId}
           collectionId={col.id}

@@ -31,7 +31,7 @@ export const FIELD_TYPES = [
 export type FieldType = (typeof FIELD_TYPES)[number];
 
 export const VIEW_TYPES = [
-  "table", "kanban", "calendar", "timeline", "gallery", "chart", "list", "form",
+  "table", "kanban", "calendar", "timeline", "gallery", "chart", "list", "form", "matrix",
 ] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
 
@@ -105,6 +105,7 @@ const NOMBRES_VISTA: Record<ViewType, string> = {
   list: "Lista",
   form: "Formulario",
   timeline: "Cronograma",
+  matrix: "Matriz",
 };
 
 /**
@@ -118,6 +119,10 @@ export function defaultViewConfig(type: ViewType, fields: { id: string; type: st
     return { groupByFieldId: primeroDe("select") ?? primeroDe("status") ?? primeroDe("person") };
   }
   if (type === "calendar" || type === "timeline") return { dateFieldId: primeroDe("date") };
+  if (type === "matrix") {
+    const ejes = fields.filter((f) => ["checkbox", "select", "status"].includes(f.type));
+    return { ejeX: ejes[0]?.id ?? null, ejeY: ejes[1]?.id ?? null };
+  }
   if (type === "chart") {
     return { chartType: "bar", xFieldId: primeroDe("select"), yFieldId: null, agg: "count" };
   }

@@ -285,7 +285,8 @@ export const pagesRouter = router({
 
   /** Crea una página o base de datos prehecha a partir de una plantilla de la galería. */
   createFromTemplate: workspaceProcedure
-    .input(z.object({ key: z.string(), parentId: z.string().nullish() }))
+    // embebida: la BD nace dentro del contenido de una página (el «/» del editor), como createInline.
+    .input(z.object({ key: z.string(), parentId: z.string().nullish(), embebida: z.boolean().default(false) }))
     .mutation(async ({ ctx, input }) => {
       const tplDef = TEMPLATES[input.key];
       if (!tplDef) throw new TRPCError({ code: "BAD_REQUEST", message: "Plantilla desconocida." });
@@ -298,10 +299,11 @@ export const pagesRouter = router({
       });
       const base = {
         workspaceId: ctx.workspace.id,
-        parentId: input.parentId ?? null,
+        parentId: input.embebida ? null : (input.parentId ?? null),
         title: tplDef.name,
         icon: tplDef.icon,
         order: rankAtEnd(last?.order ?? null),
+        embedded: input.embebida,
       };
       if (tpl.type === "doc") {
         const page = await ctx.db.page.create({
@@ -310,9 +312,11 @@ export const pagesRouter = router({
         if (page.parentId) await enlazar(ctx.db, page.parentId, page);
         return { id: page.id };
       }
+      let collectionId = "";
       const id = await ctx.db.$transaction(async (tx) => {
         const page = await tx.page.create({ data: { ...base, type: "database", content: [] } });
         const col = await tx.collection.create({ data: { pageId: page.id, name: tplDef.name } });
+        collectionId = col.id;
         const idByName = new Map<string, string>();
         let fOrd: string | null = null;
         for (const f of tpl.fields) {
@@ -326,6 +330,9 @@ export const pagesRouter = router({
         for (const v of tpl.views) {
           const config: Record<string, unknown> = {};
           if (v.groupByField) config.groupByFieldId = idByName.get(v.groupByField) ?? null;
+          if (v.ejeX) config.ejeX = idByName.get(v.ejeX) ?? null;
+          if (v.ejeY) config.ejeY = idByName.get(v.ejeY) ?? null;
+          if (v.celdas) config.celdas = v.celdas;
           if (v.calcs) {
             config.calcs = Object.fromEntries(
               Object.entries(v.calcs).flatMap(([name, calc]) => {
@@ -354,7 +361,7 @@ export const pagesRouter = router({
         return page.id;
       });
       if (base.parentId) await enlazar(ctx.db, base.parentId, { id, title: base.title, icon: base.icon });
-      return { id };
+      return { id, collectionId };
     }),
 
   /** Renombrar (título + icono). Los enlaces a la página, en su madre y donde se la mencione, se ponen al día. */

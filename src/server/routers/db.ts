@@ -866,6 +866,10 @@ export const dbRouter = router({
       let config: any = { filters: prev.filters, sorts: prev.sorts };
       if (input.type === "kanban") config.groupByFieldId = prev.groupByFieldId ?? firstOf("select") ?? firstOf("status") ?? firstOf("person");
       else if (input.type === "calendar" || input.type === "timeline") config.dateFieldId = prev.dateFieldId ?? firstOf("date");
+      else if (input.type === "matrix") {
+        const ejes = fields.filter((f) => ["checkbox", "select", "status"].includes(f.type)).map((f) => f.id);
+        config = { ...config, ejeX: prev.ejeX ?? ejes[0] ?? null, ejeY: prev.ejeY ?? ejes.find((id) => id !== (prev.ejeX ?? ejes[0])) ?? null, celdas: prev.celdas };
+      }
       else if (input.type === "chart")
         config = { ...config, chartType: prev.chartType ?? "bar", xFieldId: prev.xFieldId ?? firstOf("select"), yFieldId: prev.yFieldId ?? null, agg: prev.agg ?? "count" };
       return ctx.db.view.update({ where: { id: input.id }, data: { type: input.type, config } });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Database, FileText, GripVertical, Lightbulb, Link2, MessageSquareQuote, X } from "lucide-react";
+import { Database, FileText, Grid2x2, GripVertical, Lightbulb, Link2, MessageSquareQuote, X } from "lucide-react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import {
   blockTypeSelectItems,
@@ -84,6 +84,7 @@ export function Editor({
   });
   const setCoverM = trpc.pages.setCover.useMutation();
   const createInlineDb = trpc.db.createInline.useMutation();
+  const desdePlantilla = trpc.pages.createFromTemplate.useMutation();
   const createSubpage = trpc.pages.create.useMutation({ onSuccess: () => utils.pages.tree.invalidate() });
   const linkPreview = trpc.pages.linkPreview.useMutation();
 
@@ -488,6 +489,18 @@ export function Editor({
                       type: "database",
                       props: { collectionId, pageId: dbPageId },
                     });
+                  },
+                },
+                {
+                  title: "Matriz de Eisenhower",
+                  subtext: "Urgente × Importante: las tareas se colocan solas",
+                  aliases: ["eisenhower", "matriz", "urgente", "importante", "prioridades"],
+                  group: "Bases de datos",
+                  icon: <Grid2x2 size={18} />,
+                  onItemClick: async () => {
+                    const r = await desdePlantilla.mutateAsync({ key: "eisenhower", embebida: true });
+                    if ("collectionId" in r)
+                      insertOrUpdateBlockForSlashMenu(editor, { type: "database", props: { collectionId: r.collectionId, pageId: r.id } });
                   },
                 },
                 // Vista enlazada: apunta a una BD que ya existe, no crea otra.

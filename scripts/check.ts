@@ -863,6 +863,41 @@ import { seColgo } from "../src/components/editor/ModoSeguro";
   delete g.localStorage;
 }
 
+// --- Vista Matriz (Eisenhower): ejes, reparto por celdas y valor al soltar ---
+import { claveEje, gruposEje, gruposVisibles, repartoMatriz, valorEje } from "../src/lib/matriz";
+{
+  const urg = { id: "u", name: "Urgente", type: "checkbox", config: {} };
+  const imp = { id: "i", name: "Importante", type: "checkbox", config: {} };
+  const pri = { id: "p", name: "Prioridad", type: "select", config: { options: [{ id: "a", label: "Alta", color: "red" }, { id: "b", label: "Baja" }] } };
+  // La casilla, «sí» primero: Hacer (urgente e importante) arriba a la izquierda.
+  assert.deepEqual(gruposEje(urg).map((g) => [g.id, g.label]), [["true", "Urgente"], ["", "No urgente"]]);
+  assert.deepEqual(gruposEje(pri).map((g) => g.id), ["a", "b", ""]);
+  assert.equal(claveEje(urg, gruposEje(urg), { u: true }), "true");
+  assert.equal(claveEje(urg, gruposEje(urg), { u: false }), "");
+  assert.equal(claveEje(pri, gruposEje(pri), { p: "borrada" }), "", "una opción que ya no existe, a «Sin asignar»");
+  const filas = [
+    { id: "1", cells: { u: true, i: true } },
+    { id: "2", cells: { i: true } },
+    { id: "3", cells: { u: true, i: false } },
+    { id: "4", cells: {} },
+    { id: "5", cells: { u: true, i: true } },
+  ];
+  const rep = repartoMatriz(filas, urg, imp);
+  assert.deepEqual(rep.get("true|true")?.map((r) => r.id), ["1", "5"]);
+  assert.deepEqual(rep.get("|true")?.map((r) => r.id), ["2"]);
+  assert.deepEqual(rep.get("true|")?.map((r) => r.id), ["3"]);
+  assert.deepEqual(rep.get("|")?.map((r) => r.id), ["4"]);
+  // Las cuatro celdas siempre, aunque estén vacías (con casillas no hay «Sin asignar»).
+  assert.equal(gruposVisibles(urg, imp, repartoMatriz([], urg, imp), true).length, 2);
+  // Con una selección, «Sin asignar» solo sale si tiene alguna fila.
+  assert.deepEqual(gruposVisibles(pri, imp, repartoMatriz([{ cells: { p: "a" } }], pri, imp), true).map((g) => g.id), ["a", "b"]);
+  assert.deepEqual(gruposVisibles(pri, imp, repartoMatriz([{ cells: {} }], pri, imp), true).map((g) => g.id), ["a", "b", ""]);
+  // Al soltar: la casilla se marca o se desmarca; la selección guarda su opción.
+  assert.equal(valorEje(urg, "true"), true);
+  assert.equal(valorEje(urg, ""), null);
+  assert.equal(valorEje(pri, "b"), "b");
+}
+
 // --- Sesión de la app nativa: PKCE S256 (vector de prueba del RFC 7636) ---
 import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server/appAuth";
 {
@@ -881,7 +916,7 @@ compruebaColaboracion()
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
   .then(() => import("./checkRecordatorios").then((m) => m.compruebaRecordatorios()))
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico) y recordatorios");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico) y recordatorios");
     process.exit(0);
   })
   .catch((e) => {

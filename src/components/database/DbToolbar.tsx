@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, MoreHorizontal, Pencil, Plus, Table, Trash2, Upload, X } from "lucide-react";
+import { ArrowUpDown, BarChart3, Calendar, ClipboardList, Columns3, Grid2x2, Copy, Download, Eye, EyeOff, Filter as FilterIcon, GanttChart, LayoutGrid, Link as LinkIcon, List, MoreHorizontal, Pencil, Plus, Table, Trash2, Upload, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { toast } from "@/components/Toast";
 import { trpc } from "@/trpc/react";
@@ -29,7 +29,7 @@ import { STATUS_GROUPS, nombreCampo } from "@/lib/cellText";
 
 type View = { id: string; name: string; type: string; config: any };
 
-const VIEW_TYPES: { type: "table" | "kanban" | "calendar" | "timeline" | "gallery" | "chart" | "list" | "form"; label: string; icon: typeof Table }[] = [
+const VIEW_TYPES: { type: "table" | "kanban" | "calendar" | "timeline" | "gallery" | "chart" | "list" | "form" | "matrix"; label: string; icon: typeof Table }[] = [
   { type: "table", label: "Tabla", icon: Table },
   { type: "kanban", label: "Kanban", icon: Columns3 },
   { type: "list", label: "Lista", icon: List },
@@ -38,6 +38,7 @@ const VIEW_TYPES: { type: "table" | "kanban" | "calendar" | "timeline" | "galler
   { type: "timeline", label: "Cronograma", icon: GanttChart },
   { type: "chart", label: "Gráfica", icon: BarChart3 },
   { type: "form", label: "Formulario", icon: ClipboardList },
+  { type: "matrix", label: "Matriz", icon: Grid2x2 },
 ];
 
 /** Icono lucide del tipo de vista (Tabla por defecto). */
@@ -322,7 +323,7 @@ export function DbToolbar({
               </div>
             </div>
             {/* Cómo se abre la ficha de una fila, como el «Open pages in» de Notion. */}
-            {["table", "kanban", "list", "gallery", "calendar", "timeline"].includes(view.type) && (
+            {["table", "kanban", "list", "gallery", "calendar", "timeline", "matrix"].includes(view.type) && (
               <label className="my-1 flex items-center justify-between gap-2 border-t border-[var(--border)] px-2 pt-2 text-sm">
                 <span>Abrir filas en</span>
                 <select
@@ -422,7 +423,43 @@ export function DbToolbar({
                 />
               </label>
             )}
-            {(view.type === "table" || view.type === "gallery") && (
+            {/* Matriz: un campo en cada eje (casilla, selección o estado). */}
+            {view.type === "matrix" && (
+              <div className="my-1 border-t border-[var(--border)] pt-1">
+                <div className="px-2 pb-1 text-[11px] font-medium text-[var(--muted)]">Ejes</div>
+                {(["ejeX", "ejeY"] as const).map((k) => (
+                  <label key={k} className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
+                    <span>{k === "ejeX" ? "Columnas" : "Filas"}</span>
+                    <select
+                      value={view.config?.[k] ?? ""}
+                      onChange={(e) => saveConfig({ [k]: e.target.value || null })}
+                      className="max-w-[150px] rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+                    >
+                      <option value="">Elegir campo…</option>
+                      {fields
+                        .filter((f) => ["checkbox", "select", "status"].includes(f.type) && f.id !== view.config?.[k === "ejeX" ? "ejeY" : "ejeX"])
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
+                        ))}
+                    </select>
+                  </label>
+                ))}
+                <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
+                  <span>Vista previa</span>
+                  <select
+                    value={view.config?.cardPreview ?? "none"}
+                    onChange={(e) => saveConfig({ cardPreview: e.target.value })}
+                    className="max-w-[140px] rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+                  >
+                    <option value="none">Ninguna</option>
+                    {fields.map((f) => (
+                      <option key={f.id} value={f.id}>{nombreCampo(f)}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            {(view.type === "table" || view.type === "gallery" || view.type === "matrix") && (
               <div className="my-1 border-t border-[var(--border)] pt-1">
                 <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
                   <span>Color por</span>

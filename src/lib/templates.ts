@@ -6,7 +6,16 @@ export type TemplateDef =
   | {
       type: "database";
       fields: { name: string; type: string; config?: unknown }[];
-      views: { name: string; type: string; groupByField?: string; calcs?: Record<string, string> }[];
+      views: {
+        name: string;
+        type: string;
+        groupByField?: string;
+        calcs?: Record<string, string>;
+        /** Matriz: campos de cada eje y rótulo/color por celda ("x|y" con los valores de los ejes). */
+        ejeX?: string;
+        ejeY?: string;
+        celdas?: Record<string, { rotulo?: string; color?: string }>;
+      }[];
       records: Record<string, unknown>[];
     };
 
@@ -19,6 +28,58 @@ const numbered = (text = "") => ({ type: "numberedListItem", content: text });
 const check = (text = "") => ({ type: "checkListItem", content: text });
 
 export const TEMPLATES: Record<string, { name: string; icon: string; description: string; make: () => TemplateDef }> = {
+  eisenhower: {
+    name: "Matriz de Eisenhower",
+    icon: "🎯",
+    description: "Urgente × Importante: Hacer, Planificar, Delegar y Eliminar. Las tareas se colocan solas.",
+    make: () => ({
+      type: "database",
+      fields: [
+        { name: "Título", type: "text" },
+        { name: "Urgente", type: "checkbox" },
+        { name: "Importante", type: "checkbox" },
+        { name: "Fecha", type: "date" },
+        {
+          name: "Estado",
+          type: "status",
+          config: {
+            options: [
+              { id: "st_todo", label: "Sin empezar", color: "gray", group: "todo" },
+              { id: "st_doing", label: "En curso", color: "blue", group: "doing" },
+              { id: "st_done", label: "Hecho", color: "green", group: "done" },
+            ],
+          },
+        },
+      ],
+      views: [
+        {
+          name: "Matriz",
+          type: "matrix",
+          ejeX: "Urgente",
+          ejeY: "Importante",
+          // Hacer arriba a la izquierda: urgente e importante.
+          celdas: {
+            "true|true": { rotulo: "Hacer", color: "red" },
+            "|true": { rotulo: "Planificar", color: "blue" },
+            "true|": { rotulo: "Delegar", color: "orange" },
+            "|": { rotulo: "Eliminar", color: "gray" },
+          },
+        },
+        { name: "Tabla", type: "table" },
+      ],
+      records: [
+        { Título: "Presentar la declaración de la renta", Urgente: true, Importante: true, Fecha: inDays(2), Estado: "st_doing" },
+        { Título: "Llamar al fontanero por la fuga", Urgente: true, Importante: true, Fecha: inDays(0), Estado: "st_todo" },
+        { Título: "Planificar las vacaciones de verano", Urgente: false, Importante: true, Fecha: inDays(30), Estado: "st_todo" },
+        { Título: "Revisar el seguro del coche", Urgente: false, Importante: true, Fecha: inDays(20), Estado: "st_todo" },
+        { Título: "Contestar los correos del cole", Urgente: true, Importante: false, Fecha: inDays(1), Estado: "st_todo" },
+        { Título: "Reservar mesa para la cena del sábado", Urgente: true, Importante: false, Fecha: inDays(3), Estado: "st_todo" },
+        { Título: "Ordenar las fotos del móvil", Urgente: false, Importante: false, Estado: "st_todo" },
+        { Título: "Mirar ofertas de televisores", Urgente: false, Importante: false, Estado: "st_todo" },
+      ],
+    }),
+  },
+
   tareas: {
     name: "Tareas",
     icon: "✅",
