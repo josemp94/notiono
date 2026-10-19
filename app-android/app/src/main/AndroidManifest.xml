@@ -7,10 +7,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Actualizar la app desde Ajustes: Android pide permiso para instalar el APK. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Repintar los widgets tras reiniciar el móvil (si no, se quedan con el «Cargando…» del lanzador). -->
+    <!-- Tras reiniciar el móvil: repintar los widgets y reprogramar los recordatorios. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Ajustes → Widgets: pedir «batería sin restricciones» para que se actualicen solos (la app no va por Play). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Recordatorios a su hora (como un calendario): alarmas exactas. La app no va por Play;
+         USE_EXACT_ALARM viene concedido desde Android 13 y en el 12 vale SCHEDULE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
 
     <queries>
         <!-- Custom Tabs para el SSO y abrir adjuntos/enlaces con otras apps. -->
@@ -92,7 +96,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Widgets (Glance) y su configuración al añadirlos. -->
+        <!-- Widgets (RemoteViews clásicos, widgets/Widgets.kt) y su configuración al añadirlos. -->
         <activity
             android:name=".widgets.ConfigWidgetActivity"
             android:exported="true"
@@ -121,13 +125,29 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_recientes" />
         </receiver>
+        <receiver android:name=".widgets.CalendarioReceiver" android:exported="true" android:label="@string/widget_calendario">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_calendario" />
+        </receiver>
+        <!-- El toque en una fila de lista de un widget: abre la app o marca la casilla, sin verse. -->
+        <activity
+            android:name=".widgets.AccionWidgetActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
 
-        <receiver android:name=".widgets.RepintaReceiver" android:exported="false">
+        <!-- Tras reiniciar, actualizar o conceder las alarmas exactas: recordatorios y widgets otra vez. -->
+        <receiver android:name=".avisos.ReprogramaReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+        <!-- Los recordatorios a su hora (alarmas) y el cambio de día del Calendario. -->
+        <receiver android:name=".avisos.AlarmaReceiver" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

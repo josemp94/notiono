@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget «Acciones rápidas»: página nueva, tarea nueva (si se eligió BD), foto y buscar. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UseAppTint"
+    android:id="@+id/widget_raiz"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:background="@drawable/widget_fondo" android:padding="6dp">
+    <LinearLayout android:id="@+id/acc_pagina" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:orientation="vertical" android:gravity="center" android:background="@drawable/widget_fondo_boton">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/widget_nueva" android:tint="@color/marca" android:contentDescription="@string/widget_accion_pagina" />
+        <TextView android:id="@+id/acc_pagina_nombre" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/widget_accion_pagina"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/acc_tarea" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="6dp"
+        android:orientation="vertical" android:gravity="center" android:background="@drawable/widget_fondo_boton">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/widget_tarea" android:tint="@color/marca" android:contentDescription="@string/widget_accion_tarea" />
+        <TextView android:id="@+id/acc_tarea_nombre" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/widget_accion_tarea"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/acc_foto" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="6dp"
+        android:orientation="vertical" android:gravity="center" android:background="@drawable/widget_fondo_boton">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/widget_foto" android:tint="@color/marca" android:contentDescription="@string/widget_accion_foto" />
+        <TextView android:id="@+id/acc_foto_nombre" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/widget_accion_foto"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/acc_buscar" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="6dp"
+        android:orientation="vertical" android:gravity="center" android:background="@drawable/widget_fondo_boton">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/widget_buscar" android:tint="@color/marca" android:contentDescription="@string/widget_accion_buscar" />
+        <TextView android:id="@+id/acc_buscar_nombre" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/widget_accion_buscar"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" android:maxLines="1" />
+    </LinearLayout>
+</LinearLayout>

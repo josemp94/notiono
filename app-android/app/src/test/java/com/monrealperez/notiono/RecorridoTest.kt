@@ -23,8 +23,6 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
-import androidx.glance.action.actionParametersOf
-import androidx.glance.appwidget.AppWidgetId
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.monrealperez.notiono.editor.CampoBloque
@@ -40,8 +38,7 @@ import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.Destino
 import com.monrealperez.notiono.ui.Principal
 import com.monrealperez.notiono.ui.tema.TemaNotiono
-import com.monrealperez.notiono.widgets.MarcaCasilla
-import com.monrealperez.notiono.widgets.MarcaFila
+import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -443,12 +440,10 @@ class RecorridoTest {
         val calendario = vista.objs("views").first { it.str("type") == "calendar" }.str("id")!!
         val agua = red { s.repo.consulta("app.vista", objeto("pageId" to bd, "viewId" to calendario), cachear = false) }.comoObjeto
             .objs("filas").first { it.obj("cells")?.str(titulo) == "Agua" }.str("id")!!
-        red { MarcaFila().onAction(ctx, AppWidgetId(-91), actionParametersOf(
-            MarcaFila.PAGINA to bd, MarcaFila.FILA to agua, MarcaFila.CAMPO to pagado, MarcaFila.VALOR to "true",
-        )) }
+        red { Widgets.marcaFila(ctx, bd, agua, pagado, true) }
         val bloques = red { s.repo.consulta("app.bloques", objeto("id" to pagina), cachear = false) }.comoObjeto.arr("bloques")!!.map { it.comoObjeto }
         val idPan = bloques.first { Inline.textoPlano(it["content"]) == "Pan" }.str("id")!!
-        red { MarcaCasilla().onAction(ctx, AppWidgetId(-92), actionParametersOf(MarcaCasilla.PAGINA to pagina, MarcaCasilla.BLOQUE to idPan)) }
+        red { Widgets.marcaCasilla(ctx, pagina, idPan) }
 
         File("build/recorrido.json").writeText(JsonObject(hechos.mapValues { JsonPrimitive(it.value) }).toString())
         assertTrue(File("build/recorrido.json").exists())

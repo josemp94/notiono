@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una fila de las listas de los widgets: marca (casilla o círculo), emoji o icono,
+     texto, detalle (fecha, hora, «hace 5 min») y estrella. Lo que no toca va en gone. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UseAppTint"
+    android:id="@+id/fila"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="30dp"
+    android:orientation="horizontal"
+    android:paddingEnd="8dp">
+
+    <FrameLayout
+        android:id="@+id/fila_marca"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/fila_marca_icono"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/fila_icono"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/fila_emoji"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="15sp" />
+
+        <ImageView
+            android:id="@+id/fila_pagina"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_pagina"
+            android:tint="@color/widget_apagado" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/fila_texto"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:textColor="@color/widget_texto"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/fila_detalle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:maxLines="1"
+        android:textColor="@color/widget_apagado"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/fila_estrella"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:contentDescription="@string/widget_favorita"
+        android:src="@drawable/widget_estrella"
+        android:tint="@color/marca"
+        android:visibility="gone" />
+</LinearLayout>

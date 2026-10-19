@@ -7,4 +7,7 @@
     <color name="widget_superficie">#F7F6F3</color>
     <color name="widget_texto">#1C1B19</color>
     <color name="widget_apagado">#7A7872</color>
+    <color name="widget_borde">#E9E9E7</color>
+    <!-- Tareas vencidas sin hacer (Calendario). -->
+    <color name="widget_rojo">#D44C47</color>
 </resources>

@@ -11,11 +11,13 @@ sealed interface Destino {
     data object Bandeja : Destino
     /** Página nueva con una foto de la cámara (widget «Acciones rápidas»). */
     data object Foto : Destino
-    data class NuevaFila(val pageId: String) : Destino
+    /** Fila nueva en una BD; del Calendario, ya con su fecha (`campo` = el campo de fecha). */
+    data class NuevaFila(val pageId: String, val campo: String? = null, val fecha: String? = null) : Destino
     data class NotaRapida(val paginaDestino: String?) : Destino
 
     companion object {
         private val ID = Regex("^[A-Za-z0-9_-]{1,64}$")
+        private val FECHA = Regex("^\\d{4}-\\d{2}-\\d{2}$")
 
         /**
          * ¿Sirve como id de página, fila o vista? Los enlaces llegan de cualquier app y de
@@ -35,7 +37,8 @@ sealed interface Destino {
                 uri.scheme == "notiono" && uri.host == "buscar" -> Buscar
                 uri.scheme == "notiono" && uri.host == "bandeja" -> Bandeja
                 uri.scheme == "notiono" && uri.host == "foto" -> Foto
-                uri.scheme == "notiono" && uri.host == "nuevafila" && s0 != null -> NuevaFila(s0)
+                uri.scheme == "notiono" && uri.host == "nuevafila" && s0 != null ->
+                    NuevaFila(s0, id(uri.getQueryParameter("campo")), uri.getQueryParameter("fecha")?.takeIf { FECHA.matches(it) })
                 uri.scheme == "notiono" && uri.host == "rapida" -> NotaRapida(id(uri.getQueryParameter("en")))
                 uri.scheme == "notiono" && uri.host == "pagina" && s0 != null -> Pagina(s0)
                 uri.scheme == "notiono" && uri.host == "fila" && s0 != null && s1 != null -> Fila(s0, s1)

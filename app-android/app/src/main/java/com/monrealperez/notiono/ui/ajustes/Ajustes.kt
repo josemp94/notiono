@@ -1,12 +1,18 @@
 package com.monrealperez.notiono.ui.ajustes
 
+import com.monrealperez.notiono.avisos.Alarmas
+import com.monrealperez.notiono.avisos.Permisos
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.annotation.SuppressLint
 import com.monrealperez.notiono.ui.comun.rememberAlcance
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.edit
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -56,7 +62,6 @@ import com.monrealperez.notiono.ui.tema.C
 import com.monrealperez.notiono.ui.tema.Marca
 import com.monrealperez.notiono.util.Actualizador
 import com.monrealperez.notiono.util.Fechas
-import com.monrealperez.notiono.widgets.Widgets
 import kotlinx.coroutines.launch
 
 /** Ajustes: perfil, espacio, avisos, versión de la app, widgets, diagnóstico y cerrar sesión. Lo de administrar, en la web. */
@@ -138,7 +143,6 @@ fun PantallaAjustes() {
             }
             progreso?.let { LinearProgressIndicator({ it }, Modifier.padding(horizontal = 16.dp), color = Marca) }
             FilaMenu("Abrir Notiono en el navegador", "globe") { web("/") }
-            SeccionWidgets()
             SeccionDiagnostico()
             Separador(Modifier.padding(vertical = 8.dp))
             FilaMenu("Cerrar sesión", "log-out", color = Color(0xFFD44C47)) { salir = true }
@@ -163,41 +167,59 @@ fun PantallaAjustes() {
 /** Fabricantes que no dejan arrancar la app en segundo plano sin «Inicio automático» (ni hay permiso que lo dé). */
 private val conInicioAutomatico get() = Build.MANUFACTURER.lowercase() in setOf("xiaomi", "redmi", "poco")
 
-private fun bateriaLibre(ctx: Context) = ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName) == true
-
 /**
- * Widgets: con el ahorro de batería de HyperOS/MIUI (y otros), el sistema no deja a la app
- * repintarlos en segundo plano. La explicación sale solo si falta algo; los botones se quedan
- * para volver a abrir esas pantallas (el inicio automático no se puede comprobar).
+ * Lo que necesitan los recordatorios a su hora, los avisos y los widgets: cada permiso con
+ * su estado y un botón a su ajuste. El inicio automático de Xiaomi no se puede comprobar:
+ * se recuerda que se ofreció. Lo que falte queda en el registro (`Permisos.anota`).
  */
 @Composable
-private fun SeccionWidgets() {
+private fun SeccionPermisos() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("widgets", Context.MODE_PRIVATE) }
     var vuelta by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         vuelta++
+        Permisos.anota(ctx)
         onPauseOrDispose {}
     }
-    val hay = remember(vuelta) { Widgets.hay(ctx) }
-    if (!hay) return
-    val bateria = remember(vuelta) { bateriaLibre(ctx) }
+    val pide = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vuelta++ }
+    val notificaciones = remember(vuelta) { Permisos.notificaciones(ctx) }
+    val silenciados = remember(vuelta) { Permisos.canalesSilenciados(ctx) }
+    val exactas = remember(vuelta) { Alarmas.exactas(ctx) }
+    val bateria = remember(vuelta) { Permisos.bateriaLibre(ctx) }
     var ofrecido by remember { mutableStateOf(prefs.getBoolean("inicioOfrecido", false)) }
-    Separador(Modifier.padding(vertical = 8.dp))
-    TituloSeccion("Widgets")
-    if (!bateria || (conInicioAutomatico && !ofrecido)) Text(
-        "Para que los widgets se actualicen solos: " + (if (conInicioAutomatico) "permite Inicio automático y " else "") + "pon la batería en Sin restricciones.",
+    if (!notificaciones || silenciados.isNotEmpty() || !exactas || !bateria || (conInicioAutomatico && !ofrecido)) Text(
+        "Para que los recordatorios suenen a su hora, lleguen los avisos y los widgets se actualicen solos, falta lo que no pone «Concedido».",
         color = C.apagado, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
-    if (conInicioAutomatico) FilaMenu("Inicio automático", "rocket", detalle = if (ofrecido) "Toca para revisarlo" else "Permítelo para Notiono") {
-        ofrecido = true
-        prefs.edit { putBoolean("inicioOfrecido", true) }
-        val miui = Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
-        runCatching { ctx.startActivity(miui) }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
+    FilaMenu("Notificaciones", "bell", detalle = when {
+        !notificaciones -> "Desactivadas: toca para permitirlas"
+        silenciados.isNotEmpty() -> "Silenciados: ${silenciados.joinToString(" y ")}. Toca para revisarlo"
+        else -> "Concedido"
+    }) {
+        val preguntar = Build.VERSION.SDK_INT >= 33 && !notificaciones &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !prefs.getBoolean("notificacionesPedidas", false)
+        if (preguntar) {
+            prefs.edit { putBoolean("notificacionesPedidas", true) }
+            pide.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else runCatching {
+            ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+        }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
+    }
+    if (Build.VERSION.SDK_INT >= 31) FilaMenu("Alarmas exactas", "alarm-clock", detalle = if (exactas) "Concedido" else "Toca para permitirlas (recordatorios a su hora)") {
+        runCatching { ctx.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${ctx.packageName}"))) }
+            .onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
     }
     FilaMenu("Batería sin restricciones", "battery", detalle = if (bateria) "Concedido" else "Toca para pedirlo") {
         if (bateria) runCatching { ctx.startActivity(detallesApp(ctx)) }
         else runCatching { ctx.startActivity(pideBateria(ctx)) }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
+    }
+    if (conInicioAutomatico) FilaMenu("Inicio automático", "rocket", detalle = if (ofrecido) "No se puede comprobar: toca para revisarlo" else "Permítelo para Notiono") {
+        ofrecido = true
+        prefs.edit { putBoolean("inicioOfrecido", true) }
+        val miui = Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+        runCatching { ctx.startActivity(miui) }.onFailure { runCatching { ctx.startActivity(detallesApp(ctx)) } }
     }
 }
 
@@ -207,7 +229,7 @@ private fun detallesApp(ctx: Context) = Intent(Settings.ACTION_APPLICATION_DETAI
 @SuppressLint("BatteryLife")
 private fun pideBateria(ctx: Context) = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}"))
 
-/** Diagnóstico: lo último del registro (widgets, cierres, fallos del servidor) y enviarlo ya. */
+/** Diagnóstico: los permisos que hacen falta y lo último del registro (widgets, avisos, cierres, fallos del servidor). */
 @Composable
 private fun SeccionDiagnostico() {
     val ctx = LocalContext.current
@@ -219,6 +241,7 @@ private fun SeccionDiagnostico() {
     val pendientes = remember(vuelta, abierto) { s.registro.pendientes().size }
     Separador(Modifier.padding(vertical = 8.dp))
     TituloSeccion("Diagnóstico")
+    SeccionPermisos()
     FilaMenu("Registro de la app", "activity", detalle = "${eventos.size} eventos · " + if (pendientes == 0) "todo enviado" else "$pendientes sin enviar") { abierto = !abierto }
     if (!abierto) return
     FilaMenu("Enviar ahora", "send") {

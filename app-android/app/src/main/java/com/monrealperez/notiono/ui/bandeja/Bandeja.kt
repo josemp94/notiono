@@ -130,7 +130,7 @@ fun abreAviso(n: Navegador, a: JsonObject) {
     if (fila != null) n.fila(pagina, fila) else n.pagina(pagina)
 }
 
-private fun filaDeAviso(a: JsonObject) = a.str("key")?.takeIf { a.str("type") == "due" }?.split(":")?.getOrNull(1)
+private fun filaDeAviso(a: JsonObject) = a.str("recordId") ?: a.str("key")?.takeIf { a.str("type") == "due" }?.split(":")?.getOrNull(1)
 
 /** Lo mismo como enlace de la app, para la notificación del sistema. */
 fun enlaceDeAviso(a: JsonObject): String {
@@ -146,6 +146,7 @@ fun textoAviso(a: JsonObject) = buildAnnotatedString {
     fun negrita(t: String) = withStyle(SpanStyle(fontWeight = FontWeight.Medium)) { append(t) }
     when (a.str("type")) {
         "due" -> { append("Te toca: "); negrita(titulo ?: "una tarea"); append(" en «${pagina ?: "una base borrada"}»") }
+        "reminder" -> { append("Recordatorio: "); negrita(titulo ?: "Sin título"); if (a.str("recordId") != null && pagina != null) append(" en «$pagina»") }
         "comment" -> { negrita(actor); append(" comentó en «${pagina ?: "una página borrada"}»"); if (titulo != null) append(": «$titulo»") }
         "assign" -> { negrita(actor); append(" te asignó "); negrita(titulo ?: "una tarea"); append(" en «${pagina ?: "una base borrada"}»") }
         "form" -> { append("Nueva respuesta del formulario de «${pagina ?: "una base borrada"}»"); if (titulo != null) append(": «$titulo»") }

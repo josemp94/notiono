@@ -273,11 +273,18 @@ private fun EditorFecha(campo: Campo, v: JsonElement?, pon: (JsonElement?) -> Un
     var fin by remember { mutableStateOf(actual?.second) }
     var eligiendo by remember { mutableStateOf<String?>(null) }
     var hora by remember { mutableStateOf<String?>(null) }
+    // El recordatorio (como en Notion): va dentro del valor; quien lo cambia pasa a ser su dueño.
+    val avisoAntes = (v as? JsonObject)?.str("reminder")
+    var aviso by remember { mutableStateOf(avisoAntes) }
+    var eligiendoAviso by remember { mutableStateOf(false) }
     fun guarda() {
         val a = inicio
+        val extra = aviso?.let { r ->
+            mapOf("reminder" to JsonPrimitive(r)) + ((v as? JsonObject)?.str("reminderBy")?.takeIf { r == avisoAntes }?.let { mapOf("reminderBy" to JsonPrimitive(it)) } ?: emptyMap())
+        } ?: emptyMap()
         pon(when {
             a.isNullOrBlank() -> null
-            rango -> JsonObject(mapOf("start" to JsonPrimitive(a)) + (fin?.takeIf { it.isNotBlank() }?.let { mapOf("end" to JsonPrimitive(it)) } ?: emptyMap()))
+            rango || extra.isNotEmpty() -> JsonObject(mapOf("start" to JsonPrimitive(a)) + (fin?.takeIf { rango && it.isNotBlank() }?.let { mapOf("end" to JsonPrimitive(it)) } ?: emptyMap()) + extra)
             else -> JsonPrimitive(a)
         })
     }
@@ -288,11 +295,21 @@ private fun EditorFecha(campo: Campo, v: JsonElement?, pon: (JsonElement?) -> Un
             FilaMenu("Fin", "calendar", detalle = fin?.let { Fechas.relativa(it) } ?: "Sin fin") { eligiendo = "fin" }
             if (conHora && fin != null) FilaMenu("Hora de fin", "clock", detalle = fin!!.drop(11).take(5).ifBlank { "Sin hora" }) { hora = "fin" }
         }
+        if (inicio != null) FilaMenu("Recordatorio", "bell", detalle = textoRecordatorio(aviso, inicio!!.length > 10) ?: "Ninguno") { eligiendoAviso = true }
         Row(Modifier.padding(horizontal = 8.dp)) {
             TextButton({ inicio = Fechas.hoy(); guarda() }) { Text("Hoy", color = Marca) }
             TextButton({ inicio = LocalDate.now().plusDays(1).toString(); guarda() }) { Text("Mañana", color = Marca) }
             TextButton({ inicio = null; fin = null; pon(null); onCerrar() }) { Text("Borrar", color = C.apagado) }
             TextButton({ guarda(); onCerrar() }) { Text("Hecho", color = Marca) }
+        }
+    }
+    if (eligiendoAviso) Hoja({ eligiendoAviso = false }, "Recordatorio") {
+        val opciones = listOf<String?>(null) + opcionesRecordatorio(inicio.orEmpty().length > 10)
+        for (o in opciones) FilaMenu(textoRecordatorio(o, inicio.orEmpty().length > 10) ?: "Ninguno", if (o == null) "x" else "bell",
+            derecha = { if (o == aviso) com.monrealperez.notiono.ui.comun.Icono("check", color = Marca) }) {
+            aviso = o
+            guarda()
+            eligiendoAviso = false
         }
     }
     eligiendo?.let { cual ->
@@ -336,6 +353,22 @@ private fun EditorFecha(campo: Campo, v: JsonElement?, pon: (JsonElement?) -> Un
             dismissButton = { TextButton({ hora = null }) { Text("Cancelar", color = C.texto) } },
         )
     }
+}
+
+/** Las antelaciones del recordatorio, las mismas que en la web (src/lib/recordatorios.ts); sin hora, solo las de días. */
+fun opcionesRecordatorio(conHora: Boolean): List<String> =
+    if (conHora) listOf("0", "5m", "10m", "15m", "30m", "1h", "2h", "1d", "2d", "1w") else listOf("0", "1d", "2d", "1w")
+
+fun textoRecordatorio(id: String?, conHora: Boolean): String? = when (id) {
+    null -> null
+    "0" -> if (conHora) "A la hora del evento" else "El mismo día (9:00)"
+    "5m", "10m", "15m", "30m" -> "${id.dropLast(1)} minutos antes"
+    "1h" -> "1 hora antes"
+    "2h" -> "2 horas antes"
+    "1d" -> "1 día antes (9:00)"
+    "2d" -> "2 días antes (9:00)"
+    "1w" -> "1 semana antes (9:00)"
+    else -> id
 }
 
 /** (inicio, fin) de una celda de fecha (cadena suelta o {start, end}). */

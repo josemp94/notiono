@@ -1,23 +1,21 @@
 package com.monrealperez.notiono.widgets
 
-import android.appwidget.AppWidgetHostView
+import android.appwidget.AppWidgetManager
 import android.content.Context
-import android.view.View
-import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.FrameLayout
+import android.content.Intent
+import android.os.Looper
+import android.text.Spanned
+import android.text.style.StrikethroughSpan
 import android.widget.RemoteViews
 import android.widget.TextView
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
-import androidx.glance.ExperimentalGlanceApi
-import androidx.glance.appwidget.AppWidgetId
-import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.compose
-import androidx.glance.appwidget.runComposition
-import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.core.app.ApplicationProvider
+import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
+import com.monrealperez.notiono.R
 import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.red.Canje
 import com.monrealperez.notiono.red.UsuarioCanje
@@ -25,61 +23,87 @@ import com.monrealperez.notiono.red.errorTrpc
 import com.monrealperez.notiono.red.json
 import com.monrealperez.notiono.red.objeto
 import com.monrealperez.notiono.red.respuestaTrpc
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
+import mockwebserver3.SocketEffect
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
+import java.time.Duration
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Los widgets cuando el servidor falla (la 2.0.1 se quedaba en blanco): lento, 500, 401,
- * respuesta rara, proceso nuevo, sin sesión, sin configurar. Se ejecuta la sesión de Glance
- * de verdad (`compose`/`runComposition`, lo mismo que corre el SessionWorker) y se leen los
- * textos del RemoteViews ya aplicado.
+ * Los widgets nunca se quedan en blanco (lo que pasaba en el Xiaomi de Jose con Glance): se
+ * llama a `onUpdate` como lo haría el sistema y se aplican los RemoteViews que se mandan de
+ * verdad al escritorio dentro de un AppWidgetHostView. Sin red, sin sesión, recién
+ * reiniciado (proceso nuevo y servidor lento), con lo guardado de la 2.1.0, con la
+ * configuración de Glance, con el servidor fallando y con el primer intento cortado.
+ *
+ * Con el código de la 2.1.0 (Glance) estas pruebas no pueden ni pasar: `onUpdate` no pinta
+ * nada, deja un trabajo en WorkManager y el escritorio se queda con lo que tuviera.
  */
-@OptIn(ExperimentalGlanceApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w390dp-h844dp-xxhdpi")
 class WidgetsFallosTest {
     private val ctx get() = ApplicationProvider.getApplicationContext<Context>()
     private lateinit var servidor: MockWebServer
     private var respuesta: (RecordedRequest) -> MockResponse = { respuestaTrpc("{}") }
-    private val id = AppWidgetId(-77)
-    private val tamaño = DpSize(300.dp, 300.dp)
+    private val pintados = mutableMapOf<Int, RemoteViews>()
+    private val peticiones = AtomicInteger()
 
     private val pagina = """{"id":"p1","title":"Lista de la compra"}"""
-    private val bloques = """{"bloques":[{"id":"b1","type":"paragraph","props":{},"content":[{"type":"text","text":"Comprar leche","styles":{}}],"children":[]}]}"""
+    private val bloques = """{"bloques":[{"id":"b1","type":"paragraph","props":{},"content":[{"type":"text","text":"Comprar leche","styles":{}}],"children":[]},
+        {"id":"b2","type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Pan","styles":{}}],"children":[]}]}"""
+
+    /** El servidor de Notiono «bueno». */
+    private fun bueno(r: RecordedRequest): MockResponse = when {
+        r.url.encodedPath.endsWith("app.pagina") -> respuestaTrpc(pagina)
+        r.url.encodedPath.endsWith("app.bloques") -> respuestaTrpc(bloques)
+        r.url.encodedPath.endsWith("app.vista") -> respuestaTrpc(
+            """{"collection":{"id":"c1","name":"Tareas"},"fields":[{"id":"t","name":"Nombre","type":"text"},{"id":"h","name":"Hecho","type":"checkbox"}],
+               "filas":[{"id":"r1","cells":{"t":"Llamar al taller","h":false},"textos":{}}]}""",
+        )
+        else -> respuestaTrpc("{}")
+    }
 
     @Before
     fun prepara() {
         servidor = MockWebServer()
         servidor.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest) = respuesta(request)
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                peticiones.incrementAndGet()
+                return respuesta(request)
+            }
         }
         servidor.start()
         WorkManagerTestInitHelper.initializeTestWorkManager(ctx)
         procesoNuevo()
         Servicios.de(ctx).sesion.guarda(Canje("tok", 0, UsuarioCanje("u1", "Ana", "ana@example.com")))
-        // El estado de Glance vive en un DataStore que sobrevive entre pruebas.
-        runBlocking { updateAppWidgetState(ctx, id) { it.clear() } }
+        Widgets.alPintar = { id, rv -> synchronized(pintados) { pintados[id] = rv } }
     }
 
     @After
     fun cierra() {
+        Widgets.alPintar = null
         servidor.close()
         Servicios.de(ctx).sesion.olvida()
         Servicios.de(ctx).cache.vacia()
+        File(ctx.filesDir, "widgets").deleteRecursively()
         Servicios.baseDePrueba = null
     }
 
@@ -89,110 +113,215 @@ class WidgetsFallosTest {
         Servicios.baseDePrueba = servidor.url("/").toString().trimEnd('/')
     }
 
-    /** Lo que la app dejó guardado de la nota hace dos horas. */
-    private fun notaGuardadaHace2h() = runBlocking {
-        val s = Servicios.de(ctx)
-        s.cache.guarda(s.cache.clave("app.pagina", objeto("id" to "p1")), json.parseToJsonElement(pagina))
-        s.cache.guarda(s.cache.clave("app.bloques", objeto("id" to "p1")), json.parseToJsonElement(bloques))
-        val antes = System.currentTimeMillis() - 2 * 3600_000L
-        File(ctx.filesDir, "red").listFiles()!!.forEach { it.setLastModified(antes) }
-        updateAppWidgetState(ctx, id) { it[Widgets.CLAVE_PAGINA] = "p1" }
+    /** Lo que hace el sistema al poner el widget, tras reiniciar o al actualizar la app. Tiene que pintar ya. */
+    private fun onUpdate(p: ProveedorWidget, id: Int): List<String> {
+        val t0 = System.currentTimeMillis()
+        p.onUpdate(ctx, AppWidgetManager.getInstance(ctx), intArrayOf(id))
+        val ms = System.currentTimeMillis() - t0
+        assertTrue("onUpdate tardó $ms ms: no puede esperar a la red", ms < 1_500)
+        return Arnes.textos(ctx, synchronized(pintados) { pintados[id] } ?: error("onUpdate no pintó nada"))
     }
 
-    private fun textos(rv: RemoteViews): List<String> {
-        val anfitrion = AppWidgetHostView(ctx)
-        val v = rv.apply(ctx, anfitrion)
-        anfitrion.addView(v)
-        return textos(v)
-    }
-
-    private fun textos(v: View): List<String> = when (v) {
-        is TextView -> listOf(v.text.toString())
-        is AdapterView<*> -> (0 until (v.adapter?.count ?: 0)).flatMap { textos(v.adapter.getView(it, null, FrameLayout(ctx))) }
-        is ViewGroup -> (0 until v.childCount).flatMap { textos(v.getChildAt(it)) }
-        else -> emptyList()
-    }
-
-    /** Lo primero que pinta el widget: tiene que salir enseguida, sin esperar a la red. */
-    private fun primero(w: GlanceAppWidget): List<String> = runBlocking {
-        withTimeout(3_000) { textos(w.compose(ctx, id, size = tamaño)) }
-    }
-
-    /** Lo que acaba pintando cuando termina el refresco (la primera vista que cumple `hasta`). */
-    private fun alFinal(w: GlanceAppWidget, hasta: (List<String>) -> Boolean): List<String> = runBlocking {
-        withTimeout(10_000) { w.runComposition(ctx, id, sizes = listOf(tamaño)).first { hasta(textos(it)) }.let { textos(it) } }
+    /** Lo que acaba enseñando cuando termina lo de detrás (la primera vista que cumple `hasta`). */
+    private fun alFinal(id: Int, hasta: (List<String>) -> Boolean): List<String> {
+        val fin = System.currentTimeMillis() + 15_000
+        var ultimo = emptyList<String>()
+        while (System.currentTimeMillis() < fin) {
+            // El reloj del hilo principal de Robolectric no avanza solo: sin esto, ni los
+            // reintentos (delay) ni la espera de red llegarían a su hora.
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
+            synchronized(pintados) { pintados[id] }?.let { ultimo = Arnes.textos(ctx, it) }
+            if (hasta(ultimo)) return ultimo
+            Thread.sleep(50)
+        }
+        error("No llegó a pintar lo esperado; lo último: $ultimo; registro: ${Servicios.de(ctx).registro.eventos().takeLast(6).map { it.mensaje }}")
     }
 
     private fun List<String>.tiene(t: String) = any { t in it }
 
+    /** Lo que la app dejó guardado de la nota hace dos horas (un refresco bueno de antes). */
+    private fun notaGuardadaHace2h(): Int {
+        val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1"))
+        respuesta = ::bueno
+        runBlocking { NotaReceiver().refresca(ctx, id, "antes") }
+        val i = Instantaneas.lee(ctx, id)!!
+        Instantaneas.guarda(ctx, id, i.copy(fecha = System.currentTimeMillis() - 2 * 3600_000L))
+        return id
+    }
+
     @Test
-    fun servidorLentoPintaAlInstanteLoGuardado() {
-        notaGuardadaHace2h()
+    fun sinRedNiNadaGuardadoNuncaQuedaVacio() {
+        val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1", titulo = "Lista de la compra"))
+        servidor.close()
+        val primero = onUpdate(NotaReceiver(), id)
+        assertTrue("$primero", primero.tiene("Lista de la compra") && primero.tiene("Cargando…"))
+        val t = alFinal(id) { it.tiene("Sin conexión") }
+        assertTrue("$t", t.tiene("Sin conexión. Toca para reintentar."))
+        // Y queda un refresco esperando a que vuelva la red.
+        val trabajos = WorkManager.getInstance(ctx).getWorkInfosForUniqueWork("widgets-red").get()
+        assertTrue("$trabajos", trabajos.isNotEmpty())
+    }
+
+    @Test
+    fun recienReiniciadoPintaAlInstanteLoGuardadoAunqueElServidorTarde() {
+        val id = notaGuardadaHace2h()
         procesoNuevo()
         respuesta = { MockResponse.Builder().headersDelay(8, TimeUnit.SECONDS).body("{}").build() }
-        val t = primero(NotaWidget())
+        val t = onUpdate(NotaReceiver(), id)
+        assertTrue("$t", t.tiene("Lista de la compra") && t.tiene("Comprar leche") && t.tiene("Pan"))
+    }
+
+    @Test
+    fun conLoGuardadoPorLaVersionAnteriorPintaSusDatos() {
+        // La 2.1.0 (Glance) guardaba en la caché de red de la app, no por widget.
+        val s = Servicios.de(ctx)
+        s.cache.guarda(s.cache.clave("app.pagina", objeto("id" to "p1")), json.parseToJsonElement(pagina))
+        s.cache.guarda(s.cache.clave("app.bloques", objeto("id" to "p1")), json.parseToJsonElement(bloques))
+        val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1"))
+        servidor.close()
+        val t = onUpdate(NotaReceiver(), id)
         assertTrue("$t", t.tiene("Comprar leche"))
     }
 
     @Test
+    fun laConfiguracionQueGuardoGlanceSeConserva() {
+        // Un widget Lista puesto con la 2.1.0: su configuración vive en el DataStore de Glance.
+        val id = Arnes.pon(ctx, ListaReceiver::class.java)
+        val f = ctx.preferencesDataStoreFile("appWidget-$id")
+        val alcance = CoroutineScope(Dispatchers.IO + Job())
+        runBlocking {
+            PreferenceDataStoreFactory.create(scope = alcance, produceFile = { f }).edit {
+                it[stringPreferencesKey("pagina")] = "bd1"
+                it[stringPreferencesKey("titulo")] = "Tareas · Pendientes"
+            }
+        }
+        alcance.cancel()
+        Thread.sleep(200)
+        assertEquals(ConfigWidget(pagina = "bd1", titulo = "Tareas · Pendientes"), Configs.lee(ctx, id))
+        respuesta = ::bueno
+        onUpdate(ListaReceiver(), id)
+        val t = alFinal(id) { it.tiene("Llamar al taller") }
+        assertTrue("$t", t.tiene("Tareas · Pendientes"))
+    }
+
+    @Test
     fun error500EnseñaLoUltimoConSuMarca() {
-        notaGuardadaHace2h()
+        val id = notaGuardadaHace2h()
         respuesta = { errorTrpc(500, "INTERNAL_SERVER_ERROR", "Se cayó") }
-        val t = alFinal(NotaWidget()) { it.tiene("Sin actualizar") }
+        onUpdate(NotaReceiver(), id)
+        val t = alFinal(id) { it.tiene("Sin actualizar") }
         assertTrue("$t", t.tiene("Comprar leche") && t.tiene("hace 2 h"))
     }
 
     @Test
     fun error401EnseñaLoUltimoYPideEntrar() {
-        notaGuardadaHace2h()
+        val id = notaGuardadaHace2h()
         respuesta = { errorTrpc(401, "UNAUTHORIZED", "No autorizado") }
-        val t = alFinal(NotaWidget()) { it.tiene("Sin actualizar") }
+        onUpdate(NotaReceiver(), id)
+        val t = alFinal(id) { it.tiene("Sin actualizar") }
         assertTrue("$t", t.tiene("Comprar leche") && t.tiene("Inicia sesión"))
     }
 
     @Test
     fun respuestaRaraEnseñaLoUltimo() {
-        notaGuardadaHace2h()
-        // La página de error del proxy, con un 200.
-        respuesta = { MockResponse.Builder().code(200).body("<html>502 Bad Gateway</html>").build() }
-        val t = alFinal(NotaWidget()) { it.tiene("Sin actualizar") }
-        assertTrue("$t", t.tiene("Comprar leche"))
+        val id = notaGuardadaHace2h()
+        // La página de error del proxy con un 200, y un JSON sin los bloques.
+        for (r in listOf(MockResponse.Builder().code(200).body("<html>502 Bad Gateway</html>").build(), respuestaTrpc("[1,2,3]"))) {
+            respuesta = { r }
+            synchronized(pintados) { pintados.clear() }
+            onUpdate(NotaReceiver(), id)
+            val t = alFinal(id) { it.tiene("Sin actualizar") }
+            assertTrue("$t", t.tiene("Comprar leche"))
+        }
     }
 
     @Test
-    fun formaRaraEnseñaLoUltimo() {
-        notaGuardadaHace2h()
-        // JSON válido pero sin los bloques: no puede borrar lo que había.
-        respuesta = { respuestaTrpc("""[1,2,3]""") }
-        val t = alFinal(NotaWidget()) { it.tiene("Sin actualizar") }
-        assertTrue("$t", t.tiene("Comprar leche"))
+    fun elPrimerIntentoCortadoNoCuentaComoFallo() {
+        val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1"))
+        // La primera petición se corta (la red de fondo aún no deja salir) y las siguientes van.
+        val primera = AtomicInteger()
+        respuesta = { r -> if (primera.getAndIncrement() == 0) MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build() else bueno(r) }
+        onUpdate(NotaReceiver(), id)
+        val t = alFinal(id) { it.tiene("Comprar leche") }
+        assertTrue("$t", !t.tiene("Sin actualizar"))
+        val ev = Servicios.de(ctx).registro.eventos().map { it.mensaje }
+        // El corte se reintenta (OkHttp o nosotros) y solo cuenta el resultado: ok, sin «fallo».
+        assertTrue("$ev", ev.any { it.startsWith("nota#$id · sistema · ok") })
+        assertTrue("${peticiones.get()}", peticiones.get() >= 3)
+        assertTrue("$ev", ev.none { it.startsWith("nota#$id · sistema · fallo") })
     }
 
     @Test
-    fun sinSesionLoDice() {
-        notaGuardadaHace2h()
+    fun sinSesionLoDiceYNoEnseñaNada() {
+        val id = notaGuardadaHace2h()
         Servicios.de(ctx).sesion.olvida()
-        respuesta = { errorTrpc(401, "UNAUTHORIZED", "No autorizado") }
-        val t = primero(NotaWidget())
+        val t = onUpdate(NotaReceiver(), id)
         assertTrue("$t", t.tiene("Inicia sesión"))
         assertTrue("$t", !t.tiene("Comprar leche"))
     }
 
     @Test
     fun sinConfigurarLoDice() {
-        val t = primero(NotaWidget())
-        assertTrue("$t", t.tiene("Toca para elegir"))
+        for (c in listOf(NotaReceiver::class.java, ListaReceiver::class.java, CalendarioReceiver::class.java)) {
+            val id = Arnes.pon(ctx, c)
+            val t = onUpdate(c.getDeclaredConstructor().newInstance(), id)
+            assertTrue("${c.simpleName}: $t", t.tiene("Toca para elegir"))
+        }
+        // Los que no necesitan nada pintan sus botones.
+        val r = Arnes.pon(ctx, RapidaReceiver::class.java)
+        assertTrue(onUpdate(RapidaReceiver(), r).tiene("Nota rápida"))
+        val a = Arnes.pon(ctx, AccionesReceiver::class.java)
+        assertTrue(onUpdate(AccionesReceiver(), a).containsAll(listOf("Página", "Foto", "Buscar")))
     }
 
     @Test
-    fun listaConServidorLentoPintaLoGuardado() {
-        val s = Servicios.de(ctx)
-        val datos = """{"collection":{"id":"c1","name":"Tareas"},"fields":[{"id":"t","name":"Nombre","type":"text"}],"filas":[{"id":"r1","cells":{"t":"Llamar al taller"}}]}"""
-        s.cache.guarda(s.cache.clave("app.vista", objeto("pageId" to "bd1")), json.parseToJsonElement(datos))
-        runBlocking { updateAppWidgetState(ctx, id) { it[Widgets.CLAVE_PAGINA] = "bd1" } }
-        procesoNuevo()
-        respuesta = { MockResponse.Builder().headersDelay(8, TimeUnit.SECONDS).body("{}").build() }
-        val t = primero(ListaWidget())
-        assertTrue("$t", t.tiene("Llamar al taller"))
+    fun marcarUnaFilaSeVeAlMomentoYLlegaAlServidor() {
+        val id = Arnes.pon(ctx, ListaReceiver::class.java, ConfigWidget(pagina = "bd1"))
+        respuesta = ::bueno
+        runBlocking { ListaReceiver().refresca(ctx, id, "antes") }
+        val mutaciones = mutableListOf<String>()
+        respuesta = { r ->
+            if (r.method == "POST") synchronized(mutaciones) { mutaciones += r.url.encodedPath + " " + r.body?.utf8() }
+            if (r.method == "POST") respuestaTrpc("{}") else bueno(r)
+        }
+        val dato = marcaUri("fila", id, "pagina" to "bd1", "id" to "r1", "campo" to "h", "valor" to "true")
+        ListaReceiver().onReceive(ctx, Intent(ctx, ListaReceiver::class.java).setAction(Widgets.ACCION_FILA)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra(Widgets.EXTRA_VALOR, dato))
+        // Al momento, tachada (sin esperar al servidor).
+        val v = Arnes.vista(ctx, synchronized(pintados) { pintados[id] }!!)
+        val fila = buscaTexto(v, "Llamar al taller")!!
+        assertTrue((fila.text as? Spanned)?.getSpans(0, fila.text.length, StrikethroughSpan::class.java)?.isNotEmpty() == true)
+        val fin = System.currentTimeMillis() + 10_000
+        while (synchronized(mutaciones) { mutaciones.isEmpty() } && System.currentTimeMillis() < fin) {
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
+            Thread.sleep(50)
+        }
+        assertTrue("$mutaciones", mutaciones.any { "db.updateCell" in it && "\"recordId\":\"r1\"" in it && "\"value\":true" in it })
+    }
+
+    @Test
+    fun cadaPintadoQuedaEnElRegistro() {
+        val id = notaGuardadaHace2h()
+        onUpdate(NotaReceiver(), id)
+        val ev = Servicios.de(ctx).registro.eventos().map { it.mensaje }
+        assertTrue("$ev", ev.any { it.startsWith("pinta · nota#$id · cache · 2 elem") && " kB" in it })
+    }
+
+    @Test
+    fun siAlgoRevientaAlPintarSaleUnAvisoNoUnHueco() {
+        val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1"))
+        // Lo guardado está roto (otra forma, a medio escribir): no puede tumbar el pintado.
+        Instantaneas.guarda(ctx, id, Instantanea(NotaReceiver().clave(ConfigWidget(pagina = "p1")), json.parseToJsonElement("""{"bloques":"no"}"""), 1))
+        val t = onUpdate(NotaReceiver(), id)
+        assertTrue("$t", t.isNotEmpty())
+        val inicial = android.view.LayoutInflater.from(ctx).inflate(R.layout.widget_cargando, null)
+        assertTrue(Arnes.textos(inicial).containsAll(listOf("Notiono", "Cargando…")))
+    }
+
+    private fun buscaTexto(v: android.view.View, t: String): TextView? = when (v) {
+        is TextView -> v.takeIf { it.text.toString() == t }
+        is android.widget.AdapterView<*> -> (0 until (v.adapter?.count ?: 0)).firstNotNullOfOrNull { buscaTexto(v.adapter.getView(it, null, android.widget.FrameLayout(v.context)), t) }
+        is android.view.ViewGroup -> (0 until v.childCount).firstNotNullOfOrNull { buscaTexto(v.getChildAt(it), t) }
+        else -> null
     }
 }

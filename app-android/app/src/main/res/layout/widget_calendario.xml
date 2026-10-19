@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget «Calendario» grande (4×4): el mes en rejilla con hoy marcado y puntos en los días
+     con tareas, flechas de mes, y debajo la agenda del día elegido. Celdas cal_c/cal_d/cal_p
+     0…41 (6 semanas de lunes a domingo); las pinta widgets/Calendario.kt.
+     Generado a mano una vez (6×7 celdas iguales): si cambias una, cámbialas todas. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_raiz"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_fondo" android:orientation="vertical" android:padding="10dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:paddingBottom="4dp">
+        <TextView android:id="@+id/widget_titulo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:paddingStart="2dp"
+            android:ellipsize="end" android:maxLines="1" android:textColor="@color/widget_texto" android:textSize="15sp" android:textStyle="bold" />
+        <ImageView android:id="@+id/cal_anterior" android:layout_width="28dp" android:layout_height="28dp" android:padding="4dp"
+            android:contentDescription="@string/widget_mes_anterior" android:src="@drawable/widget_anterior" />
+        <ImageView android:id="@+id/cal_siguiente" android:layout_width="28dp" android:layout_height="28dp" android:padding="4dp" android:layout_marginEnd="4dp"
+            android:contentDescription="@string/widget_mes_siguiente" android:src="@drawable/widget_siguiente" />
+        <ImageView android:id="@+id/widget_mas" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginEnd="4dp"
+            android:contentDescription="@string/widget_nueva_tarea" android:src="@drawable/widget_boton_mas" />
+        <ImageView android:id="@+id/widget_refrescar" android:layout_width="28dp" android:layout_height="28dp" android:padding="5dp"
+            android:contentDescription="@string/widget_refrescar" android:src="@drawable/widget_refrescar" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="2dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="L"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="M"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="X"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="J"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="V"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="S"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="D"
+            android:textColor="@color/widget_apagado" android:textSize="11sp" tools:ignore="HardcodedText" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:id="@+id/cal_f0" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d0" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d1" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d2" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d3" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d4" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d5" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p5" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d6" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p6" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cal_f1" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d7" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d8" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p8" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d9" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c10" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d10" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p10" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c11" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d11" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p11" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c12" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d12" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p12" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c13" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d13" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p13" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cal_f2" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c14" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d14" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p14" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c15" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d15" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p15" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c16" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d16" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p16" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c17" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d17" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p17" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c18" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d18" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p18" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c19" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d19" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p19" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c20" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d20" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p20" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cal_f3" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c21" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d21" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p21" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c22" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d22" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p22" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c23" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d23" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p23" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c24" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d24" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p24" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c25" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d25" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p25" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c26" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d26" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p26" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c27" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d27" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p27" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cal_f4" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c28" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d28" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p28" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c29" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d29" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p29" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c30" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d30" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p30" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c31" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d31" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p31" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c32" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d32" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p32" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c33" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d33" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p33" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c34" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d34" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p34" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cal_f5" android:layout_width="match_parent" android:layout_height="31dp" android:orientation="horizontal">
+            <FrameLayout android:id="@+id/cal_c35" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d35" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p35" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c36" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d36" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p36" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c37" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d37" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p37" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c38" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d38" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p38" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c39" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d39" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p39" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c40" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d40" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p40" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/cal_c41" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <TextView android:id="@+id/cal_d41" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:gravity="center"
+                    android:textColor="@color/widget_texto" android:textSize="12sp" />
+                <TextView android:id="@+id/cal_p41" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal"
+                    android:text="@string/widget_punto" android:textColor="@color/marca" android:textSize="14sp" android:includeFontPadding="false" android:visibility="invisible" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView android:id="@+id/widget_aviso" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:paddingTop="4dp"
+        android:textColor="@color/widget_apagado" android:textSize="11sp" android:visibility="gone" />
+    <TextView android:id="@+id/cal_agenda" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:paddingTop="6dp" android:paddingBottom="2dp"
+        android:textColor="@color/widget_apagado" android:textSize="12sp" android:textStyle="bold" />
+
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <ListView android:id="@+id/widget_lista" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:divider="@null" android:dividerHeight="0dp" android:scrollbars="none" />
+        <TextView android:id="@+id/widget_vacio" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="@color/widget_apagado" android:textSize="13sp" android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

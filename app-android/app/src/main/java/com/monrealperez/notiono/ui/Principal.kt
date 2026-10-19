@@ -162,12 +162,17 @@ fun Principal(destinos: Flow<Destino>) {
                     fotoUri = u
                     com.monrealperez.notiono.util.Enlaces.lanza(camara, u, "No hay ninguna app de cámara")
                 }
-                // El «+» del widget de lista: fila nueva en esa BD y a su ficha.
+                // El «+» de los widgets Lista y Calendario: fila nueva en esa BD y a su ficha.
                 is Destino.NuevaFila -> alcance.launch {
                     try {
                         val col = s.repo.consulta("app.vista", objeto("pageId" to d.pageId)).comoObjeto["collection"]?.comoObjeto?.str("id")
-                        s.repo.mutacion("db.addRecord", objeto("collectionId" to col), encolable = false, etiquetas = listOf("vista:${d.pageId}"))
-                            ?.comoObjeto?.str("id")?.let { navegador.fila(d.pageId, it) }
+                        val fila = s.repo.mutacion("db.addRecord", objeto("collectionId" to col), encolable = false, etiquetas = listOf("vista:${d.pageId}"))
+                            ?.comoObjeto?.str("id")
+                        // Desde el Calendario: ya con el día elegido.
+                        if (fila != null && d.campo != null && d.fecha != null) {
+                            s.repo.mutacion("db.updateCell", objeto("recordId" to fila, "fieldId" to d.campo, "value" to d.fecha), encolable = false, etiquetas = listOf("vista:${d.pageId}"))
+                        }
+                        fila?.let { navegador.fila(d.pageId, it) }
                     } catch (e: ErrorApi) {
                         Avisos.di(e.message ?: "No se pudo crear la fila")
                     }

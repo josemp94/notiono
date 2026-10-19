@@ -11,7 +11,7 @@ export const REGISTRO_DIAS = 30;
 export const REGISTRO_MAX_LOTE = 200;
 const MAX_MENSAJE = 1000;
 const MAX_TRAZA = 8000;
-const TIPOS = new Set(["widget", "cierre", "red", "fallo"]);
+const TIPOS = new Set(["widget", "avisos", "cierre", "red", "fallo"]);
 
 export type LoteRegistro = {
   dispositivo: string;

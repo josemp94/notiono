@@ -33,8 +33,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Avisos de la bandeja en Android, sin Firebase: WorkManager mira cada 15 minutos (lo
  * mínimo que deja Android) si hay avisos nuevos sin leer y los saca como notificación.
- * También dispara los recordatorios de fecha (`notifications.checkDue`), como la web
- * al abrirse.
+ * También dispara los vencimientos (`notifications.checkDue`), como la web al abrirse, y
+ * baja los recordatorios para sus alarmas (ver [Alarmas]: esas sí suenan a su hora).
  */
 object Avisador {
     const val CANAL = "bandeja"
@@ -79,8 +79,17 @@ object Avisador {
         val primeraVez = !prefs.contains("vistos")
         val nuevos = lista.filter { !it.bool("read") && it.str("id") !in vistos }
         // La primera vez no se avisa de lo viejo: solo se apunta como visto.
+        if (!primeraVez && nuevos.isNotEmpty() && !Permisos.notificaciones(ctx)) {
+            s.registro.anota("avisos", "bandeja · ${nuevos.size} nuevos sin poder enseñarlos: falta el permiso de notificaciones")
+        }
         if (!primeraVez && permitido(ctx)) {
             for (a in nuevos.take(5)) {
+                // Un recordatorio que ya sonó por su alarma no se repite (y si no sonó, sale aquí y la alarma ya no).
+                if (a.str("type") == "reminder" && a.str("key") != null) {
+                    Alarmas.muestra(ctx, Recordatorio(a.str("key")!!, a.str("createdAt").orEmpty(), a.str("title") ?: "Recordatorio",
+                        textoAviso(a).text, a.str("pageId").orEmpty(), a.str("recordId")))
+                    continue
+                }
                 val abrir = Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
                     .setData(Uri.parse(com.monrealperez.notiono.ui.bandeja.enlaceDeAviso(a)))
                 val pi = PendingIntent.getActivity(ctx, a.str("id").hashCode(), abrir, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -108,9 +117,11 @@ object Avisador {
 
 class AvisosWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result = try {
+        Alarmas.actualiza(applicationContext, "periodico")
         Avisador.revisa(applicationContext)
         Result.success()
     } catch (e: Exception) {
+        Servicios.de(applicationContext).registro.anota("avisos", "bandeja · fallo", e)
         Result.retry()
     }
 }

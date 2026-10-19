@@ -9,6 +9,7 @@ import coil3.request.crossfade
 import com.monrealperez.notiono.datos.ColaWorker
 import kotlinx.coroutines.FlowPreview
 import com.monrealperez.notiono.widgets.Widgets
+import com.monrealperez.notiono.avisos.Alarmas
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -31,9 +32,19 @@ class NotionoApp : Application(), SingletonImageLoader.Factory {
                 .debounce(1500)
                 .collect { Widgets.actualizaTodo(this@NotionoApp, "cambio") }
         }
-        // Entrar o salir cambia lo que pueden enseñar.
-        s.alcance.launch { s.sesion.conectada.drop(1).collect { Widgets.actualizaTodo(this@NotionoApp, "sesion") } }
+        // Una fecha cambiada en la app: sus recordatorios, a reprogramar.
+        s.alcance.launch {
+            s.repo.cambios.filter { it.startsWith("vista:") }.debounce(3000).collect { Alarmas.actualiza(this@NotionoApp, "cambio") }
+        }
+        // Entrar o salir cambia lo que pueden enseñar (y de quién son los recordatorios).
+        s.alcance.launch {
+            s.sesion.conectada.drop(1).collect {
+                Widgets.actualizaTodo(this@NotionoApp, "sesion")
+                Alarmas.actualiza(this@NotionoApp, "sesion")
+            }
+        }
         s.alcance.launch { runCatching { Widgets.publicaVistasPrevias(this@NotionoApp) } }
+        Widgets.limpiaRestosDeGlance(this)
     }
 
     // Las imágenes (portadas, adjuntos, iconos subidos) por el mismo cliente HTTP.

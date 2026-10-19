@@ -7,7 +7,7 @@ import kotlinx.serialization.json.jsonObject
 
 /**
  * El contenido de ejemplo de las vistas previas de los widgets: lo que enseña el
- * selector del launcher (Android 15 lo pide a `providePreview`) y los PNG de
+ * selector del launcher (Android 15, `setWidgetPreview`) y los PNG de
  * `res/drawable-nodpi` que saca `VistasPreviasTest`. Los layouts de `res/layout/widget_previa_*`
  * repiten estos mismos textos a mano.
  */
@@ -44,6 +44,20 @@ object Muestras {
     }""").jsonObject
     val campos: List<JsonObject> = vista["fields"]!!.jsonArray.map { it.jsonObject }
     val filas: List<JsonObject> = vista["filas"]!!.jsonArray.map { it.jsonObject }
+
+    /** El «hoy» de la vista previa del Calendario (fijo, para que el PNG no cambie cada día). */
+    val HOY_CALENDARIO: java.time.LocalDate = java.time.LocalDate.of(2026, 10, 19)
+
+    val tareas = listOf(
+        TareaCal("m", "1", "Renovar el DNI", "2026-10-16", null, false),
+        TareaCal("m", "2", "Llamar al fontanero", "2026-10-19T10:00", null, true),
+        TareaCal("m", "3", "Recoger a Lucía", "2026-10-19T17:30", null, false),
+        TareaCal("m", "4", "Comprar el regalo", "2026-10-19", null, false),
+        TareaCal("m", "5", "Revisar la caldera", "2026-10-21T09:00", null, false),
+        TareaCal("m", "6", "Viaje a Lisboa", "2026-10-24", "2026-10-26", false),
+        TareaCal("m", "7", "Pagar el seguro", "2026-10-30", null, false),
+        TareaCal("m", "8", "Cita del médico", "2026-11-04T12:15", null, false),
+    )
 
     val recientes = listOf(
         PaginaWidget("a", "Casa", "🏠", "", favorita = true),

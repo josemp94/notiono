@@ -25,8 +25,8 @@ android {
         applicationId = "com.monrealperez.notiono"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "2.1.0"
+        versionCode = 8
+        versionName = "2.2.0"
         buildConfigField("String", "BASE_URL", "\"https://notiono.monrealperez.com\"")
         vectorDrawables.useSupportLibrary = true
     }
@@ -115,8 +115,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.work)
-    implementation(libs.glance.appwidget)
-    implementation(libs.glance.material3)
+    implementation(libs.androidx.core.remoteviews)
     implementation(libs.androidx.datastore)
     implementation(libs.emojipicker)
     implementation(libs.jlatexmath)

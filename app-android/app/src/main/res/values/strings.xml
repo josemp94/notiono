@@ -17,6 +17,22 @@
     <string name="widget_acciones_desc">Página nueva, tarea nueva, foto y buscar, a un toque</string>
     <string name="widget_recientes">Notiono · Páginas recientes</string>
     <string name="widget_recientes_desc">Tus favoritas arriba y después las últimas que abriste</string>
+    <string name="widget_calendario">Notiono · Calendario</string>
+    <string name="widget_calendario_desc">Tus tareas con fecha: el mes con sus días y la agenda (pequeño: los próximos días)</string>
+    <string name="widget_nueva">Nueva</string>
+    <string name="widget_nueva_tarea">Nueva tarea</string>
+    <string name="widget_refrescar">Refrescar</string>
+    <string name="widget_favorita">Favorita</string>
+    <string name="widget_nota_rapida">Nota rápida</string>
+    <string name="widget_punto">•</string>
+    <string name="widget_mes_anterior">Mes anterior</string>
+    <string name="widget_mes_siguiente">Mes siguiente</string>
+    <string name="widget_accion_pagina">Página</string>
+    <string name="widget_accion_tarea">Tarea</string>
+    <string name="widget_accion_foto">Foto</string>
+    <string name="widget_accion_buscar">Buscar</string>
     <string name="canal_avisos">Avisos de la bandeja</string>
     <string name="canal_avisos_desc">Menciones, asignaciones, comentarios y fechas que vencen</string>
+    <string name="canal_recordatorios">Recordatorios</string>
+    <string name="canal_recordatorios_desc">Los recordatorios de tus fechas, a su hora</string>
 </resources>

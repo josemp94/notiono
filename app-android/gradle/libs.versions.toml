@@ -13,7 +13,7 @@ okhttp = "5.4.0"
 coil = "3.5.0"
 browser = "1.10.0"
 work = "2.12.0"
-glance = "1.2.0"
+remoteviews = "1.1.0"
 datastore = "1.2.1"
 emojipicker = "1.7.0"
 jlatexmath = "0.2.0"
@@ -49,8 +49,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
-glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }
+androidx-core-remoteviews = { module = "androidx.core:core-remoteviews", version.ref = "remoteviews" }
 androidx-datastore = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 emojipicker = { module = "androidx.emoji2:emoji2-emojipicker", version.ref = "emojipicker" }
 jlatexmath = { module = "ru.noties:jlatexmath-android", version.ref = "jlatexmath" }

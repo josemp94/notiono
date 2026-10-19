@@ -9,9 +9,10 @@ import com.monrealperez.notiono.red.UsuarioCanje
 import com.monrealperez.notiono.red.errorTrpc
 import com.monrealperez.notiono.red.objeto
 import com.monrealperez.notiono.red.respuestaTrpc
-import com.monrealperez.notiono.widgets.Consulta
-import com.monrealperez.notiono.widgets.EstadoWidget
-import com.monrealperez.notiono.widgets.Widgets
+import com.monrealperez.notiono.widgets.Arnes
+import com.monrealperez.notiono.widgets.ConfigWidget
+import com.monrealperez.notiono.widgets.ListaReceiver
+import com.monrealperez.notiono.widgets.NotaReceiver
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
@@ -42,6 +43,7 @@ class RegistroTest {
                 request.url.encodedPath == "/api/app/registro" ->
                     MockResponse.Builder().code(if (registroOk) 200 else 503).body("""{"ok":true}""").build()
                 request.url.encodedPath.endsWith("app.pagina") -> respuestaTrpc("""{"id":"p1","title":"Diario secreto"}""")
+                request.url.encodedPath.endsWith("app.bloques") -> respuestaTrpc("""{"bloques":[]}""")
                 else -> errorTrpc(500, "INTERNAL_SERVER_ERROR", "Se cayó")
             }
         }
@@ -81,13 +83,18 @@ class RegistroTest {
         }
         assertTrue(siguio)
         // Un refresco bueno (con un título que no debe salir del móvil) y uno que falla.
-        val pagina = listOf(Consulta("app.pagina", objeto("id" to "p1")))
-        Widgets.refresca(s, "nota", "prueba", pagina, { true }, EstadoWidget(null, null, null))
-        Widgets.refresca(s, "lista", "prueba", listOf(Consulta("app.vista", objeto("pageId" to "bd1"))), { true }, EstadoWidget(null, null, null))
+        val nota = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p1"))
+        val lista = Arnes.pon(ctx, ListaReceiver::class.java, ConfigWidget(pagina = "bd1"))
+        NotaReceiver().refresca(ctx, nota, "prueba")
+        ListaReceiver().refresca(ctx, lista, "prueba")
 
         val ev = s.registro.pendientes()
         assertTrue("$ev", ev.any { it.tipo == "cierre" && "IllegalStateException: boom" in it.mensaje && "RegistroTest" in it.traza.orEmpty() })
-        assertTrue("$ev", ev.any { it.tipo == "widget" && it.mensaje.startsWith("lista · prueba · fallo") && "ErrorApi" in it.mensaje })
+        assertTrue("$ev", ev.any { it.tipo == "widget" && it.mensaje.startsWith("nota#$nota · prueba · ok") })
+        assertTrue("$ev", ev.any { it.tipo == "widget" && it.mensaje.startsWith("lista#$lista · prueba · fallo") && "ErrorApi" in it.mensaje })
+        // Cada pintado queda apuntado: qué se enseñó, cuántos elementos y cuánto ocupa.
+        assertTrue("$ev", ev.any { it.tipo == "widget" && it.mensaje.startsWith("pinta · nota#$nota · vacio · 0 elem") && " kB" in it.mensaje })
+        assertTrue("$ev", ev.any { it.tipo == "widget" && it.mensaje.startsWith("pinta · lista#$lista · aviso · 0 elem") })
         assertTrue("$ev", ev.any { it.tipo == "red" && "app.vista: 500" in it.mensaje })
 
         assertTrue(s.registro.envia(s.api, conSesion = true))

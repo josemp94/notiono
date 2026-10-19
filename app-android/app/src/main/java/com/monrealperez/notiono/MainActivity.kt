@@ -46,9 +46,11 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (savedInstanceState == null) maneja(intent)
-        // Al abrir la app: widgets al día (si el sistema no dejó repintarlos en segundo
-        // plano, aquí se recuperan) y el registro de diagnóstico al servidor.
+        // Al abrir la app: recordatorios programados, widgets al día (si el sistema no dejó
+        // repintarlos en segundo plano, aquí se recuperan) y el registro al servidor.
         s.alcance.launch {
+            com.monrealperez.notiono.avisos.Permisos.anota(applicationContext)
+            com.monrealperez.notiono.avisos.Alarmas.actualiza(applicationContext, "abrir")
             Widgets.actualizaTodo(applicationContext, "abrir")
             s.registro.envia(s.api, s.sesion.token != null)
         }
