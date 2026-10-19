@@ -107,3 +107,14 @@ solo SSO, así que se crea a mano un usuario, su espacio (`ensureWorkspace` de
 `src/server/provision.ts`) y una fila en `Session` con un token conocido, y se pone
 esa cookie (`notiono_session`) en Playwright. Sin `server.mjs` no hay edición
 simultánea, pero el resto funciona.
+
+**Con la edición simultánea (lo que hace falta para probar subpáginas, el menú de los 6
+puntos o el panel lateral):** un script como `server.mjs` pero con `next({ dev: true, dir })`
+y las mismas tres piezas (`createHocuspocus`, `globalThis.__notionoColab = puenteApp(...)`
+y el upgrade de `/collab`), arrancado con `NEXT_PUBLIC_COLLAB_URL=ws://127.0.0.1:3100/collab`
+y `AUTH_SECRET`. Importa `collab/dist/hocuspocus.mjs`: tras tocar `bloquesYjs.ts` hay que
+`npm run build:collab` y reiniciar. Con eso corren `scripts/integracion-subpaginas.ts` y
+`scripts/integracion-matriz.ts` (`BASE_URL`, `SESION`). Dos trampas de Playwright:
+el arrastre HTML5 llega con `dataTransfer.types` vacío (por eso el editor apunta los
+bloques arrastrados al empezar, `arrastreDeBloques`), y para arrastrar con el dedo
+(pulsación larga de dnd-kit) hay que mandar los toques por CDP (`Input.dispatchTouchEvent`).
