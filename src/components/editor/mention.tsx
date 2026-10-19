@@ -29,7 +29,11 @@ const Mention = createReactInlineContentSpec(
 
 function MentionChip({ inlineContent }: { inlineContent: { props: { pageId: string; title: string; icon: string } } }) {
   const base = useContext(PublicBaseContext);
+  // La raíz NO puede ser el <a>: al copiar o arrastrar el bloque, BlockNote lo lleva
+  // como HTML y, al soltarlo, la regla de la marca «enlace» (a[href]) gana a la de la
+  // mención y el chip llegaba convertido en un enlace de texto (sin icono ni título vivo).
   return (
+    <span>
       <a
         href={base ? `${base}/${inlineContent.props.pageId}` : `/p/${inlineContent.props.pageId}`}
         className="whitespace-nowrap rounded bg-brand-50 px-1 font-medium text-brand no-underline hover:underline"
@@ -37,6 +41,7 @@ function MentionChip({ inlineContent }: { inlineContent: { props: { pageId: stri
         {inlineContent.props.icon ? <IconoPagina icon={inlineContent.props.icon} size={14} /> : <FileText size={13} className="inline align-[-2px]" />}{" "}
         {inlineContent.props.title || "Sin título"}
       </a>
+    </span>
   );
 }
 

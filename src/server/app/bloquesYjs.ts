@@ -45,7 +45,10 @@ export type BloqueBN = {
 export type OpBloque =
   | { op: "upsert"; block: BloqueBN; parentId?: string | null; afterId?: string | null }
   | { op: "delete"; id: string }
-  | { op: "move"; id: string; parentId?: string | null; afterId?: string | null };
+  | { op: "move"; id: string; parentId?: string | null; afterId?: string | null }
+  /** Pone título e icono a todas las menciones de una página (al renombrarla). Solo
+   *  toca esos atributos: lo que se esté escribiendo alrededor no se pisa. No es de la app. */
+  | { op: "mencion"; pageId: string; title: string; icon: string };
 
 /** Nombre del fragmento donde BlockNote guarda el documento (ver useCollaboration). */
 export const FRAGMENTO = "document-store";
@@ -191,7 +194,9 @@ export async function aplicarOpsDoc(
       }
     }
     for (const op of ops) {
-      if (op.op === "delete") {
+      if (op.op === "mencion") {
+        renombraMenciones(L.Y, doc.getXmlFragment(FRAGMENTO), op);
+      } else if (op.op === "delete") {
         const s = buscar(L.Y, raiz(L.Y, doc), op.id);
         if (s) s.grupo.delete(s.indice, 1);
       } else if (op.op === "move") {
@@ -229,6 +234,34 @@ export async function aplicarOpsDoc(
       }
     }
   }, origen);
+}
+
+/** Las menciones de la página, dentro de cualquier bloque (y-prosemirror guarda cada chip como un elemento con sus props de atributos). */
+function renombraMenciones(
+  Y: Libs["Y"],
+  nodo: YT.XmlElement | YT.XmlFragment,
+  op: { pageId: string; title: string; icon: string },
+) {
+  for (const n of nodo.toArray()) {
+    if (!(n instanceof Y.XmlElement)) continue;
+    if (n.nodeName === "mention" && n.getAttribute("pageId") === op.pageId) {
+      if (n.getAttribute("title") !== op.title) n.setAttribute("title", op.title);
+      if ((n.getAttribute("icon") ?? "") !== op.icon) n.setAttribute("icon", op.icon);
+    } else renombraMenciones(Y, n, op);
+  }
+}
+
+/** Lo mismo sobre el JSON de bloques. */
+function renombraMencionesJson(v: unknown, op: { pageId: string; title: string; icon: string }): void {
+  if (Array.isArray(v)) return v.forEach((x) => renombraMencionesJson(x, op));
+  if (!v || typeof v !== "object") return;
+  const o = v as { type?: string; props?: Record<string, unknown> };
+  if (o.type === "mention" && o.props?.pageId === op.pageId) {
+    o.props.title = op.title;
+    o.props.icon = op.icon;
+    return;
+  }
+  for (const x of Object.values(o)) renombraMencionesJson(x, op);
 }
 
 /** Nodo de contenido (el primer hijo del blockContainer) de un bloque, en el documento de antes. */
@@ -403,7 +436,9 @@ export function aplicarOpsJson(bloques: BloqueBN[], ops: OpBloque[]): BloqueBN[]
     lista.splice(!afterId ? 0 : i === -1 ? lista.length : i + 1, 0, b);
   };
   for (const op of ops) {
-    if (op.op === "delete") {
+    if (op.op === "mencion") {
+      renombraMencionesJson(doc, op);
+    } else if (op.op === "delete") {
       const h = busca(doc, op.id);
       if (h) h.lista.splice(h.i, 1);
     } else if (op.op === "move") {

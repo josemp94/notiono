@@ -223,8 +223,44 @@ export async function compruebaApp() {
     const enServidor = await bloquesYjs.bloquesDeEstado((await puente.estado("pagina-app"))!);
     assert.deepEqual(enServidor, enNavegador);
 
+    // Renombrar una página llega a sus menciones del documento vivo sin tocar el texto de al lado.
+    await puente.aplicar("pagina-app", [
+      { op: "upsert", block: { id: "enl", type: "paragraph", content: [{ type: "mention", props: { pageId: "hija", title: "", icon: "" } }] }, afterId: "w" },
+    ], []);
+    await puente.aplicar("pagina-app", [{ op: "mencion", pageId: "hija", title: "Viaje", icon: "🏔️" }], []);
+    await espera(300);
+    const renombrado = (await bloquesYjs.bloquesDeDoc(doc)) as Bloque[];
+    assert.deepEqual((buscaBloque(renombrado, "enl")?.content as { props: unknown }[])[0].props, { pageId: "hija", title: "Viaje", icon: "🏔️" });
+    assert.equal(textoDe(buscaBloque(renombrado, "x")), "¡bloque del navegador!");
+
     navegador.destroy();
     await espera(100);
     server.close();
+  }
+
+  // --- 5. Enlaces a subpáginas (src/server/subpaginas.ts) ---
+  {
+    const sub = await import("../src/server/subpaginas");
+    const enlace = (id: string, pageId: string, extra: unknown[] = []) =>
+      ({ id, type: "paragraph", content: [{ type: "mention", props: { pageId, title: "", icon: "" } }, ...extra] }) as never;
+    assert.equal(sub.enlaceDe(enlace("a", "p1")), "p1");
+    assert.equal(sub.enlaceDe(enlace("a", "p1", [{ type: "text", text: " ", styles: {} }])), "p1", "con un espacio detrás sigue siendo un enlace");
+    assert.equal(sub.enlaceDe(enlace("a", "p1", [{ type: "text", text: " y más", styles: {} }])), null, "una mención dentro de un texto no lo es");
+    assert.equal(sub.enlaceDe(enlace("a", "p1", [{ type: "mention", props: { pageId: "p2" } }])), null);
+    const doc = [
+      { id: "t", type: "paragraph", content: "texto" },
+      { id: "l", type: "toggleListItem", content: "plegable", children: [enlace("dentro", "p1")] },
+      { id: "fin", type: "paragraph", content: [], children: [] },
+    ] as never;
+    assert.deepEqual(sub.enlacesA(doc, "p1"), [{ id: "dentro", parentId: "l" }]);
+    assert.equal(sub.ultimoBloque(doc), "l", "al final, pero antes del párrafo vacío del editor");
+    assert.equal(sub.ultimoBloque([{ id: "solo", type: "paragraph", content: [] }] as never), null);
+    assert.equal(sub.ultimoBloque([{ id: "texto", type: "paragraph", content: "con texto" }] as never), "texto", "el texto en cadena no es un párrafo vacío");
+    // La app pone su enlace en el cursor: se quita el que dejó el servidor al final, no otro.
+    assert.deepEqual(sub.sinEnlaceDoble([{ op: "upsert", block: enlace("chip", "p1") }]).slice(1), [{ op: "delete", id: "subpagina-p1" }]);
+    assert.equal(sub.sinEnlaceDoble([{ op: "upsert", block: enlace("subpagina-p1", "p1") }]).length, 1);
+    // Renombrar sobre JSON (páginas sin documento compartido).
+    const j = bloquesYjs.aplicarOpsJson(doc, [{ op: "mencion", pageId: "p1", title: "Nuevo", icon: "" }]) as Bloque[];
+    assert.equal((buscaBloque(j, "dentro")?.content as { props: { title: string } }[])[0].props.title, "Nuevo");
   }
 }

@@ -20,6 +20,7 @@ import { jsonLimpio } from "../jsonLimpio";
 import { aplicarOpsJson, type BloqueBN, type OpBloque } from "../app/bloquesYjs";
 import { aplicarOpsPagina, huella, leerBloquesPagina } from "../app/documento";
 import { calculaVista } from "../app/vista";
+import { sinEnlaceDoble } from "../subpaginas";
 import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
 import { TEMPLATES } from "@/lib/templates";
 import { calculaCalendario } from "../app/calendario";
@@ -126,7 +127,7 @@ export const appNativaRouter = router({
       const page = await paginaDelEspacio(ctx, input.id);
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "edit");
       if (page.type !== "doc") throw new TRPCError({ code: "BAD_REQUEST", message: "Solo las páginas de documento tienen bloques." });
-      const bloques = await aplicarOpsPagina(ctx.db, page.id, input.ops);
+      const bloques = await aplicarOpsPagina(ctx.db, page.id, sinEnlaceDoble(input.ops));
       await guardaContenidoPagina(ctx.db, { workspaceId: ctx.workspace.id, user: ctx.user }, page, bloques);
       return { huella: huella(bloques), bloques };
     }),

@@ -395,10 +395,11 @@ export function Editor({
                   onItemClick: async () => {
                     // Como en Notion: la página nace colgando de esta y queda enlazada
                     // en el sitio del cursor (la mención ya navega y sigue renombrados).
-                    const nueva = await createSubpage.mutateAsync({ parentId: pageId, title: "" });
+                    // El enlace lo pone el editor en el cursor; el servidor, que lo pondría al final, no.
+                    const nueva = await createSubpage.mutateAsync({ parentId: pageId, title: "", enlazar: false });
                     insertOrUpdateBlockForSlashMenu(editor, {
                       type: "paragraph",
-                      content: [{ type: "mention", props: { pageId: nueva.id, title: "Sin título", icon: "" } }],
+                      content: [{ type: "mention", props: { pageId: nueva.id, title: "", icon: "" } }],
                     });
                   },
                 },

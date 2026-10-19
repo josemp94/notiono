@@ -11,11 +11,13 @@ import { DbError, type Scope } from "./db";
 import { jsonLimpio } from "@/server/jsonLimpio";
 import { sendPush } from "@/server/push";
 import { filtraQuienesVen } from "./perms";
+import { enlazar } from "@/server/subpaginas";
 import type { Prisma } from "@prisma/client";
 
 export async function createPage(
   scope: Scope,
-  input: { title: string; parentId?: string | null; icon?: string | null },
+  /** `enlazar` (por defecto sí): deja el enlace a la página nueva al final de su madre, como Notion. */
+  input: { title: string; parentId?: string | null; icon?: string | null; enlazar?: boolean },
 ) {
   if (input.parentId) {
     const padre = await scope.db.page.findFirst({
@@ -41,6 +43,8 @@ export async function createPage(
       content: [],
     },
   });
+
+  if (creada.parentId && input.enlazar !== false) await enlazar(scope.db, creada.parentId, creada);
 
   dispatchWebhooks(scope.workspaceId, "page.created", {
     pageId: creada.id,

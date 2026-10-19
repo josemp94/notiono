@@ -17,6 +17,7 @@ import { infiereColumnas } from "@/lib/csvTipos";
 import { agregaRollup, ROLLUP_AGGS } from "@/lib/rollup";
 import { limpiaReferencias, sincronizaEspejo } from "../services/relations";
 import * as dbService from "../services/db";
+import { enlazar } from "../subpaginas";
 import { DbError, FIELD_TYPES, VIEW_TYPES } from "../services/db";
 
 /** Días que sobreviven las filas borradas antes de desaparecer para siempre. */
@@ -115,6 +116,7 @@ export const dbRouter = router({
           seedRows: 3,
         }),
       );
+      if (page.parentId) await enlazar(ctx.db, page.parentId, page);
       return page;
     }),
 

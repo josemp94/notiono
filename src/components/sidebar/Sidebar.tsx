@@ -105,7 +105,8 @@ export function Sidebar() {
       setImportando("Importando…");
       try {
         const r = await importNotionZip(file, {
-          createPage: (i) => createPage.mutateAsync(i),
+          // Los enlaces a las hijas ya vienen en el Markdown de Notion: que el servidor no ponga otros.
+          createPage: (i) => createPage.mutateAsync({ ...i, enlazar: false }),
           updateContent: (i) => updateContent.mutateAsync(i),
           importCsv: (i) => importCsv.mutateAsync(i),
           onProgress: setImportando,

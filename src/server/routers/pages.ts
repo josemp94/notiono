@@ -10,6 +10,7 @@ import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage, guardaContenidoPagina } from "../services/pages";
+import { desenlazar, enlazar, renombrarEnlaces, repararMenciones } from "../subpaginas";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
@@ -206,6 +207,8 @@ export const pagesRouter = router({
       if (!page) throw new TRPCError({ code: "NOT_FOUND" });
       // El nivel viaja con la página: el cliente decide con él si edita o solo lee.
       const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      // Enlaces con títulos viejos (de antes de que se pusieran al día solos): se arreglan en vivo.
+      repararMenciones(ctx.db, ctx.workspace.id, page);
       // «Editado por X hace Y»: el autor sale de la última versión con autor (solo
       // las páginas doc versionan; las de BD enseñan solo el «hace Y»).
       const ultima = await ctx.db.version.findFirst({
@@ -268,12 +271,13 @@ export const pagesRouter = router({
 
   /** Crear página (opcionalmente hija de otra). */
   create: workspaceProcedure
-    .input(z.object({ parentId: z.string().nullish(), title: z.string().default("") }))
+    // enlazar: false cuando quien crea pone el enlace él mismo (el «/subpágina» del editor, importar).
+    .input(z.object({ parentId: z.string().nullish(), title: z.string().default(""), enlazar: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
       if (input.parentId) await assertOwned(ctx, input.parentId);
       return createPage(
         { db: ctx.db, workspaceId: ctx.workspace.id, userId: ctx.user.id },
-        { title: input.title, parentId: input.parentId ?? null },
+        { title: input.title, parentId: input.parentId ?? null, enlazar: input.enlazar },
       );
     }),
 
@@ -301,6 +305,7 @@ export const pagesRouter = router({
         const page = await ctx.db.page.create({
           data: { ...base, content: tpl.content as Prisma.InputJsonValue },
         });
+        if (page.parentId) await enlazar(ctx.db, page.parentId, page);
         return { id: page.id };
       }
       const id = await ctx.db.$transaction(async (tx) => {
@@ -346,18 +351,22 @@ export const pagesRouter = router({
         }
         return page.id;
       });
+      if (base.parentId) await enlazar(ctx.db, base.parentId, { id, title: base.title, icon: base.icon });
       return { id };
     }),
 
-  /** Renombrar (título + icono). */
+  /** Renombrar (título + icono). Los enlaces a la página, en su madre y donde se la mencione, se ponen al día. */
   rename: workspaceProcedure
     .input(z.object({ id: z.string(), title: z.string(), icon: z.string().nullish() }))
     .mutation(async ({ ctx, input }) => {
       await assertOwned(ctx, input.id);
-      return ctx.db.page.update({
+      const antes = await ctx.db.page.findUniqueOrThrow({ where: { id: input.id }, select: { title: true, icon: true } });
+      const p = await ctx.db.page.update({
         where: { id: input.id },
         data: { title: input.title, ...(input.icon !== undefined ? { icon: input.icon } : {}) },
       });
+      if (p.title !== antes.title || p.icon !== antes.icon) renombrarEnlaces(ctx.db, ctx.workspace.id, p.id);
+      return p;
     }),
 
   /** Poner o quitar la portada. */
@@ -599,11 +608,18 @@ export const pagesRouter = router({
           b = siblings[anchor + 1]?.order ?? null;
         }
       }
-      return ctx.db.page.update({
+      const antes = await ctx.db.page.findUniqueOrThrow({ where: { id: input.id }, select: { parentId: true } });
+      const movida = await ctx.db.page.update({
         where: { id: input.id },
         data: { parentId: input.parentId, order: rankBetween(a, b) },
-        select: { id: true, parentId: true, order: true },
+        select: { id: true, parentId: true, order: true, title: true, icon: true },
       });
+      // Cambió de madre: el enlace sale de la vieja y va al final de la nueva (nunca dos).
+      if (antes.parentId !== movida.parentId) {
+        if (antes.parentId) await desenlazar(ctx.db, antes.parentId, movida.id);
+        if (movida.parentId) await enlazar(ctx.db, movida.parentId, movida);
+      }
+      return { id: movida.id, parentId: movida.parentId, order: movida.order };
     }),
 
   /** Duplicar una página (copia profunda: contenido, colección y subpáginas). */
@@ -633,6 +649,11 @@ export const pagesRouter = router({
           copyPage(tx, ctx.workspace.id, orig.id, orig.parentId, rankBetween(orig.order, next?.order ?? null), true),
         { timeout: 30_000 },
       );
+      // El enlace a la copia, justo debajo del de la original (o al final si no lo hay).
+      if (orig.parentId) {
+        const copia = await ctx.db.page.findUniqueOrThrow({ where: { id }, select: { id: true, title: true, icon: true } });
+        await enlazar(ctx.db, orig.parentId, copia, orig.id);
+      }
       return { id };
     }),
 
@@ -971,9 +992,17 @@ async function copyPage(
     select: { id: true, order: true },
     orderBy: { order: "asc" },
   });
+  const hijas = new Map<string, string>();
   for (const c of children) {
     // Las hermanas nuevas nacen sin conflicto: se reutiliza el order original de cada hija.
-    await copyPage(tx, workspaceId, c.id, page.id, c.order, false);
+    hijas.set(c.id, await copyPage(tx, workspaceId, c.id, page.id, c.order, false));
+  }
+  // Los enlaces a las hijas, a las hijas copiadas (si no, la copia llevaría a las originales).
+  if (hijas.size && src.content !== null) {
+    const content = remapIds(src.content, hijas);
+    if (JSON.stringify(content) !== JSON.stringify(src.content)) {
+      await tx.page.update({ where: { id: page.id }, data: { content: content as Prisma.InputJsonValue } });
+    }
   }
   return page.id;
 }
