@@ -65,8 +65,16 @@ resultaron ser, con la lupa puesta, los bordes de fila.
   Playwright con `keyboard.press("Enter")` **no** lo reproduce: hay que imitar a Gboard
   por CDP (`Input.dispatchKeyEvent` con keyCode 229 y `Input.insertText("\n")`).
 - **Búsqueda, bandeja y comentarios van a pantalla completa** en el móvil.
-- **El tirador de bloque (⠿ +) no se enseña en táctil**; en la tabla, tocar el título de
-  una fila abre su ficha en vez de editarlo.
+- **El tirador de bloque (⠿ +) no se enseña en táctil**; en su lugar, al tocar un bloque
+  sale un tirador compacto a su derecha (lo pinta `Editor.tsx`, no BlockNote) que abre
+  las acciones del menú de los 6 puntos en una hoja inferior (`HojaBloque` en
+  `menuTirador.tsx`). En la tabla, tocar el título de una fila abre su ficha en vez de
+  editarlo.
+- **Panel lateral de página** (`?vistazo=`): en el móvil ocupa la pantalla entera y el
+  Atrás del sistema lo cierra (vive en la URL).
+- **Vista Matriz**: a 390 px los rótulos de las filas van en vertical para que quepan dos
+  celdas a lo ancho; arrastrar una tarjeta es pulsación larga, como en el Kanban
+  (probado con `Input.dispatchTouchEvent` por CDP).
 
 ## BlockNote pisa las tablas que no son suyas
 

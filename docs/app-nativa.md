@@ -78,6 +78,14 @@ app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuev
 compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
+- **Vista Matriz y subpáginas (web, 19-oct-2026), sin APK nuevo.** La app no conoce el
+  tipo de vista `matrix`: `PantallaBD.kt` pinta lo desconocido como Tabla (no se cae), y
+  `src/server/app/vista.ts` se la sirve **agrupada por sus dos ejes** (filas y, dentro,
+  columnas) con el rótulo de cada celda («Hacer · Urgente»…), que la tabla de la app ya
+  sabe pintar. Lo prueba `scripts/integracion-matriz.ts`. Las subpáginas: la app crea la
+  hija con `pages.create` (el servidor deja el enlace al final de la madre) y luego pone
+  el suyo en el cursor por `app.aplicar`; ahí `sinEnlaceDoble` (src/server/subpaginas.ts)
+  borra el del servidor para que no queden dos.
 - **Widgets en blanco (2.2.0, 19-oct-2026)**. Con la 2.1.0 Jose los seguía viendo en
   blanco «la mayor parte del tiempo» (Xiaomi 13T, HyperOS 3). Su `AppRegistro` del 18 al
   19-oct: 129 filas, todas de widgets, por parejas `fallo · ~50 ms · Sin conexión` + `ok`

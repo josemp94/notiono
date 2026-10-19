@@ -79,7 +79,8 @@ Hecho:
 - ✅ **Dependencias en el Cronograma**: flechas entre tareas vía una relación de la BD consigo misma (selector «Dependencias» con «+ Crear campo Bloqueada por»); se crean arrastrando del puntito del fin de una barra a otra barra y se quitan desde la ficha.
 
 Falta:
-- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla y en el Kanban (carriles horizontales plegables). En el Kanban, además, **suma por columna** y **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas).
+- ✅ **Agrupar** en Tabla, Kanban, Lista y Galería, y **subagrupar** en la Tabla y en el Kanban (carriles horizontales plegables). En el Kanban, además, **suma por columna**, **ocultar columnas de grupo** (con sección «Ocultas» para recuperarlas) y **«Mostrar grupos vacíos»** (columnas y carriles; por defecto sí, como Notion).
+- ✅ **Vista Matriz** (oct-2026, `MatrixView.tsx`, `src/lib/matriz.ts`; no existe en Notion, que la monta con un tablero subagrupado): un campo de casilla/selección/estado en cada eje, las tarjetas se colocan solas, arrastrar entre celdas cambia las dos propiedades, «+ Nueva» por celda y rótulo/color por celda. Plantilla **«Matriz de Eisenhower»** (galería y `/` del editor).
 - ✅ **Duplicar vista** con todos sus ajustes.
 - ✅ **Panel de registro** también en Kanban; **modos side/center/página completa** (`view.config.openIn`, selector «Abrir filas en», defaults de Notion; página completa = `/p/<pageId>?r=<recordId>`); **peek redimensionable** arrastrando el borde (localStorage) y botón de expandir; **Escape** cierra menús y panel; **comentarios de fila** en la ficha (`Comment.recordId`, con aviso y push).
 - ✅ **Ancho de columna** ajustable arrastrando y persistente por vista (doble clic vuelve al automático).
@@ -123,10 +124,13 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ Autosave (800 ms contenido / 600 ms título), export a Markdown, portada, icono emoji, ancho completo, solo-lectura para `viewer`.
 - ✅ **Columnas** (dos o tres, desde el menú `/`): hechas a mano con los mismos nombres de bloque que el paquete de pago de BlockNote (`columnList`/`column`), cuyas clases CSS ya vienen en la hoja de estilos. Con **ancho ajustable arrastrando** el borde entre columnas y **«+» para añadir columna** a un layout ya creado (solo ratón). En el móvil se apilan. ❌ Crear columnas arrastrando un bloque al lado de otro.
 - ✅ **«/subpágina»**: crea una página hija colgando de la actual y la enlaza en el sitio del cursor con la mención.
+- ✅ **Subpáginas enlazadas en su madre** como los bloques «página» de Notion (oct-2026, `src/server/subpaginas.ts`): crear una hija desde el panel lateral, la app o la API deja su enlace al final de la madre; renombrarla pone al día el enlace en vivo (en la madre y donde se la mencione); moverla de madre se lleva el enlace; duplicar enlaza las hijas copiadas y pone la copia debajo. Todo por operaciones de bloque en el documento Yjs vivo.
 - ❌ **Sync block**, **breadcrumb block**, **botón**, embeds de Maps/Figma/PDF, **ecuación**, **subpágina embebida** como bloque.
 - ✅ **Comentarios en línea** sobre una selección, con respuestas y resolver (`YjsThreadStore`: los hilos viajan dentro del documento compartido).
 - ❌ **@fecha** en el editor.
-- ✅ **«Convertir en → Llamada»** en la barra de formato y **«Copiar enlace al bloque»** en el menú del tirador: la URL `/p/<página>#<bloque>` abre la página, salta hasta el bloque y lo destaca. ❌ «Mover a» por bloque y selección multibloque con acciones masivas.
+- ✅ **«Convertir en → Llamada»** en la barra de formato y **«Copiar enlace al bloque»** en el menú del tirador: la URL `/p/<página>#<bloque>` abre la página, salta hasta el bloque y lo destaca.
+- ✅ **Menú del tirador (6 puntos) como el de Notion** (oct-2026, `menuTirador.tsx`): buscador, Convertir en (incl. Llamada y Página), Color de texto y fondo, Duplicar (Ctrl+D), Mover a (con buscador), Copiar enlace, Comentar y Eliminar (Supr); en los bloques de página además Abrir en nueva pestaña / en panel lateral, Renombrar, Icono y Favoritos (mover y duplicar actúan sobre la página). Soltar un bloque en una página del panel lateral lo mueve allí. En táctil, tirador compacto al tocar un bloque y las mismas acciones en una hoja. ❌ Selección multibloque con acciones masivas.
+- ✅ **Panel lateral de página** («side peek», `PanelPagina.tsx`, `?vistazo=<id>`): editable y con edición simultánea, ancho ajustable, abrir a pantalla completa, Esc/X/Atrás; Alt+clic en un enlace. En el móvil, a pantalla completa.
 - ❌ Estilo por página (tipografía Default/Serif/Mono, texto pequeño).
 - ✅ **Backlinks**: sección «N enlaces entrantes» al pie de la página (`pages.backlinks`).
 
