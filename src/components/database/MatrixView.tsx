@@ -196,7 +196,8 @@ export function MatrixView({
       .then(() => invalidate())
       .finally(() =>
         setMovidas((m) => {
-          const { [id]: _hecha, ...resto } = m;
+          const resto = { ...m };
+          delete resto[id];
           return resto;
         }),
       );
