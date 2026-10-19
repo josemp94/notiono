@@ -284,11 +284,12 @@ model Notification {
   user        User      @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  type        String    @default("mention") // mention | due | comment | assign
+  type        String    @default("mention") // mention | due | comment | assign | reminder
   key         String? // identidad del aviso para no repetirlo (due:<recordId>:<fecha>)
   title       String? // texto de la fila que vence (las notificaciones no siguen sus cambios)
   pageId      String? // dónde ocurrió
   page        Page?     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  recordId    String? // la fila que abre el aviso (recordatorios); sin FK: si se borra, se abre la base de datos
   actorId     String? // quién menciona
   actor       User?     @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
   read        Boolean   @default(false)

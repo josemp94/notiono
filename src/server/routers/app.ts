@@ -22,6 +22,8 @@ import { aplicarOpsPagina, huella, leerBloquesPagina } from "../app/documento";
 import { calculaVista } from "../app/vista";
 import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
 import { TEMPLATES } from "@/lib/templates";
+import { calculaCalendario } from "../app/calendario";
+import { recordatoriosEntre, textoAviso } from "../recordatorios";
 
 /** Bloque BlockNote tal cual (lo que no conozca el servidor se guarda igual). */
 const bloque: z.ZodType<BloqueBN> = z.lazy(() =>
@@ -173,6 +175,32 @@ export const appNativaRouter = router({
     }),
 
   /** La galería de plantillas (las crea `pages.createFromTemplate`, como en la web). */
+  /**
+   * Las tareas con fecha de una o varias bases de datos entre dos días (widget
+   * «Calendario»): título, inicio, fin, si está hecha y su recordatorio.
+   */
+  calendario: workspaceProcedure
+    .input(z.object({
+      fuentes: z.array(z.object({ pageId: z.string(), fieldId: z.string().nullish(), mios: z.boolean().optional() })).max(10),
+      desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }))
+    .query(({ ctx, input }) =>
+      calculaCalendario(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id, role: ctx.role ?? "member" }, input.fuentes, input.desde, input.hasta),
+    ),
+
+  /**
+   * Mis recordatorios de los próximos días (de todos mis espacios), para que la app los
+   * programe con alarmas en el móvil: suenan a su hora aunque el sistema la duerma.
+   */
+  recordatorios: workspaceProcedure.query(async ({ ctx }) => {
+    const ahora = new Date();
+    const lista = await recordatoriosEntre(ctx.db, ahora, new Date(ahora.getTime() + 8 * 864e5), { userId: ctx.user.id });
+    return lista.slice(0, 100).map((r) => ({
+      key: r.key, cuando: r.cuando.toISOString(), titulo: r.titulo, texto: textoAviso(r, r.cuando), pageId: r.pageId, recordId: r.recordId,
+    }));
+  }),
+
   plantillas: workspaceProcedure.query(() =>
     Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, icon: t.icon, description: t.description })),
   ),

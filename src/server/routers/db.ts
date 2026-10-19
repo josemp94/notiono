@@ -419,6 +419,10 @@ export const dbRouter = router({
         where: { id: input.recordId, collection: { page: { workspaceId: ctx.workspace.id } } },
       });
       if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
+      // Un recordatorio sin dueño es de quien lo pone (a él le avisa si la fila no tiene a nadie asignado).
+      if (input.value && typeof input.value === "object" && !Array.isArray(input.value) && input.value.reminder && !input.value.reminderBy) {
+        input.value = { ...input.value, reminderBy: ctx.user.id };
+      }
       // Merge atómico EN Postgres: antes se leía todo `cells` y se escribía entero,
       // así que dos personas tocando campos DISTINTOS de la misma fila a la vez se
       // pisaban en silencio (ganaba la última). Con `||`/`-` sobre jsonb cada update

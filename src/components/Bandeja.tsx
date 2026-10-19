@@ -94,14 +94,19 @@ export function BandejaHost() {
                     onClick={() => {
                       if (!n.read) markRead.mutate({ id: n.id });
                       setOpen(false);
-                      if (n.page) router.push(`/p/${n.page.id}`);
+                      if (n.page) router.push(`/p/${n.page.id}${n.recordId ? `?r=${n.recordId}` : ""}`);
                     }}
                     className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--border)]/30"
                   >
                     <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-brand"}`} />
                     <span className="min-w-0 flex-1">
                       <span className={n.read ? "text-[var(--muted)]" : ""}>
-                        {n.type === "due" ? (
+                        {n.type === "reminder" ? (
+                          <>
+                            Recordatorio: <span className="font-medium">{n.title || "Sin título"}</span>
+                            {n.recordId && n.page ? <> en «{emojiIcono(n.page.icon)}{n.page.title || "Sin título"}»</> : null}
+                          </>
+                        ) : n.type === "due" ? (
                           <>
                             Te toca: <span className="font-medium">{n.title || "una tarea"}</span> en «
                             {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»

@@ -19,15 +19,19 @@ export type RecordLite = { id: string; cells?: Record<string, unknown> | null };
  * como una cadena suelta "YYYY-MM-DD"; con hora es "YYYY-MM-DDTHH:mm" y con
  * rango un objeto { start, end }.
  */
-export type DateValue = { start: string; end?: string };
+export type DateValue = { start: string; end?: string; reminder?: string; reminderBy?: string };
 
 export function dateValue(v: unknown): DateValue | null {
   if (!v) return null;
   if (typeof v === "string") return { start: v };
   if (typeof v === "object") {
-    const o = v as { start?: unknown; end?: unknown };
+    const o = v as { start?: unknown; end?: unknown; reminder?: unknown; reminderBy?: unknown };
     if (typeof o.start === "string" && o.start) {
-      return { start: o.start, end: typeof o.end === "string" && o.end ? o.end : undefined };
+      const d: DateValue = { start: o.start, end: typeof o.end === "string" && o.end ? o.end : undefined };
+      // El recordatorio (src/lib/recordatorios.ts) viaja con la fecha: moverla no lo quita.
+      if (typeof o.reminder === "string" && o.reminder) d.reminder = o.reminder;
+      if (typeof o.reminderBy === "string" && o.reminderBy) d.reminderBy = o.reminderBy;
+      return d;
     }
   }
   return null;
@@ -57,7 +61,7 @@ function sumaDias(iso: string, dias: number): string {
 export function shiftDateValue(v: unknown, dias: number): unknown {
   const d = dateValue(v);
   if (!d || !dias) return v;
-  return d.end ? { start: sumaDias(d.start, dias), end: sumaDias(d.end, dias) } : { start: sumaDias(d.start, dias) };
+  return conAviso(d, d.end ? { start: sumaDias(d.start, dias), end: sumaDias(d.end, dias) } : { start: sumaDias(d.start, dias) });
 }
 
 /**
@@ -69,8 +73,13 @@ export function stretchDateValue(v: unknown, dias: number): unknown {
   if (!d || !dias) return v;
   const inicio = d.start.slice(0, 10);
   const fin = sumaDias(d.end ?? d.start, dias);
-  if (fin.slice(0, 10) < inicio) return { start: d.start }; // encogido hasta desaparecer: queda en un día
-  return fin.slice(0, 10) === inicio ? { start: d.start } : { start: d.start, end: fin };
+  if (fin.slice(0, 10) < inicio) return conAviso(d, { start: d.start }); // encogido hasta desaparecer: queda en un día
+  return conAviso(d, fin.slice(0, 10) === inicio ? { start: d.start } : { start: d.start, end: fin });
+}
+
+/** El valor nuevo de una fecha con el recordatorio que tenía la de antes. */
+function conAviso(antes: DateValue, nuevo: DateValue): DateValue {
+  return antes.reminder ? { ...nuevo, reminder: antes.reminder, ...(antes.reminderBy ? { reminderBy: antes.reminderBy } : {}) } : nuevo;
 }
 
 /** Día "YYYY-MM-DD" del final (el inicio si no hay rango). */

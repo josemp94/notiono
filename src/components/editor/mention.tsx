@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarDays, FileText } from "lucide-react";
+import { Bell, CalendarDays, FileText } from "lucide-react";
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core";
 import { codeBlockOptions } from "@blocknote/code-block";
 import { createReactInlineContentSpec, SuggestionMenuController } from "@blocknote/react";
 import { trpc } from "@/trpc/react";
-import { useContext } from "react";
+import { useContext, useState } from "react";
+import { opcionesRecordatorio, textoRecordatorio } from "@/lib/recordatorios";
 import { IconoPagina } from "@/components/PageIcon";
 import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
@@ -82,16 +83,58 @@ function etiquetaFecha(fecha: string): string {
 const DateMention = createReactInlineContentSpec(
   configMencionFecha,
   {
-    render: ({ inlineContent }) => (
-      <span
-        className="whitespace-nowrap rounded bg-[var(--border)]/50 px-1 font-medium text-[var(--muted)]"
-        title={inlineContent.props.fecha}
-      >
-        <CalendarDays size={13} className="inline align-[-2px]" /> {etiquetaFecha(inlineContent.props.fecha)}
-      </span>
+    render: ({ inlineContent, updateInlineContent, editor }) => (
+      <ChipFecha props={inlineContent.props} editable={editor.isEditable} cambia={(props) => updateInlineContent({ type: "dateMention", props })} />
     ),
   },
 );
+
+type PropsFecha = { fecha: string; recordatorio: string; por: string };
+
+/** Quién soy (para apuntar quién pone el recordatorio); sin hooks: el chip también sale en páginas públicas. */
+async function miId(): Promise<string> {
+  const r = await fetch("/api/trpc/auth.me").then((x) => x.json()).catch(() => null);
+  return (r as { result?: { data?: { json?: { id?: string } | null } } } | null)?.result?.data?.json?.id ?? "";
+}
+
+/** El chip de fecha; al pulsarlo (si se puede editar) se elige el recordatorio, como en Notion. */
+function ChipFecha({ props, editable, cambia }: { props: PropsFecha; editable: boolean; cambia: (p: PropsFecha) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const base = useContext(PublicBaseContext);
+  const conHora = props.fecha.includes("T");
+  const aviso = textoRecordatorio(props.recordatorio, conHora);
+  return (
+    <span className="relative whitespace-nowrap rounded bg-[var(--border)]/50 px-1 font-medium text-[var(--muted)]" title={aviso ? `${props.fecha} · Recordatorio: ${aviso}` : props.fecha}>
+      <span
+        role={editable && !base ? "button" : undefined}
+        onClick={() => editable && !base && setAbierto((a) => !a)}
+        className={editable && !base ? "cursor-pointer" : undefined}
+      >
+        <CalendarDays size={13} className="inline align-[-2px]" /> {etiquetaFecha(props.fecha)}
+        {props.recordatorio && <Bell size={12} className="ml-0.5 inline align-[-1px]" aria-label="Con recordatorio" />}
+      </span>
+      {abierto && (
+        <select
+          autoFocus
+          value={props.recordatorio}
+          onBlur={() => setAbierto(false)}
+          onChange={async (e) => {
+            const recordatorio = e.target.value;
+            setAbierto(false);
+            cambia({ ...props, recordatorio, por: recordatorio ? (await miId()) || props.por : "" });
+          }}
+          aria-label="Recordatorio"
+          className="absolute left-0 top-full z-20 mt-1 rounded border border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--fg)]"
+        >
+          <option value="">Sin recordatorio</option>
+          {opcionesRecordatorio(conHora).map(([id, texto]) => (
+            <option key={id} value={id}>{texto}</option>
+          ))}
+        </select>
+      )}
+    </span>
+  );
+}
 
 /** Schema compartido por todos los editores BlockNote de la app (registra "mention", "personMention" y el bloque "database"). */
 export const editorSchema = BlockNoteSchema.create({
@@ -169,7 +212,7 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
             group: "Fechas",
             icon: <CalendarDays size={16} />,
             onItemClick: () => {
-              editor.insertInlineContent([{ type: "dateMention", props: { fecha: f.fecha } }, " "]);
+              editor.insertInlineContent([{ type: "dateMention", props: { fecha: f.fecha, recordatorio: "", por: "" } }, " "]);
             },
           })),
           ...people.map((m) => ({

@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Check, Copy, Expand, MoreHorizontal, Paperclip, Pencil, Trash2, X } from "lucide-react";
+import { ArrowUpRight, Bell, Check, Copy, Expand, MoreHorizontal, Paperclip, Pencil, Trash2, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { Popover } from "./Popover";
 import { LugarCell } from "./LugarCell";
 import { confirmar } from "@/components/Confirmar";
 import { RichText, tieneFormato } from "@/lib/mdInline";
+import { opcionesRecordatorio, textoRecordatorio } from "@/lib/recordatorios";
 import { dateValue, formatDate, formatNumber, OPTION_COLORS, optionsOf, STATUS_GROUPS, type Attachment, type FieldLite, type Option } from "@/lib/cellText";
 
 
@@ -994,7 +995,8 @@ function AuthorCell({ userId }: { userId?: string | null }) {
 
 /**
  * Campo Fecha. Según su configuración: día suelto, con hora (`time`) o rango
- * (`range`, que guarda { start, end } en vez de una cadena).
+ * (`range`, que guarda { start, end } en vez de una cadena). Con recordatorio
+ * (como en Notion) el valor es siempre un objeto: { start, end?, reminder }.
  */
 function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown; onCommit: (v: unknown) => void }) {
   const cfg = (field.config as { time?: boolean; range?: boolean } | null) ?? {};
@@ -1004,11 +1006,14 @@ function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown
   // Sin hora, el input date no admite la parte "T…": se recorta.
   const cut = (iso?: string) => (iso ? (cfg.time ? iso.slice(0, 16) : iso.slice(0, 10)) : "");
 
-  const commit = (start: string, end: string) => {
+  const commit = (start: string, end: string, aviso = d?.reminder) => {
     if (!start) return onCommit(null);
-    if (!cfg.range) return onCommit(start);
-    onCommit(end ? { start, end } : { start });
+    if (!cfg.range && !aviso) return onCommit(start);
+    // Quien cambia el recordatorio pasa a ser su dueño (el servidor lo apunta en reminderBy).
+    const extra = aviso ? { reminder: aviso, ...(aviso === d?.reminder && d?.reminderBy ? { reminderBy: d.reminderBy } : {}) } : {};
+    onCommit({ start, ...(cfg.range && end ? { end } : {}), ...extra });
   };
+  const conHora = !!cfg.time && (d?.start.includes("T") ?? true);
 
   // Con valor se pinta el texto según el formato del campo (24 ago 2026,
   // 24/08/2026 o «hoy») y el clic pasa a los inputs; vacía, el input directo.
@@ -1020,6 +1025,9 @@ function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown
         title="Pulsa para editar"
       >
         {formatDate(value, field)}
+        {d.reminder && (
+          <Bell size={12} strokeWidth={1.75} className="ml-1 inline align-[-1px] text-[var(--muted)]" aria-label={textoRecordatorio(d.reminder, conHora) ?? "Recordatorio"} />
+        )}
       </button>
     );
   }
@@ -1049,6 +1057,20 @@ function DateCell({ field, value, onCommit }: { field: FieldLite; value: unknown
             className="min-w-0 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
           />
         </>
+      )}
+      {d && (
+        <select
+          value={d.reminder ?? ""}
+          onChange={(e) => commit(cut(d.start), cut(d.end), e.target.value || undefined)}
+          title="Recordatorio"
+          aria-label="Recordatorio"
+          className="max-w-[9rem] shrink-0 rounded bg-transparent text-xs text-[var(--muted)] outline-none"
+        >
+          <option value="">Sin recordatorio</option>
+          {opcionesRecordatorio(conHora).map(([id, texto]) => (
+            <option key={id} value={id}>{texto}</option>
+          ))}
+        </select>
       )}
     </div>
   );

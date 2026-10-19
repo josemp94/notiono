@@ -84,7 +84,8 @@ export const configMencionPersona = {
 };
 export const configMencionFecha = {
   type: "dateMention" as const,
-  propSchema: { fecha: { default: "" } },
+  // recordatorio: antelación de src/lib/recordatorios.ts ("" = ninguno); por: quién lo puso (a quién avisa).
+  propSchema: { fecha: { default: "" }, recordatorio: { default: "" }, por: { default: "" } },
   content: "none" as const,
 };
 
