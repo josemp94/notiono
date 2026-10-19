@@ -276,7 +276,12 @@ export function KanbanView({
   const cfgV = (view.config ?? {}) as Record<string, unknown>;
   const hiddenGroups: string[] = Array.isArray(cfgV.hiddenGroups) ? (cfgV.hiddenGroups as string[]) : [];
   const setHiddenGroups = (next: string[]) => updateView.mutate({ id: view.id, config: { ...cfgV, hiddenGroups: next } });
-  const visibleColumns = columns.filter((c) => !hiddenGroups.includes(c.id));
+  // «Mostrar grupos vacíos», como Notion: por defecto sí (columnas y carriles), para
+  // que un tablero 2x2 enseñe sus cuatro celdas aunque alguna esté vacía y se pueda soltar en ella.
+  const mostrarVacios = cfgV.mostrarVacios !== false;
+  const visibleColumns = columns.filter(
+    (c) => !hiddenGroups.includes(c.id) && (mostrarVacios || records.some((r) => claveDe(groupField, columns, r) === c.id)),
+  );
   const hiddenColumns = columns.filter((c) => hiddenGroups.includes(c.id));
 
   const cardTitle = (r: Rec) => {
@@ -639,7 +644,7 @@ export function KanbanView({
     </SortableContext>
   );
 
-  // Carriles no vacíos del subagrupado (uno vacío no ocupa sitio).
+  // Carriles del subagrupado (los vacíos, solo con «Mostrar grupos vacíos»).
   const carriles =
     subField && lanes
       ? lanes
@@ -647,7 +652,7 @@ export function KanbanView({
             ...l,
             recs: records.filter((r) => claveDe(subField, lanes, r) === l.id),
           }))
-          .filter((l) => l.recs.length)
+          .filter((l) => mostrarVacios || l.recs.length)
       : null;
 
   // ── Arrastrar ─────────────────────────────────────────────────────────────

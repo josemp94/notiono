@@ -361,6 +361,17 @@ export function DbToolbar({
                       ))}
                   </select>
                 </label>
+                {view.type === "kanban" && (
+                  <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
+                    <span>Mostrar grupos vacíos</span>
+                    <input
+                      type="checkbox"
+                      checked={view.config?.mostrarVacios !== false}
+                      onChange={(e) => saveConfig({ mostrarVacios: e.target.checked })}
+                      className="size-4 accent-[var(--color-brand,#ff5c28)]"
+                    />
+                  </label>
+                )}
                 {/* Segundo nivel: secciones anidadas en la Tabla, carriles horizontales en el Kanban. */}
                 {((view.type === "table" && view.config?.groupByFieldId) || view.type === "kanban") && (
                   <label className="flex items-center justify-between gap-2 px-2 py-1 text-sm">
