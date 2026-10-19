@@ -53,6 +53,8 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 - [x] 2.1.0 (`versionCode 7`): revisión a fondo frente a la app de Notion para Android, con su plan, inventario y bitácora en `docs/REVISION-APP-2026-10.md`. Robustez (la app ya no se cierra con respuestas raras del servidor o del proxy, enlaces raros, ids repetidos, sin apps que abrir; no pierde lo escrito al guardar el título, al girar ni con la cámara; red de seguridad que apunta los fallos inesperados en el registro como tipo `fallo`), recorrido de la app como una persona contra Notiono local comprobado en el servidor (`scripts/recorrido-android.ts`) y lo que faltaba para el uso diario: deshacer/rehacer, avisos que abren su fila y se marcan deslizando, modo oscuro a mano, compartir enlace, zoom en imágenes, compartir varios archivos hacia la app y reordenar favoritos. `lintRelease` 0 errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `b7e86d2c…67cebb6`; copia en `~/notiono-apk/notiono-2.1.0.apk`. Falta desplegar.
 
+- [x] 2.2.0 (`versionCode 8`): los widgets **seguían en blanco** en el Xiaomi de Jose con la 2.1.0 → reescritos con RemoteViews clásicos, sin Glance (ver «Widgets en blanco (2.2.0)» abajo); widget nuevo **Calendario**; **recordatorios a su hora** como Notion (servidor, web y app con alarmas exactas) y Ajustes → Diagnóstico con los permisos. `lintRelease` 0 errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `fafabfd8…5252e649`, 4,0 MB; copia en `~/notiono-apk/notiono-2.2.0.apk`. Lleva la migración `20261019120000_recordatorios`. Falta desplegar.
+
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.
 - [x] Pruebas JVM (fixtures reales del editor web): 19 sin servidor, 0 fallos (las 3 de integración y capturas se saltan sin Notiono local y pasan con él).
@@ -76,6 +78,98 @@ app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuev
 compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
+- **Widgets en blanco (2.2.0, 19-oct-2026)**. Con la 2.1.0 Jose los seguía viendo en
+  blanco «la mayor parte del tiempo» (Xiaomi 13T, HyperOS 3). Su `AppRegistro` del 18 al
+  19-oct: 129 filas, todas de widgets, por parejas `fallo · ~50 ms · Sin conexión` + `ok`
+  en el mismo segundo, ningún error de composición, nada de 03:34 a 07:23 UTC.
+
+  **Causa real** (leída en las fuentes de Glance 1.2.0, `glance-*-sources.jar`):
+  - **Glance nunca pinta en el receptor.** `GlanceAppWidgetReceiver.onUpdate` solo
+    llama a `update`, que abre una `Session` *en memoria* y encola un trabajo normal de
+    WorkManager (`SessionManager.startSession`: `OneTimeWorkRequest`, sin urgencia);
+    el `SessionWorker` es quien compone y manda los RemoteViews. En HyperOS los trabajos
+    de una app en segundo plano se retrasan (cubo restringido, sin inicio automático) y
+    el proceso muere a menudo antes de que corran. Al correr en el proceso nuevo,
+    `getSession` no encuentra la sesión y, como `runAttemptCount == 0`, el trabajo
+    **falla con «No session available» sin pintar nada ni pasar por nuestro código**:
+    por eso el registro no enseña errores. El escritorio se queda con lo que tuviera:
+    el `initialLayout` tras reiniciar o recargarse el lanzador, o nada.
+  - **Las parejas del registro**: con `SizeMode.Exact` Glance compone el contenido una
+    vez por tamaño (`ForEachSize`: vertical y horizontal); cada composición lanzaba su
+    propio refresco. El primero fallaba en ~50 ms porque recién arrancado el proceso en
+    segundo plano Android aún no le deja salir a la red (`activeNetwork` es null), y esa
+    composición pintaba «Sin conexión» o lo viejo; el escritorio enseña la que toca por
+    orientación.
+  - Lo que el registro no decía: qué se pintaba. Ahora cada pintado se apunta.
+
+  **Arreglo**: fuera Glance; RemoteViews clásicos (`widgets/Widgets.kt`, `Vistas.kt`,
+  `Calendario.kt`), con los mismos receptores (los widgets ya puestos siguen) y su
+  configuración migrada del DataStore de Glance (`datastore/appWidget-<id>`).
+  - `onUpdate` (y cada toque) **pinta síncrono y sin red** lo último bueno, que vive en
+    disco por widget (`filesDir/widgets/<id>.json`, resumido: lo que se pinta). Sin
+    nada guardado aún, lo saca de la caché de red de la 2.1.0. Nunca un hueco: datos o
+    un texto que dice qué pasa («Cargando…», «Sin conexión. Toca para reintentar.»,
+    «Inicia sesión…», «Toca para elegir…»; si algo revienta, «No se pudo pintar»).
+  - La red, **solo detrás** (`goAsync`, 25 s como mucho): espera a red utilizable (4 s),
+    reintenta un corte (a los 1,5 s y 4 s) y solo apunta fallo si falla el último
+    intento; sin red, un trabajo de WorkManager con red (`widgets-red`) lo repite.
+  - Listas con `RemoteCollectionItems` (`core-remoteviews`: en línea desde Android 12,
+    sin servicio); toques de fila por una plantilla y `AccionWidgetActivity` (abre o
+    marca la casilla sin verse). Marcar se ve al momento (se cambia lo guardado) y el
+    cambio va detrás.
+  - Calendario grande/pequeño por `RemoteViews(Map<SizeF, RemoteViews>)` (lo elige el
+    escritorio por el tamaño real); antes de Android 12, por las opciones del widget.
+  - Una alarma inexacta a medianoche repinta (el «hoy» del Calendario) sin red.
+
+  **Pruebas**: `WidgetsFallosTest` llama a `onUpdate` como el sistema y aplica los
+  RemoteViews que se publican dentro de un `AppWidgetHostView`: sin red ni nada guardado
+  («Cargando…» y luego «Sin conexión», con el trabajo con red encolado), proceso nuevo con
+  servidor de 8 s (pinta lo guardado en < 1,5 s), caché de la 2.1.0, configuración de
+  Glance, 500/401/HTML/JSON raro, primer intento cortado (ok, sin «fallo»), sin sesión,
+  sin configurar, marcar una fila y el registro de cada pintado. Con la 2.1.0 no pueden
+  pasar: su `onUpdate` no pinta nada.
+
+  **Cómo mirarlo desde el servidor** (tras desplegar y que Jose abra la 2.2.0):
+  ```sql
+  -- Qué enseña cada widget: «pinta · nota#12 · datos|cache|aviso|vacio|config|sesion|fallo · N elem · AxB dp · kB»
+  SELECT r.fecha, r.version, r.mensaje FROM "AppRegistro" r
+  WHERE r.tipo = 'widget' AND r.mensaje LIKE 'pinta%' ORDER BY r.fecha DESC LIMIT 50;
+  -- Refrescos: «lista#7 · periodico · ok · 230 ms · 2 intentos» o «… · fallo …»
+  SELECT r.fecha, r.mensaje FROM "AppRegistro" r
+  WHERE r.tipo = 'widget' AND r.mensaje NOT LIKE 'pinta%' ORDER BY r.fecha DESC LIMIT 50;
+  -- Avisos: permisos que faltan, recordatorios que sonaron (con su retraso), bandeja sin permiso
+  SELECT r.fecha, r.mensaje FROM "AppRegistro" r WHERE r.tipo = 'avisos' ORDER BY r.fecha DESC LIMIT 50;
+  ```
+  Si salen pintados con `datos`/`cache` y Jose lo sigue viendo en blanco, el problema ya
+  es del lanzador (no de que no se pinte); si no salen pintados durante horas, HyperOS
+  no deja arrancar la app (inicio automático / batería).
+
+- **Recordatorios (2.2.0)**. Como Notion: «a la hora, 5/10/15/30 min, 1/2 h antes» y
+  «1/2 días, 1 semana antes» a las 9:00; sin hora, el evento cuenta a las 9:00 de Madrid.
+  En una celda de fecha van dentro del valor (`{start, end?, reminder, reminderBy}`; el
+  servidor pone `reminderBy`) y en una mención de fecha como props (`recordatorio`, `por`).
+  Avisa a los asignados de la fila (campos Persona) o, si no hay, a quien lo puso.
+  - Servidor: `src/instrumentation.ts` arranca una vuelta cada minuto
+    (`src/server/recordatorios.ts`) que crea el aviso `reminder` (key
+    `rem:<fila>:<campo>:<instante>`, única: nunca dos veces; hasta 12 h de retraso si el
+    servidor estuvo parado) y llama a `sendPush` (web y puente a WhatsApp). Migración
+    `20261019120000_recordatorios`: `Notification.recordId`, para abrir la fila.
+  - App: `app.recordatorios` (los de los próximos 8 días) al abrir, al cambiar una fecha y
+    cada 15 min; `AlarmManager.setExactAndAllowWhileIdle` (`USE_EXACT_ALARM`, y
+    `SCHEDULE_EXACT_ALARM` en Android 12), reprogramados tras reiniciar, actualizar o
+    conceder el permiso; canal «Recordatorios» con prioridad alta; la notificación abre la
+    fila. La alarma y la bandeja comparten `key`: el que llega segundo no se enseña.
+  - **Por qué no le llegaban los avisos de la bandeja a Jose** (sin el móvil no se puede
+    afirmar cuál): el permiso de notificaciones solo se pedía una vez al arrancar (si lo
+    negó, no se volvía a pedir y los avisos se marcaban como vistos sin enseñarse, sin
+    dejar rastro), y el único camino era WorkManager cada 15 min, que HyperOS para sin
+    inicio automático ni batería libre. Ahora el registro apunta «permisos: faltan …» al
+    abrir la app y «bandeja · N nuevos sin poder enseñarlos», y Ajustes → Diagnóstico
+    enseña notificaciones (y canales silenciados), alarmas exactas, batería e inicio
+    automático con un botón a cada ajuste. Los recordatorios ya no dependen de WorkManager.
+  - Menciones de fecha: el recordatorio se pone en la web (pulsando el chip); la app los
+    conserva y los avisa, pero aún no tiene selector para ellas.
+
 - **Widgets en blanco (2.0.3, 18-oct-2026)**. Jose, con la 2.0.1 en un Xiaomi 13T
   (HyperOS 3): «al principio pintaban, luego ya nada». Sin móvil ni emulador: razonado
   con las fuentes de Glance 1.2.0 (`glance-*-sources.jar` de Google Maven) y con pruebas.

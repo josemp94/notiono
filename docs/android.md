@@ -109,13 +109,18 @@ Una versión de depuración contra un Notiono local:
 
 - `./gradlew :app:testDebugUnitTest`: modelo del editor con documentos reales del
   editor web (`scripts/fixtures/*.json`), teclado, red/caché/cola y sincronía contra
-  un servidor de mentira, y las capturas de los widgets. `WidgetsFallosTest` corre la
-  sesión de Glance de verdad contra un servidor que falla (lento, 500, 401, HTML, JSON
-  raro, sin sesión): los widgets nunca pueden quedarse en blanco. Las capturas solo se
-  graban con `-Proborazzi.test.record=true` (si no, se queda la de la vez anterior).
+  un servidor de mentira, y las capturas de los widgets. `WidgetsFallosTest` llama a
+  `onUpdate` como el sistema y aplica los RemoteViews que se mandan de verdad dentro de
+  un `AppWidgetHostView` (sin red, sin sesión, proceso nuevo con servidor lento, lo
+  guardado por la 2.1.0, la configuración de Glance, 500/401/HTML, primer intento
+  cortado): los widgets nunca pueden quedarse en blanco y `onUpdate` no puede esperar a
+  la red. `CalendarioTest` (agenda y widget Calendario) y `AlarmasTest` (recordatorios:
+  alarmas exactas, reprogramar tras reiniciar, sin duplicar con la bandeja). Las capturas
+  de los widgets salen en `app/build/capturas/<modo>/widgets.png`; las de la app entera
+  (Roborazzi) solo se graban con `-Proborazzi.test.record=true`.
 - **Vistas previas de los widgets** (lo que enseña el launcher al añadirlos): PNG en
   `res/drawable-nodpi` (claro) y `res/drawable-night-nodpi` (oscuro), sacados de los
-  composables reales con el contenido de `widgets/Muestras.kt`. Si cambias cómo se ve
+  RemoteViews reales (`muestra()` de cada widget) con el contenido de `widgets/Muestras.kt`. Si cambias cómo se ve
   un widget, regenéralos y míralos:
   `./gradlew :app:testDebugUnitTest --tests '*VistasPreviasTest' -Pnotiono.vistasPrevias=1`.
   Sin la propiedad solo se pintan en `app/build/vistas-previas/`, junto al layout
