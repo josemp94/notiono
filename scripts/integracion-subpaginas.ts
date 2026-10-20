@@ -16,10 +16,12 @@
  *  - borrar una subpágina es un solo objeto: en el árbol se va su enlace, borrar el enlace
  *    la manda a la papelera, restaurar la devuelve con su enlace en su sitio; y mover,
  *    cortar y pegar, convertir, otra pestaña, sin conexión o restaurar una versión NO archivan;
+ *  - la reparación de los datos sueltos (`collab/dist/reparar-subpaginas.mjs`), en seco y aplicando;
  *  - duplicar una página con hijas enlaza las hijas COPIADAS, no las originales.
  */
 import assert from "node:assert/strict";
 import * as Y from "yjs";
+import { execFileSync } from "node:child_process";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { PrismaClient } from "@prisma/client";
 import { aplicarOpsDoc, bloquesDeEstado, cargarLibs, type BloqueBN, type OpBloque } from "../src/server/app/bloquesYjs";
@@ -294,9 +296,61 @@ async function borrado() {
   }
 }
 
+/** La reparación de lo que dejó suelto la versión anterior (`collab/dist/reparar-subpaginas.mjs`). */
+async function reparacion() {
+  const R = await mutation("pages.create", { title: "Madre a reparar" });
+  await mutation("pages.updateContent", { id: R.id, content: [par("r1", "Texto"), par("r9", "")] });
+  const v = await abrir(R.id);
+  try {
+    const H1 = await mutation("pages.create", { parentId: R.id, title: "Sin enlace", enlazar: false });
+    const H2 = await mutation("pages.create", { parentId: R.id, title: "En la papelera con enlace" });
+    const H3 = await mutation("pages.create", { parentId: R.id, title: "Doble" });
+    await hasta("los enlaces de H2 y H3", v.bloques, (b) => enlacesA(b, H2.id).length === 1 && enlacesA(b, H3.id).length === 1);
+    const X = await mutation("pages.create", { title: "Ya no existe" });
+    const Yp = await mutation("pages.create", { title: "Mencionada normal" });
+    await editar(v, [
+      { op: "upsert", block: enl("x-link", X), parentId: null, afterId: "r1" },
+      { op: "upsert", block: enl("h3-otro", H3), parentId: null, afterId: "x-link" },
+      { op: "upsert", block: enl("y-link", Yp), parentId: null, afterId: "h3-otro" },
+      { op: "upsert", block: { id: "texto-h2", type: "paragraph", content: [{ type: "text", text: "Ver ", styles: {} }, ...(enl("x", H2).content as object[])], children: [] }, parentId: null, afterId: "y-link" },
+    ]);
+    await hasta("lo sembrado", v.bloques, (b) => b.some((x) => x.id === "texto-h2"));
+    // Lo que dejaba la versión anterior: en la papelera sin quitar el enlace, y borrada del todo.
+    await db.page.update({ where: { id: H2.id }, data: { archivedAt: new Date() } });
+    await db.page.delete({ where: { id: X.id } });
+    const { workspaceId } = await db.page.findUniqueOrThrow({ where: { id: R.id }, select: { workspaceId: true } });
+
+    const reparar = (...args: string[]) =>
+      execFileSync("node", ["collab/dist/reparar-subpaginas.mjs", "--url", BASE, "--espacio", workspaceId, ...args], { encoding: "utf8" });
+    const antes = await v.bloques();
+    const seco = reparar();
+    for (const id of [H1.id, H2.id, X.id, H3.id]) assert.ok(seco.includes(id), `en seco lista ${id}:\n${seco}`);
+    assert.ok(!seco.includes(Yp.id), "no toca enlaces a páginas que no son hijas");
+    await espera(1500);
+    assert.deepEqual(await v.bloques(), antes, "sin --aplicar no cambia nada");
+
+    reparar("--aplicar");
+    const bs = await hasta("la madre reparada", v.bloques, (b) =>
+      enlacesA(b, H1.id).length === 1 && !b.some((x) => x.id === "x-link") && enlacesA(b, H3.id).length === 1 && donde(b, H2.id) === null);
+    assert.equal(bs.at(-1)?.id, "r9", `el enlace nuevo, antes del párrafo vacío del final: ${bs.map((b) => b.id).join(" ")}`);
+    assert.equal(enlacesA([bs.at(-2)!], H1.id).length, 1, "al final");
+    assert.ok(bs.some((x) => x.id === "y-link") && bs.some((x) => x.id === "texto-h2"), "menciones y enlaces ajenos, intactos");
+    assert.ok(await archivada(H2.id), "no saca nada de la papelera");
+    assert.ok(/nada que arreglar/i.test(reparar("--aplicar")), "una segunda pasada no hace nada");
+
+    // Al restaurar H2, su enlace vuelve donde estaba.
+    await mutation("pages.restore", { id: H2.id });
+    const tras = await hasta("el enlace de H2 de vuelta", v.bloques, (b) => donde(b, H2.id) !== null);
+    assert.deepEqual(donde(tras, H2.id), donde(antes, H2.id));
+  } finally {
+    v.cerrar();
+  }
+}
+
 async function main() {
-  // SOLO=borrado: solo esa parte (es la lenta).
+  // SOLO=borrado | SOLO=reparacion: solo esa parte (son las lentas).
   if (process.env.SOLO === "borrado") return borrado();
+  if (process.env.SOLO === "reparacion") return reparacion();
   const madre = await mutation("pages.create", { title: "Madre de prueba" });
   // Contenido de la madre como lo dejaría el editor (con el párrafo vacío del final).
   await mutation("pages.updateContent", {
@@ -383,7 +437,8 @@ async function main() {
     );
 
     await borrado();
-    console.log("OK — subpáginas: enlace al crear, título en vivo, mover sin duplicar, app nativa, duplicar, papelera, borrar = un solo objeto");
+    await reparacion();
+    console.log("OK — subpáginas: enlace al crear, título en vivo, mover sin duplicar, app nativa, duplicar, papelera, borrar = un solo objeto y reparación");
   } finally {
     vista.cerrar();
   }

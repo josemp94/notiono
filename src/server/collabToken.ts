@@ -34,3 +34,21 @@ export function verifyCollabToken(token: string, pageId: string): { userId: stri
   if (Number(exp) * 1000 < Date.now()) return null;
   return { userId, role };
 }
+
+/**
+ * Firma de la reparación de subpáginas (`collab/reparar-subpaginas.ts`), que se lanza
+ * dentro del contenedor y pide al servidor en marcha que repare: con la misma
+ * AUTH_SECRET, caduca al minuto.
+ */
+export function firmaReparacion(momento: number): string {
+  return sign(`reparar-subpaginas.${momento}`);
+}
+
+export function firmaReparacionValida(momento: number, firma: string): boolean {
+  const esperado = firmaReparacion(momento);
+  return (
+    Math.abs(Date.now() - momento) < 60_000 &&
+    firma.length === esperado.length &&
+    crypto.timingSafeEqual(Buffer.from(firma), Buffer.from(esperado))
+  );
+}

@@ -8,7 +8,7 @@
     "start": "NODE_ENV=production node server.mjs",
     "lint": "eslint",
     "check": "tsx scripts/check.ts",
-    "build:collab": "esbuild collab/hocuspocus.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=collab/dist/hocuspocus.mjs",
+    "build:collab": "esbuild collab/hocuspocus.ts collab/reparar-subpaginas.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outdir=collab/dist --out-extension:.js=.mjs",
     "check:api": "tsx scripts/check-api.ts",
     "apk:publicar": "node scripts/publicar-apk.mjs"
   },

@@ -122,6 +122,54 @@ export function opsDeArreglos(bs: BloqueBN[], arreglos: Arreglo[], paginas: Map<
   });
 }
 
+const RAZON: Record<Arreglo["tipo"], string> = {
+  crear: "crear el enlace (hija sin enlace)",
+  papelera: "quitar el enlace (la hija está en la papelera; vuelve al restaurarla)",
+  "no-existe": "quitar el enlace (la página ya no existe)",
+  doble: "quitar el enlace repetido",
+};
+
+/**
+ * Repara árbol y enlaces sueltos (lo que dejaba la versión anterior al borrar). Sin
+ * `aplicar` solo lo lista. Escribe por el documento vivo, como el resto de este
+ * módulo: si alguien tiene la madre abierta, lo ve al momento y no se pisa nada.
+ * Idempotente: una segunda pasada no encuentra nada.
+ */
+export async function repararSubpaginas(db: DB, opciones: { espacio?: string; aplicar: boolean }) {
+  const lineas: string[] = [];
+  const espacios = await db.workspace.findMany({ where: opciones.espacio ? { id: opciones.espacio } : {}, select: { id: true, name: true } });
+  for (const ws of espacios) {
+    const paginas = await db.page.findMany({
+      where: { workspaceId: ws.id },
+      select: { id: true, title: true, icon: true, type: true, parentId: true, archivedAt: true, embedded: true, sitioEnlace: true },
+      orderBy: { order: "asc" },
+    });
+    const porId = new Map(paginas.map((p) => [p.id, p]));
+    const existe = async (id: string) => porId.has(id) || !!(await db.page.findUnique({ where: { id }, select: { id: true } }));
+    for (const madre of paginas) {
+      if (madre.type !== "doc" || madre.archivedAt) continue;
+      const hijas = paginas.filter((p) => p.parentId === madre.id && !p.embedded).map((p) => ({ id: p.id, viva: !p.archivedAt }));
+      const bs = await leerBloquesPagina(await db.page.findUniqueOrThrow({ where: { id: madre.id }, select: { id: true, content: true, ydoc: true } }));
+      const ajenas = enlaces(bs).filter((e) => !porId.has(e.pageId)).map((e) => e.pageId);
+      const fuera = new Set<string>();
+      for (const id of ajenas) if (!(await existe(id))) fuera.add(id);
+      const arreglos = arreglosEnlaces(bs, hijas, (id) => !fuera.has(id));
+      for (const a of arreglos) {
+        const t = porId.get(a.pageId)?.title;
+        lineas.push(`[${ws.name} ${ws.id}] «${madre.title || "Sin título"}» ${madre.id} → ${t !== undefined ? `«${t || "Sin título"}» ` : ""}${a.pageId}: ${RAZON[a.tipo]}`);
+      }
+      if (!opciones.aplicar || !arreglos.length) continue;
+      for (const a of arreglos) {
+        // Para que al restaurarla su enlace vuelva a este sitio.
+        if (a.tipo === "papelera" && !porId.get(a.pageId)?.sitioEnlace) await db.page.update({ where: { id: a.pageId }, data: { sitioEnlace: a.sitio } });
+      }
+      await cambiaPagina(db, madre.id, (actuales) =>
+        opsDeArreglos(actuales, arreglosEnlaces(actuales, hijas, (id) => !fuera.has(id)), porId));
+    }
+  }
+  return lineas;
+}
+
 // Una cola por página: al teclear el título llegan varios renombres seguidos y el
 // último que se aplique tiene que ser el último título (se lee al aplicarlo).
 const colas = new Map<string, Promise<void>>();
