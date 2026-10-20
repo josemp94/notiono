@@ -114,7 +114,12 @@ y las mismas tres piezas (`createHocuspocus`, `globalThis.__notionoColab = puent
 y el upgrade de `/collab`), arrancado con `NEXT_PUBLIC_COLLAB_URL=ws://127.0.0.1:3100/collab`
 y `AUTH_SECRET`. Importa `collab/dist/hocuspocus.mjs`: tras tocar `bloquesYjs.ts` hay que
 `npm run build:collab` y reiniciar. Con eso corren `scripts/integracion-subpaginas.ts` y
-`scripts/integracion-matriz.ts` (`BASE_URL`, `SESION`). Dos trampas de Playwright:
+`scripts/integracion-matriz.ts` (`BASE_URL`, `SESION`; la de subpáginas también `DATABASE_URL`
+y `AUTH_SECRET`). Tres trampas de Playwright:
 el arrastre HTML5 llega con `dataTransfer.types` vacío (por eso el editor apunta los
 bloques arrastrados al empezar, `arrastreDeBloques`), y para arrastrar con el dedo
 (pulsación larga de dnd-kit) hay que mandar los toques por CDP (`Input.dispatchTouchEvent`).
+Y sin pantalla no hay portapapeles del sistema: Ctrl+X / Ctrl+V no llevan nada; para cortar
+y pegar en el editor se disparan los eventos `cut` y `paste` con su `DataTransfer`, y en
+este Chromium `Home`/`End` no mueven el cursor en el editor (coloca el cursor con un clic al
+final de la línea y selecciona con `Shift+←`).
