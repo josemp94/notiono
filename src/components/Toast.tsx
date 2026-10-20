@@ -36,7 +36,8 @@ export function ToastHost() {
   const quitar = (id: number) => setItems((xs) => xs.filter((x) => x.id !== id));
 
   return createPortal(
-    <div className="fixed bottom-24 left-1/2 z-[100] flex -translate-x-1/2 flex-col items-center gap-2 md:bottom-4">
+    // w-max: centrado con left-1/2, sin él solo tenía media pantalla para encogerse y en el móvil partía el texto palabra a palabra.
+    <div className="fixed bottom-24 left-1/2 z-[100] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col items-center gap-2 md:bottom-4">
       {items.map((a) => (
         <div
           key={a.id}
