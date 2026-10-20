@@ -40,6 +40,7 @@ import { AddCoverButton, CoverBand } from "@/components/PageCover";
 import { TituloGrande } from "@/components/TituloGrande";
 import { HojaBloque, MenuTirador, useAccionesBloque } from "./menuTirador";
 import { arrastreDeBloques, idsArrastrados, MOVER_BLOQUES_EVENT } from "@/lib/subpaginas";
+import { toast } from "@/components/Toast";
 
 /** Lo que la página puede pedirle al editor desde fuera (restaurar una versión). */
 export type EditorApi = { reemplazar: (bloques: unknown[]) => void };
@@ -264,6 +265,33 @@ export function Editor({
       collab.provider.off("synced", sembrar);
     };
   }, [collab, editor]);
+
+  // Borrar el enlace a una subpágina la manda a la papelera (lo decide el servidor de
+  // colaboración y avisa a las pestañas de quien lo hizo): árbol al día y «Deshacer».
+  const restaurarPagina = trpc.pages.restore.useMutation({
+    onSuccess: () => Promise.all([utils.pages.tree.invalidate(), utils.pages.trash.invalidate()]),
+  }).mutate;
+  useEffect(() => {
+    if (!collab) return;
+    const alAviso = ({ payload }: { payload: string }) => {
+      let aviso: { tipo?: string; pageId?: string; title?: string };
+      try {
+        aviso = JSON.parse(payload);
+      } catch {
+        return;
+      }
+      if (aviso.tipo !== "subpagina-papelera" && aviso.tipo !== "subpagina-restaurada") return;
+      void utils.pages.tree.invalidate();
+      void utils.pages.trash.invalidate();
+      const id = aviso.pageId;
+      if (aviso.tipo === "subpagina-papelera" && id)
+        toast(`«${aviso.title || "Sin título"}» movida a la papelera`, { etiqueta: "Deshacer", onClick: () => restaurarPagina({ id }) });
+    };
+    collab.provider.on("stateless", alAviso);
+    return () => {
+      collab.provider.off("stateless", alAviso);
+    };
+  }, [collab, utils, restaurarPagina]);
 
   // Restaurar una versión pasa por el editor: con edición simultánea el
   // documento vive en Yjs y cambiar solo Page.content no se veía (al volver a

@@ -59,8 +59,9 @@ export function VersionHistoryModal({
   const anterior = idx >= 0 ? versions?.[idx + 1] : undefined;
 
   const restore = trpc.pages.versions.restore.useMutation({
-    onSuccess: async (_r, { versionId }) => {
-      await onRestored(versions?.find((v) => v.id === versionId)?.snapshot ?? []);
+    // Los bloques de la versión con los enlaces a las subpáginas de ahora (los pone el servidor).
+    onSuccess: async (r) => {
+      await onRestored(r.bloques);
       onClose();
     },
   });

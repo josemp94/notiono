@@ -252,7 +252,7 @@ export async function compruebaApp() {
       { id: "l", type: "toggleListItem", content: "plegable", children: [enlace("dentro", "p1")] },
       { id: "fin", type: "paragraph", content: [], children: [] },
     ] as never;
-    assert.deepEqual(sub.enlacesA(doc, "p1"), [{ id: "dentro", parentId: "l" }]);
+    assert.deepEqual(sub.enlacesA(doc, "p1"), [{ id: "dentro", pageId: "p1", parentId: "l", afterId: null }]);
     assert.equal(sub.ultimoBloque(doc), "l", "al final, pero antes del párrafo vacío del editor");
     assert.equal(sub.ultimoBloque([{ id: "solo", type: "paragraph", content: [] }] as never), null);
     assert.equal(sub.ultimoBloque([{ id: "texto", type: "paragraph", content: "con texto" }] as never), "texto", "el texto en cadena no es un párrafo vacío");

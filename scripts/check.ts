@@ -898,6 +898,46 @@ import { claveEje, gruposEje, gruposVisibles, repartoMatriz, valorEje } from "..
   assert.equal(valorEje(pri, "b"), "b");
 }
 
+// --- Subpáginas: borrar el enlace = borrar la página, y la reparación de lo suelto ---
+import { arreglosEnlaces, cambiosEnlaces, resumenEnlaces, sitioValido } from "../src/lib/subpaginas";
+{
+  const chip = (pageId: string) => ({ type: "mention", props: { pageId, title: "", icon: "" } });
+  const enl = (id: string, pageId: string) => ({ id, type: "paragraph", content: [chip(pageId)], children: [] });
+  const txt = (id: string, ...content: unknown[]) => ({ id, type: "paragraph", content, children: [] });
+  const cols = (...hijos: unknown[][]) => ({ id: "cols", type: "columnList", children: hijos.map((c, i) => ({ id: `c${i}`, type: "column", children: c })) });
+  const base = [txt("a", { type: "text", text: "Hola" }), enl("e1", "H"), enl("e2", "N"), txt("z")];
+  const r0 = resumenEnlaces(base);
+  assert.deepEqual(r0.enlaces.get("H"), { id: "e1", pageId: "H", parentId: null, afterId: "a" });
+  const cambios = (bs: unknown[]) => cambiosEnlaces(r0, resumenEnlaces(bs as never));
+  // Borrar el bloque: quitado, con su sitio.
+  assert.deepEqual(cambios([base[0], base[2], base[3]]).quitados.map((e) => e.pageId), ["H"]);
+  // Moverlo (dentro de la página o a una columna) o cortarlo y pegarlo con otro id: nada.
+  assert.equal(cambios([base[0], base[2], cols([enl("e1", "H")], []), base[3]]).quitados.length, 0);
+  assert.equal(cambios([enl("pegado", "H"), base[0], base[2], base[3]]).quitados.length, 0);
+  // Convertirlo en título o escribir junto al chip (el bloque sigue mencionándola): nada.
+  assert.equal(cambios([base[0], { ...enl("e1", "H"), type: "heading" }, base[2], base[3]]).quitados.length, 0);
+  assert.equal(cambios([base[0], txt("e1", chip("H"), { type: "text", text: " y más" }), base[2], base[3]]).quitados.length, 0);
+  // Una mención en OTRO bloque no la salva: el enlace se borró.
+  assert.deepEqual(cambios([txt("a", { type: "text", text: "Ver " }, chip("H")), base[2], base[3]]).quitados.map((e) => e.pageId), ["H"]);
+  // Aparece un enlace (deshacer, pegar): puesto.
+  assert.deepEqual(cambiosEnlaces(resumenEnlaces([base[0]] as never), r0).puestos, ["H", "N"]);
+  // Sitios: vale si siguen la madre y el de delante, en esa madre.
+  const conCols = [base[0], cols([txt("i")], [txt("d")]), base[3]];
+  assert.ok(sitioValido(conCols as never, { parentId: "c1", afterId: "d" }));
+  assert.ok(sitioValido(conCols as never, { parentId: null, afterId: null }));
+  assert.ok(!sitioValido(conCols as never, { parentId: "c1", afterId: "i" }), "el de delante está en otra columna");
+  assert.ok(!sitioValido(conCols as never, { parentId: "c9", afterId: null }), "la columna ya no existe");
+  // Reparación: crear la que falta, quitar papelera / inexistente / repetida; lo ajeno no se toca.
+  const madre = [enl("x", "Borrada"), enl("p", "EnPapelera"), enl("d1", "Doble"), enl("d2", "Doble"), enl("o", "Ajena"), txt("t", { type: "text", text: "Ver " }, chip("EnPapelera"))];
+  const hijas = [{ id: "EnPapelera", viva: false }, { id: "Doble", viva: true }, { id: "SinEnlace", viva: true }];
+  const arr = arreglosEnlaces(madre as never, hijas, (id) => id !== "Borrada");
+  assert.deepEqual(arr.map((a) => `${a.tipo}:${a.pageId}`), ["no-existe:Borrada", "papelera:EnPapelera", "doble:Doble", "crear:SinEnlace"]);
+  assert.deepEqual(arr[1], { tipo: "papelera", pageId: "EnPapelera", blockId: "p", sitio: { parentId: null, afterId: "x" } });
+  // Tras arreglar, nada más que hacer (idempotente).
+  const arreglada = [enl("d1", "Doble"), enl("o", "Ajena"), txt("t", { type: "text", text: "Ver " }, chip("EnPapelera")), enl("s", "SinEnlace")];
+  assert.deepEqual(arreglosEnlaces(arreglada as never, hijas, (id) => id !== "Borrada"), []);
+}
+
 // --- Sesión de la app nativa: PKCE S256 (vector de prueba del RFC 7636) ---
 import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server/appAuth";
 {
@@ -916,7 +956,7 @@ compruebaColaboracion()
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
   .then(() => import("./checkRecordatorios").then((m) => m.compruebaRecordatorios()))
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico) y recordatorios");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz, subpáginas (borrar y reparar) y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico) y recordatorios");
     process.exit(0);
   })
   .catch((e) => {

@@ -12,7 +12,7 @@ import type { Prisma } from "@prisma/client";
 import type { BloqueBN, OpBloque } from "./app/bloquesYjs";
 import { aplicarOpsPagina, leerBloquesPagina } from "./app/documento";
 import { jsonLimpio } from "./jsonLimpio";
-import { bloqueEnlace, enlaceDe, enlacesA, idEnlace, ultimoBloque } from "@/lib/subpaginas";
+import { arreglosEnlaces, bloqueEnlace, enlaceDe, enlaces, enlacesA, idEnlace, sitioValido, ultimoBloque, type Arreglo, type Sitio } from "@/lib/subpaginas";
 
 export { enlaceDe, enlacesA, idEnlace, ultimoBloque };
 
@@ -46,18 +46,15 @@ async function cambiaPagina(db: DB, pageId: string, calcula: (bs: BloqueBN[]) =>
 
 /**
  * Pone el enlace a la hija en la madre: al final o, con `detrasDe`, justo detrás del
- * enlace a esa otra página (duplicar). Si ya hay uno, no pone otro.
+ * enlace a esa otra página (duplicar), o en `sitio` (donde estaba al ir a la papelera)
+ * si ese sitio sigue existiendo. Si ya hay uno, no pone otro.
  */
-export async function enlazar(db: DB, madreId: string, hija: Pagina, detrasDe?: string) {
+export async function enlazar(db: DB, madreId: string, hija: Pagina, detrasDe?: string, sitio?: Sitio | null) {
   await cambiaPagina(db, madreId, (bs) => {
     if (enlacesA(bs, hija.id).length) return [];
     const junto = detrasDe ? enlacesA(bs, detrasDe)[0] : undefined;
-    return [{
-      op: "upsert",
-      block: bloqueEnlace(hija),
-      parentId: junto?.parentId ?? null,
-      afterId: junto?.id ?? ultimoBloque(bs),
-    }];
+    const donde = junto ? { parentId: junto.parentId, afterId: junto.id } : sitio && sitioValido(bs, sitio) ? sitio : { parentId: null, afterId: ultimoBloque(bs) };
+    return [{ op: "upsert", block: bloqueEnlace(hija), ...donde }];
   });
 }
 
@@ -78,9 +75,51 @@ export async function anadirAlFinal(db: DB, pageId: string, bloques: BloqueBN[])
   });
 }
 
-/** Quita de la madre los enlaces a la hija (al moverla a otra). Las menciones dentro de un texto se quedan. */
-export async function desenlazar(db: DB, madreId: string, hijaId: string) {
-  await cambiaPagina(db, madreId, (bs) => enlacesA(bs, hijaId).map((e) => ({ op: "delete" as const, id: e.id })));
+/**
+ * Quita de la madre los enlaces a la hija (al moverla a otra, al mandarla a la
+ * papelera). Las menciones dentro de un texto se quedan. Devuelve dónde estaba el primero.
+ */
+export async function desenlazar(db: DB, madreId: string, hijaId: string): Promise<Sitio | null> {
+  let sitio: Sitio | null = null;
+  await cambiaPagina(db, madreId, (bs) => {
+    const es = enlacesA(bs, hijaId);
+    if (es[0]) sitio = { parentId: es[0].parentId, afterId: es[0].afterId };
+    return es.map((e) => ({ op: "delete" as const, id: e.id }));
+  });
+  return sitio;
+}
+
+/**
+ * Páginas borradas del todo (purga, vaciar la papelera): fuera los enlaces que
+ * quedaran apuntándolas en cualquier página del espacio (los párrafos de enlace; las
+ * menciones dentro de un texto se quedan, como en Notion).
+ */
+export async function quitarEnlacesA(db: DB, workspaceId: string, ids: string[]) {
+  if (!ids.length) return;
+  const fuera = new Set(ids);
+  const donde = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Page"
+    WHERE "workspaceId" = ${workspaceId} AND type = 'doc' AND "archivedAt" IS NULL
+      AND content::text ~ ${ids.map((id) => id.replace(/[^\w-]/g, "")).join("|")}`;
+  for (const { id } of donde) {
+    await cambiaPagina(db, id, (bs) => enlaces(bs).filter((e) => fuera.has(e.pageId)).map((e) => ({ op: "delete" as const, id: e.id })));
+  }
+}
+
+/** Las operaciones de unos arreglos sobre los bloques de una madre (los «crear», al final y en orden). */
+export function opsDeArreglos(bs: BloqueBN[], arreglos: Arreglo[], paginas: Map<string, Pagina>): OpBloque[] {
+  // Detrás de un bloque que sigue: el último podría ser uno de los que se quitan.
+  const quitados = new Set(arreglos.flatMap((a) => (a.tipo === "crear" ? [] : [a.blockId])));
+  let detras = ultimoBloque(bs.filter((b) => !quitados.has(b.id)));
+  return arreglos.flatMap((a): OpBloque[] => {
+    if (a.tipo !== "crear") return [{ op: "delete", id: a.blockId }];
+    const p = paginas.get(a.pageId);
+    if (!p) return [];
+    const block = bloqueEnlace(p);
+    const op = { op: "upsert" as const, block, parentId: null, afterId: detras };
+    detras = block.id;
+    return [op];
+  });
 }
 
 // Una cola por página: al teclear el título llegan varios renombres seguidos y el

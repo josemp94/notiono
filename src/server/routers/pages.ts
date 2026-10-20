@@ -10,7 +10,10 @@ import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
 import { dispatchWebhooks } from "../webhooks";
 import { createPage, guardaContenidoPagina } from "../services/pages";
-import { anadirAlFinal, desenlazar, enlazar, renombrarEnlaces, repararMenciones } from "../subpaginas";
+import { anadirAlFinal, desenlazar, enlazar, opsDeArreglos, quitarEnlacesA, renombrarEnlaces, repararMenciones } from "../subpaginas";
+import { archivarPagina, sacarDePapelera, subarbol } from "../papelera";
+import { arreglosEnlaces } from "@/lib/subpaginas";
+import { aplicarOpsJson } from "../app/bloquesYjs";
 import type { BloqueBN } from "../app/bloquesYjs";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
 
@@ -483,7 +486,13 @@ export const pagesRouter = router({
         }));
       }),
 
-    /** Repone el contenido de una versión, guardando antes el estado actual como versión nueva. */
+    /**
+     * Repone el contenido de una versión, guardando antes el estado actual como versión
+     * nueva. Devuelve los bloques que hay que poner en el editor: los de la versión con
+     * los enlaces a las subpáginas de AHORA (restaurar una versión no manda páginas a la
+     * papelera ni las saca: las hijas vivas que no estaban se enlazan al final y las
+     * que están en la papelera pierden su enlace, que vuelve al restaurarlas).
+     */
     restore: workspaceProcedure
       .input(z.object({ versionId: z.string() }))
       .mutation(async ({ ctx, input }) => {
@@ -493,6 +502,15 @@ export const pagesRouter = router({
         });
         if (!version) throw new TRPCError({ code: "NOT_FOUND" });
         await exigeNivel(ctx.db, version.pageId, ctx.user.id, ctx.role ?? "member", "edit");
+        const hijas = await ctx.db.page.findMany({
+          where: { parentId: version.pageId, embedded: false },
+          select: { id: true, title: true, icon: true, archivedAt: true },
+          orderBy: { order: "asc" },
+        });
+        const snapshot = (Array.isArray(version.snapshot) ? version.snapshot : []) as unknown as BloqueBN[];
+        const arreglos = arreglosEnlaces(snapshot, hijas.map((h) => ({ id: h.id, viva: !h.archivedAt })), () => true)
+          .filter((a) => a.tipo === "crear" || a.tipo === "papelera");
+        const bloques = aplicarOpsJson(snapshot, opsDeArreglos(snapshot, arreglos, new Map(hijas.map((h) => [h.id, h]))));
         await ctx.db.$transaction([
           ctx.db.version.create({
             data: {
@@ -503,10 +521,10 @@ export const pagesRouter = router({
           }),
           ctx.db.page.update({
             where: { id: version.pageId },
-            data: { content: version.snapshot as Prisma.InputJsonValue },
+            data: { content: bloques as unknown as Prisma.InputJsonValue },
           }),
         ]);
-        return { pageId: version.pageId };
+        return { pageId: version.pageId, bloques };
       }),
   }),
 
@@ -678,16 +696,22 @@ export const pagesRouter = router({
       return { id };
     }),
 
-  /** Enviar a la papelera (soft-delete, con subárbol). */
+  /**
+   * Enviar a la papelera (soft-delete, con subárbol). Su enlace sale de la madre (en
+   * vivo) y se recuerda dónde estaba; los de sus hijas se quedan dentro de ella.
+   */
   archive: workspaceProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await assertOwned(ctx, input.id);
-      const ids = await descendantIds(ctx, input.id);
-      await ctx.db.page.updateMany({
-        where: { id: { in: ids } },
-        data: { archivedAt: new Date(), archivedById: ctx.user.id },
-      });
+      const page = await ctx.db.page.findUniqueOrThrow({ where: { id: input.id }, select: { id: true, workspaceId: true, parentId: true } });
+      // Primero la papelera y luego el enlace: así el servidor de colaboración, al ver
+      // que el enlace se va, la encuentra ya archivada y no hace nada más.
+      const ids = await archivarPagina(ctx.db, page, ctx.user.id);
+      if (page.parentId) {
+        const sitio = await desenlazar(ctx.db, page.parentId, page.id);
+        if (sitio) await ctx.db.page.update({ where: { id: page.id }, data: { sitioEnlace: sitio } });
+      }
       return { archived: ids.length };
     }),
 
@@ -707,17 +731,17 @@ export const pagesRouter = router({
     });
   }),
 
-  /** Restaurar de la papelera (con subárbol). */
+  /**
+   * Restaurar de la papelera (con lo que se fue con ella). Su enlace vuelve a la madre,
+   * donde estaba; si la madre sigue en la papelera, vuelve a la raíz del espacio.
+   */
   restore: workspaceProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await assertOwned(ctx, input.id);
-      const ids = await descendantIds(ctx, input.id);
-      await ctx.db.page.updateMany({
-        where: { id: { in: ids } },
-        data: { archivedAt: null, archivedById: null },
-      });
-      return { restored: ids.length };
+      const p = await sacarDePapelera(ctx.db, input.id);
+      if (p?.parentId) await enlazar(ctx.db, p.parentId, p, undefined, p.sitio);
+      return { restored: p ? 1 : 0, parentId: p?.parentId ?? null };
     }),
 
   /**
@@ -734,14 +758,15 @@ export const pagesRouter = router({
     const ids = new Set<string>();
     for (const p of expired) for (const d of await descendantIds(ctx, p.id)) ids.add(d);
     const r = await ctx.db.page.deleteMany({ where: { id: { in: [...ids] } } });
+    await quitarEnlacesA(ctx.db, ctx.workspace.id, [...ids]);
     return { purged: r.count };
   }),
 
   /** Vaciar la papelera: borra definitivamente todo lo archivado del workspace. */
   emptyTrash: workspaceProcedure.mutation(async ({ ctx }) => {
-    const r = await ctx.db.page.deleteMany({
-      where: { workspaceId: ctx.workspace.id, archivedAt: { not: null } },
-    });
+    const ids = (await ctx.db.page.findMany({ where: { workspaceId: ctx.workspace.id, archivedAt: { not: null } }, select: { id: true } })).map((p) => p.id);
+    const r = await ctx.db.page.deleteMany({ where: { id: { in: ids } } });
+    await quitarEnlacesA(ctx.db, ctx.workspace.id, ids);
     return { removed: r.count };
   }),
 
@@ -862,6 +887,7 @@ export const pagesRouter = router({
       const ids = await descendantIds(ctx, input.id);
       // Borra hijos antes que padres para respetar la relación de árbol.
       await ctx.db.page.deleteMany({ where: { id: { in: ids } } });
+      await quitarEnlacesA(ctx.db, ctx.workspace.id, ids);
       return { removed: ids.length };
     }),
 });
@@ -1042,28 +1068,6 @@ async function assertOwned(
 }
 
 /** Devuelve el id de la página y de todos sus descendientes. */
-async function descendantIds(
-  ctx: { db: typeof import("@/lib/db").db; workspace: { id: string } },
-  rootId: string,
-): Promise<string[]> {
-  const all = await ctx.db.page.findMany({
-    where: { workspaceId: ctx.workspace.id },
-    select: { id: true, parentId: true },
-  });
-  const byParent = new Map<string, string[]>();
-  for (const p of all) {
-    if (p.parentId) {
-      const arr = byParent.get(p.parentId) ?? [];
-      arr.push(p.id);
-      byParent.set(p.parentId, arr);
-    }
-  }
-  const result: string[] = [];
-  const stack = [rootId];
-  while (stack.length) {
-    const id = stack.pop()!;
-    result.push(id);
-    for (const c of byParent.get(id) ?? []) stack.push(c);
-  }
-  return result;
+function descendantIds(ctx: { db: typeof import("@/lib/db").db; workspace: { id: string } }, rootId: string): Promise<string[]> {
+  return subarbol(ctx.db, ctx.workspace.id, rootId);
 }

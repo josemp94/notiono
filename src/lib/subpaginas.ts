@@ -32,12 +32,100 @@ export const bloqueEnlace = (p: Pagina, id = idEnlace(p.id)) => ({
   children: [],
 });
 
-/** Los enlaces a una página, con el bloque del que cuelgan (null = el nivel de arriba). */
-export function enlacesA(bs: Bloque[], pageId: string, padre: string | null = null): { id: string; parentId: string | null }[] {
-  return bs.flatMap((b) => [
-    ...(enlaceDe(b) === pageId ? [{ id: b.id, parentId: padre }] : []),
-    ...enlacesA(b.children ?? [], pageId, b.id),
-  ]);
+/** Dónde va un bloque: el bloque del que cuelga y el de delante (null = el nivel de arriba / el primero). */
+export type Sitio = { parentId: string | null; afterId: string | null };
+type Enlace = Sitio & { id: string; pageId: string };
+
+/** Todos los enlaces a página de un documento, en orden, con su sitio. */
+export function enlaces(bs: Bloque[], padre: string | null = null): Enlace[] {
+  return bs.flatMap((b, i) => {
+    const pageId = enlaceDe(b);
+    return [
+      ...(pageId ? [{ id: b.id, pageId, parentId: padre, afterId: bs[i - 1]?.id ?? null }] : []),
+      ...enlaces(b.children ?? [], b.id),
+    ];
+  });
+}
+
+/** Los enlaces a una página, con su sitio. */
+export const enlacesA = (bs: Bloque[], pageId: string) => enlaces(bs).filter((e) => e.pageId === pageId);
+
+/** ¿Se puede volver a poner un bloque en ese sitio? (siguen su bloque madre y el de delante, en esa madre). */
+export function sitioValido(bs: Bloque[], s: Sitio): boolean {
+  const busca = (lista: Bloque[], id: string): Bloque | null => {
+    for (const b of lista) {
+      if (b.id === id) return b;
+      const h = busca(b.children ?? [], id);
+      if (h) return h;
+    }
+    return null;
+  };
+  const grupo = s.parentId ? busca(bs, s.parentId)?.children : bs;
+  return !!grupo && (!s.afterId || grupo.some((b) => b.id === s.afterId));
+}
+
+/**
+ * Lo que hace falta para saber si una subpágina se borró desde su madre: sus enlaces
+ * (página → bloque y sitio) y, por bloque, las páginas que menciona.
+ */
+export type Resumen = { enlaces: Map<string, Enlace>; menciones: Map<string, Set<string>> };
+
+export function resumenEnlaces(bs: Bloque[]): Resumen {
+  const r: Resumen = { enlaces: new Map(), menciones: new Map() };
+  for (const e of enlaces(bs)) if (!r.enlaces.has(e.pageId)) r.enlaces.set(e.pageId, e);
+  const recorre = (lista: Bloque[]) => {
+    for (const b of lista) {
+      const ids = new Set<string>();
+      for (const c of Array.isArray(b.content) ? (b.content as Inline[]) : []) if (c.type === "mention" && c.props?.pageId) ids.add(c.props.pageId);
+      if (ids.size) r.menciones.set(b.id, ids);
+      recorre(b.children ?? []);
+    }
+  };
+  recorre(bs);
+  return r;
+}
+
+/**
+ * Qué enlaces se quitaron y cuáles se pusieron entre dos estados de un documento.
+ * Quitado = no queda ningún enlace a esa página Y su bloque (si sigue) ya no la
+ * menciona: convertirlo en título o escribir al lado del chip no es borrarlo.
+ * Moverlo, cortarlo y pegarlo, o que lo ponga otra pestaña no cambia nada: solo se
+ * mira el estado, no las operaciones.
+ */
+export function cambiosEnlaces(antes: Resumen, ahora: Resumen) {
+  const quitados = [...antes.enlaces.values()].filter(
+    (e) => !ahora.enlaces.has(e.pageId) && !ahora.menciones.get(e.id)?.has(e.pageId),
+  );
+  const puestos = [...ahora.enlaces.keys()].filter((id) => !antes.enlaces.has(id));
+  return { quitados, puestos };
+}
+
+/** Un arreglo de los enlaces a las hijas de una madre (la reparación y restaurar una versión). */
+export type Arreglo =
+  | { tipo: "crear"; pageId: string }
+  | { tipo: "papelera" | "no-existe" | "doble"; pageId: string; blockId: string; sitio: Sitio };
+
+/**
+ * Lo que habría que cambiar en el contenido de una madre para que árbol y enlaces
+ * vayan a la par: enlazar las hijas vivas que no tienen enlace (al final), quitar los
+ * enlaces a hijas en la papelera y a páginas que ya no existen, y dejar uno solo
+ * por hija. No toca menciones dentro de un texto ni enlaces a páginas que no son hijas.
+ */
+export function arreglosEnlaces(bs: Bloque[], hijas: { id: string; viva: boolean }[], existe: (id: string) => boolean): Arreglo[] {
+  const porId = new Map(hijas.map((h) => [h.id, h]));
+  const out: Arreglo[] = [];
+  const vistas = new Set<string>();
+  for (const e of enlaces(bs)) {
+    const h = porId.get(e.pageId);
+    const sitio = { parentId: e.parentId, afterId: e.afterId };
+    if (!h && !existe(e.pageId)) out.push({ tipo: "no-existe", pageId: e.pageId, blockId: e.id, sitio });
+    else if (!h) continue;
+    else if (!h.viva) out.push({ tipo: "papelera", pageId: e.pageId, blockId: e.id, sitio });
+    else if (vistas.has(e.pageId)) out.push({ tipo: "doble", pageId: e.pageId, blockId: e.id, sitio });
+    else vistas.add(e.pageId);
+  }
+  for (const h of hijas) if (h.viva && !vistas.has(h.id)) out.push({ tipo: "crear", pageId: h.id });
+  return out;
 }
 
 /** Detrás de qué bloque va un enlace «al final»: antes del párrafo vacío en el que acaba el editor. */

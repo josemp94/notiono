@@ -145,6 +145,7 @@ model Page {
   archivedAt  DateTime?
   archivedById String? // quién la envió a la papelera (se limpia al restaurar)
   archivedBy  User?     @relation("archivedPages", fields: [archivedById], references: [id], onDelete: SetNull)
+  sitioEnlace Json?     // dónde estaba su enlace en la madre al ir a la papelera ({parentId, afterId}), para volver a ponerlo ahí
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
