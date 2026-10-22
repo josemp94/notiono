@@ -167,7 +167,7 @@ el panel de registro, el historial y las páginas publicadas.
 - 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página), Ctrl+Mayús+L (modo oscuro) y Ctrl+[ / Ctrl+] (atrás/adelante). Faltan favorito, cambiar de vista y mover bloque.
 - ✅ **Tooltips estilo Notion** en los botones del panel: pastilla propia con el atajo en la segunda línea (`data-pista`/`data-atajo` en CSS puro, solo con ratón).
 - ✅ **Mis tareas** (`/my-tasks`): lo que tengo asignado por un campo Persona en cualquier base de datos.
-- ✅ **Home/Inicio** (`/`, enlace «Inicio» en el panel): saludo, Recientes y Mis tareas. Los widgets no se ocultan/reordenan aún.
+- ✅ **Home/Inicio personalizable** (`/`, enlace «Inicio» en el panel; oct-2026): saludo y bloques Recientes, Mis tareas, Tareas para hoy, Próximas fechas (tareas y recordatorios), Favoritos y Enlaces fijados (páginas o webs), que cada persona muestra, oculta y reordena con «Personalizar» (`Member.inicio`, `src/lib/inicio.ts`, router `inicio`); «Abrir al iniciar» (Inicio, última página o una concreta) en Ajustes y en Personalizar, solo al arrancar.
 - ✅ Reposicionar la portada arrastrando. ❌ Galería de imágenes de portada (Unsplash: llamadas a terceros, fuera a propósito).
 
 ---
