@@ -116,6 +116,7 @@ model Member {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   role        String    @default("editor") // owner | editor | viewer
+  inicio      Json?     // Inicio personalizable (src/lib/inicio.ts); null = el de por defecto
 
   @@unique([workspaceId, userId])
 }

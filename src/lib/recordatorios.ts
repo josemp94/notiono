@@ -50,7 +50,7 @@ export function horaMadrid(ymd: string, h: number, min: number): Date {
   return new Date(local - desfase(local - desfase(local)));
 }
 
-function sumaDias(ymd: string, n: number): string {
+export function sumaDias(ymd: string, n: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }

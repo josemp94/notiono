@@ -951,12 +951,91 @@ import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server
   assert.ok(esVerificador(verifier) && !esVerificador("corto"));
 }
 
+// --- Inicio personalizable: normalizar lo guardado, tareas de hoy y próximas fechas ---
+import { sumaDias } from "../src/lib/recordatorios";
+import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, tareasDeHoy, urlValida, MAX_ENLACES } from "../src/lib/inicio";
+{
+  const visibles = (c: ReturnType<typeof normalizaInicio>) => c.bloques.filter((b) => b.visible).map((b) => b.id).join(",");
+  // Sin nada guardado (o basura): el Inicio de siempre, recientes y mis tareas.
+  for (const raw of [null, undefined, "x", 3, [], {}, { bloques: "no" }, { bloques: [{ id: "inventado" }] }]) {
+    const c = normalizaInicio(raw);
+    assert.equal(visibles(c), "recientes,tareas");
+    assert.equal(c.bloques.length, 6);
+    assert.deepEqual(c.abrir, { tipo: "inicio" });
+    assert.deepEqual(c.enlaces, []);
+  }
+  // Orden guardado se respeta; desconocidos fuera, duplicados fuera, los que faltan al final y ocultos.
+  const c = normalizaInicio({
+    bloques: [{ id: "enlaces", visible: true }, { id: "viejo", visible: true }, { id: "hoy" }, { id: "enlaces", visible: false }, { id: "recientes", visible: false }],
+  });
+  assert.equal(c.bloques.map((b) => b.id).join(","), "enlaces,hoy,recientes,tareas,proximas,favoritos");
+  assert.equal(visibles(c), "enlaces,hoy");
+  // Enlaces: solo http(s), sin ids repetidos, con tope, títulos recortados.
+  assert.equal(urlValida("javascript:alert(1)"), null);
+  assert.equal(urlValida("ftp://x.es"), null);
+  assert.equal(urlValida("no es url"), null);
+  assert.equal(urlValida(" https://ejemplo.es/a "), "https://ejemplo.es/a");
+  const e = normalizaInicio({
+    bloques: [{ id: "enlaces", visible: true }],
+    enlaces: [
+      { id: "1", tipo: "web", url: "https://a.es", titulo: "  A  " },
+      { id: "2", tipo: "web", url: "javascript:alert(1)" },
+      { id: "1", tipo: "pagina", pageId: "p1" },
+      { id: "3", tipo: "pagina", pageId: "p1", titulo: "" },
+      { id: "4", tipo: "pagina" },
+      { id: "5", tipo: "otro", url: "https://b.es" },
+    ],
+  }).enlaces;
+  assert.deepEqual(e, [{ id: "1", tipo: "web", url: "https://a.es/", titulo: "A" }, { id: "3", tipo: "pagina", pageId: "p1" }]);
+  const muchos = Array.from({ length: MAX_ENLACES + 10 }, (_, i) => ({ id: `e${i}`, tipo: "web", url: `https://x.es/${i}` }));
+  assert.equal(normalizaInicio({ enlaces: muchos }).enlaces.length, MAX_ENLACES);
+  // «Abrir al iniciar».
+  assert.deepEqual(normalizaInicio({ abrir: { tipo: "pagina", pageId: "p9" } }).abrir, { tipo: "pagina", pageId: "p9" });
+  assert.deepEqual(normalizaInicio({ abrir: { tipo: "pagina" } }).abrir, { tipo: "inicio" });
+  assert.deepEqual(normalizaInicio({ abrir: { tipo: "ultima" } }).abrir, { tipo: "ultima" });
+  const existe = (id: string) => id === "p1";
+  assert.equal(destinoAlIniciar({ tipo: "pagina", pageId: "p1" }, existe), "p1");
+  assert.equal(destinoAlIniciar({ tipo: "pagina", pageId: "borrada" }, existe), null);
+  assert.equal(destinoAlIniciar({ tipo: "inicio" }, existe, "p1"), null);
+  assert.equal(destinoAlIniciar({ tipo: "ultima" }, existe, "p1"), "p1");
+  assert.equal(destinoAlIniciar({ tipo: "ultima" }, existe, null), null);
+  // Normalizar es idempotente.
+  assert.deepEqual(normalizaInicio(normalizaInicio(c)), c);
+  // Reordenar: flechas y arrastrar.
+  assert.deepEqual(mueve(["a", "b", "c"], 0, 1), ["b", "a", "c"]);
+  assert.deepEqual(mueve(["a", "b", "c"], 0, -1), ["a", "b", "c"]);
+  assert.deepEqual(mueve(["a", "b", "c"], 2, 1), ["a", "b", "c"]);
+  assert.deepEqual(lleva(["a", "b", "c", "d"], 0, 2), ["b", "c", "a", "d"]);
+  assert.deepEqual(lleva(["a", "b", "c", "d"], 3, 0), ["d", "a", "b", "c"]);
+
+  // Tareas para hoy: hoy y lo vencido (marcado), lo vencido primero; ni futuras ni sin fecha.
+  const hoy = "2026-10-22";
+  const t = (recordId: string, date: string) => ({ recordId, pageId: "db", title: recordId, date });
+  const tareas = [t("sin", ""), t("manana", "2026-10-23"), t("hoy", "2026-10-22"), t("vencida", "2026-10-01"), t("semana", "2026-10-29"), t("lejos", "2026-10-30")];
+  const h = tareasDeHoy(tareas, hoy);
+  assert.equal(h.map((x) => `${x.recordId}${x.vencida ? "!" : ""}`).join(","), "vencida!,hoy");
+  // Cambio de mes y de año.
+  assert.equal(sumaDias("2026-10-31", 1), "2026-11-01");
+  assert.equal(sumaDias("2026-12-28", 7), "2027-01-04");
+  // Próximas fechas: desde mañana hasta dentro de 7 días; recordatorios desde hoy, sin repetir mis tareas.
+  const recs = [
+    { key: "k1", titulo: "Médico", inicio: "2026-10-22T17:00", pageId: "pag", recordId: null },
+    { key: "k2", titulo: "manana", inicio: "2026-10-23", pageId: "db", recordId: "manana" },
+    { key: "k3", titulo: "Médico", inicio: "2026-10-22T17:00", pageId: "pag", recordId: null },
+    { key: "k4", titulo: "Viaje", inicio: "2026-11-15", pageId: "pag", recordId: null },
+    { key: "k5", titulo: "Cumple", inicio: "2026-10-25", pageId: "otra", recordId: "ajena" },
+  ];
+  const p = proximasFechas(tareas, recs, hoy);
+  assert.equal(p.map((x) => `${x.dia}:${x.titulo}:${x.tipo[0]}`).join(","), "2026-10-22:Médico:r,2026-10-23:manana:t,2026-10-25:Cumple:r,2026-10-29:semana:t");
+  assert.equal(proximasFechas(tareas, [], hoy, 1).map((x) => x.titulo).join(","), "manana");
+}
+
 compruebaColaboracion()
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
   .then(() => import("./checkRecordatorios").then((m) => m.compruebaRecordatorios()))
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz, subpáginas (borrar y reparar) y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico) y recordatorios");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz, subpáginas (borrar y reparar) y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico), recordatorios e Inicio personalizable");
     process.exit(0);
   })
   .catch((e) => {
