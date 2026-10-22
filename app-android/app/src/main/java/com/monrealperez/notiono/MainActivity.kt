@@ -34,6 +34,9 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // «Abrir al iniciar» solo al abrir la app desde el icono: no si la actividad se rehace
+        // (girar, tema) ni si se abre por un enlace, widget o atajo (eso ya dice a dónde ir).
+        com.monrealperez.notiono.ui.inicio.ArranqueInicio.pendiente = savedInstanceState == null && intent?.data == null
         val s = Servicios.de(this)
         setContent {
             val oscuro = esOscuro()

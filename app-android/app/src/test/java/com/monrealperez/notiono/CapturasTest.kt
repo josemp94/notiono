@@ -164,6 +164,19 @@ class CapturasTest {
         pulsa("Inicio")
         esperaTexto("Viaje a Asturias")
         foto("inicio")
+        // El Inicio personalizado (todos los bloques y enlaces fijados) y el modo Personalizar.
+        s.repo.mutacion("inicio.guardar", objeto(
+            "bloques" to listOf("hoy", "proximas", "enlaces", "favoritos", "recientes", "tareas").map { objeto("id" to it, "visible" to (it != "tareas")) },
+            "enlaces" to listOf(objeto("id" to "e1", "tipo" to "pagina", "pageId" to datos.viaje), objeto("id" to "e2", "tipo" to "web", "url" to "https://www.aemet.es/", "titulo" to "El tiempo")),
+            "abrir" to objeto("tipo" to "inicio"),
+        ), encolable = false, etiquetas = listOf("inicio"))
+        esperaTexto("Enlaces fijados")
+        espera(2_000) { pasado(1_000) }
+        foto("inicio_bloques")
+        pulsa("Personalizar")
+        esperaTexto("Al abrir Notiono, mostrar")
+        foto("inicio_personalizar")
+        pulsa("Listo")
         abrePanel()
         esperaTexto("Papelera")
         foto("panel")

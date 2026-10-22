@@ -139,21 +139,40 @@ object AccionesPagina {
 @Composable
 fun HojaMover(id: String, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
-    val arbol = Arbol.de(rememberConsulta("pages.tree").datos)
     val alcance = rememberAlcance()
+    HojaElegirPagina(
+        "Mover a", onCerrar,
+        excluye = { arbol, n -> arbol.dentroDe(n, id) },
+        arriba = {
+            FilaMenu("Espacio de trabajo (raíz)", "house") {
+                alcance.launch { AccionesPagina.mover(s.repo, id, null); Avisos.di("Movida a la raíz"); onCerrar() }
+            }
+        },
+    ) { n ->
+        alcance.launch { AccionesPagina.mover(s.repo, id, n.id); Avisos.di("Movida a «${n.title.ifBlank { "Sin título" }}»"); onCerrar() }
+    }
+}
+
+/** Elegir una página del árbol, con buscador (mover, fijar en el Inicio, «Abrir al iniciar»). */
+@Composable
+fun HojaElegirPagina(
+    titulo: String,
+    onCerrar: () -> Unit,
+    excluye: (Arbol, String) -> Boolean = { _, _ -> false },
+    arriba: @Composable () -> Unit = {},
+    onElegir: (NodoArbol) -> Unit,
+) {
+    val arbol = Arbol.de(rememberConsulta("pages.tree").datos)
     var filtro by remember { mutableStateOf("") }
-    HojaLista(onCerrar, "Mover a") {
+    HojaLista(onCerrar, titulo) {
         Box(Modifier.padding(horizontal = 16.dp)) { Campo(filtro, { filtro = it }, placeholder = "Buscar página…") }
-        FilaMenu("Espacio de trabajo (raíz)", "house") {
-            alcance.launch { AccionesPagina.mover(s.repo, id, null); Avisos.di("Movida a la raíz"); onCerrar() }
-        }
-        val candidatas = arbol.nodos.filter { !arbol.dentroDe(it.id, id) && (filtro.isBlank() || it.title.contains(filtro, true)) }
+        arriba()
+        val candidatas = arbol.nodos.filter { !excluye(arbol, it.id) && (filtro.isBlank() || it.title.contains(filtro, true)) }
         for (n in candidatas.sortedBy { arbol.camino(it.id).joinToString("/") { c -> c.order } }) {
             val nivel = arbol.camino(n.id).size - 1
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable {
-                    alcance.launch { AccionesPagina.mover(s.repo, id, n.id); Avisos.di("Movida a «${n.title.ifBlank { "Sin título" }}»"); onCerrar() }
-                }.padding(start = (16 + if (filtro.isBlank()) nivel * 16 else 0).dp, end = 16.dp),
+                Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable { onElegir(n) }
+                    .padding(start = (16 + if (filtro.isBlank()) nivel * 16 else 0).dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconoPagina(n.icon, 18.dp)

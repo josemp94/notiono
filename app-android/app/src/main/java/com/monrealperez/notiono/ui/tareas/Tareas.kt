@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,7 +49,7 @@ fun PantallaTareas() {
 }
 
 @Composable
-fun FilaTarea(t: JsonObject) {
+fun FilaTarea(t: JsonObject, vencida: Boolean = false) {
     val n = LocalNavegador.current
     Row(
         Modifier.fillMaxWidth().clickable { n.fila(t.str("pageId")!!, t.str("recordId")!!) }.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -59,7 +60,12 @@ fun FilaTarea(t: JsonObject) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icono("database", tam = 12.dp, color = C.apagado)
                 Text(t.str("dbTitle") ?: "BD", fontSize = 12.sp, color = C.apagado, modifier = Modifier.padding(start = 4.dp), maxLines = 1)
-                t.str("date")?.takeIf { it.isNotBlank() }?.let { Text(" · " + Fechas.relativa(it), fontSize = 12.sp, color = C.apagado) }
+                t.str("date")?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        " · " + (if (vencida) "Vencida · " else "") + Fechas.relativa(it),
+                        fontSize = 12.sp, color = if (vencida) Color(0xFFD44C47) else C.apagado, maxLines = 1,
+                    )
+                }
             }
         }
         t.str("status")?.takeIf { it.isNotBlank() }?.let { Chip(it, C.hover, Modifier.padding(start = 8.dp)) }
