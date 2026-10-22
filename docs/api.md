@@ -229,6 +229,27 @@ curl -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/v1/re
 # → { "ok": true }  (borra también sus sub-elementos)
 ```
 
+### Subir un archivo
+
+Multipart con el campo `file` (hasta 8 MB). Con `?kind=image` solo acepta imágenes.
+Se guarda dentro de Notiono, igual que lo que se sube desde la web.
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" -F "file=@portada.jpg" \
+  "http://localhost:3000/api/v1/files?kind=image"
+# → 201 { "id", "url": "/api/asset/<id>", "name", "mime" }
+```
+
+Para ponerlo en una columna `files`, la celda es la lista de esos objetos:
+
+```bash
+curl -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "cells": { "<fieldId>": [{ "id": "…", "url": "/api/asset/…", "name": "portada.jpg", "mime": "image/jpeg" }] } }' \
+  http://localhost:3000/api/v1/records/<recordId>
+```
+
+La `url` es relativa al servidor de Notiono.
+
 
 ---
 
@@ -250,6 +271,7 @@ BASE_URL=https://notiono.monrealperez.com NOTIONO_TOKEN=ntn_… npm run check:ap
 
 Crea una base de datos con columnas y vistas, añade otra columna, la renombra, le
 cambia el tipo, añade una vista, escribe un registro y lo vuelve a leer, y comprueba
+sube un archivo y lo vuelve a descargar, y comprueba
 que sin token responde 401 y que lo de otro espacio responde 404. Deja la base de
 datos de prueba creada y dice su id para poder borrarla.
 

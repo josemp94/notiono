@@ -162,11 +162,35 @@ async function main() {
   });
   assert.equal(bdAjena.status, 404, "una BD de otro espacio debería dar 404");
 
+  // --- Subir un archivo con el token y volver a descargarlo ---
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  const subir = async (tipo: string, nombre: string, conToken = true) => {
+    const fd = new FormData();
+    fd.append("file", new Blob([Uint8Array.from(png)], { type: tipo }), nombre);
+    const res = await fetch(`${BASE}/api/v1/files?kind=image`, {
+      method: "POST",
+      headers: conToken ? { authorization: `Bearer ${TOKEN}` } : {},
+      body: fd,
+    });
+    return { status: res.status, body: (await res.json()) as Record<string, string> };
+  };
+  assert.equal((await subir("image/png", "a.png", false)).status, 401, "subir sin token debería dar 401");
+  assert.equal((await subir("text/plain", "a.txt")).status, 400, "kind=image debería rechazar un texto");
+  const subido = await subir("image/png", "prueba-api.png");
+  assert.equal(subido.status, 201, `subir archivo: ${JSON.stringify(subido.body)}`);
+  assert.equal(subido.body.url, `/api/asset/${subido.body.id}`);
+  const bajado = await fetch(`${BASE}${subido.body.url}`);
+  assert.equal(bajado.headers.get("content-type"), "image/png");
+  assert.ok(Buffer.from(await bajado.arrayBuffer()).equals(png), "el archivo bajado no es el subido");
+
   // --- Borrar la columna ---
   const borrada = await api("DELETE", `/fields/${prioridadId}`);
   assert.equal(borrada.status, 200, `borrar columna: ${JSON.stringify(borrada.body)}`);
 
-  console.log("OK — crear BD, columnas, vistas y registros solo con el token");
+  console.log("OK — crear BD, columnas, vistas, registros y subir archivos solo con el token");
   console.log(`   Queda para borrar a mano: «PRUEBA API (borrar)» (página ${bd.pageId})`);
 }
 
