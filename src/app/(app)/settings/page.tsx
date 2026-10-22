@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
+import { AbrirAlIniciar } from "@/components/AbrirAlIniciar";
 import { trpc } from "@/trpc/react";
 import apk from "@/lib/apk.json";
 import { WEBHOOK_EVENTS } from "@/lib/webhookEvents";
@@ -67,6 +68,11 @@ export default function SettingsPage() {
           </button>
         </div>
         {nameMsg && <p className="mt-2 text-xs text-[var(--muted)]">{nameMsg}</p>}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="font-display mb-2 font-bold">Al abrir Notiono, mostrar</h2>
+        <AbrirAlIniciar />
       </section>
 
       <BackupSection />

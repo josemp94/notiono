@@ -16,12 +16,15 @@ export function MovePageModal({
   onClose,
   onElegir,
   soloDocumentos = false,
+  titulo = "Mover a",
 }: {
   pageId: string;
   onClose: () => void;
   /** Elegir destino para otra cosa (mover bloques): solo se excluye la propia página y no hay «Raíz». */
   onElegir?: (destino: string) => void;
   soloDocumentos?: boolean;
+  /** Para usarlo como selector de páginas (Inicio, «Abrir al iniciar»). */
+  titulo?: string;
 }) {
   const utils = trpc.useUtils();
   const { data: me } = trpc.auth.me.useQuery();
@@ -71,7 +74,7 @@ export function MovePageModal({
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-            <FolderInput size={18} /> Mover a
+            <FolderInput size={18} /> {titulo}
           </h2>
           <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
             <X size={16} />
@@ -81,7 +84,7 @@ export function MovePageModal({
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar página de destino…"
+          placeholder={onElegir ? "Buscar página…" : "Buscar página de destino…"}
           className="mb-2 w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-brand"
         />
         <div className="min-h-0 overflow-y-auto">

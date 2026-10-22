@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Menu, PanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { registraArranque } from "@/lib/arranque";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { BarraInferior } from "@/components/BarraInferior";
 import { ConfirmHost } from "@/components/Confirmar";
@@ -87,6 +88,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // El plegado del panel se recuerda entre sesiones (solo escritorio).
   useEffect(() => {
+    // Apunta por qué ruta arrancó la pestaña («Abrir al iniciar», src/lib/arranque.ts).
+    registraArranque();
     setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1");
   }, []);
   const toggleSidebar = useCallback(
