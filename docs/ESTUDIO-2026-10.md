@@ -186,12 +186,12 @@ faltó crear más. Revisado lo que podía romperse con varios espacios propios:
 
 - **Bases embebidas** dentro de una página compartida: el invitado no las ve (su página contenedora no cuelga de la compartida). Las bases que son subpáginas sí.
 - El **texto** de la página compartida se ve entero, incluidos los títulos de las menciones y enlaces a páginas que no puede abrir (es contenido de la página, como en un documento).
-- La **app Android** le responde «prohibido» casi todo (`app.*` está fuera de la lista): para invitados, mejor la web por ahora.
+- ~~La **app Android** le responde «prohibido» casi todo~~: desde la 2.4.0 la app funciona como invitado (ver «App Android 2.4.0» abajo).
 - Un invitado con Acceso total **no puede volver a compartir** la página (en Notion sí); no tiene API, Mis tareas, papelera ni plantillas.
 
 ### Propuesto, por prioridad
 
-1. **App Android** (mediano): crear espacio, renombrar e icono, salir, Personas, y pintar los avisos nuevos `space` y `share` (hoy salen como «te mencionó en una página borrada»); y un modo invitado que use solo lo permitido. Su hoja de espacios ya ve los nuevos.
+1. ~~**App Android**~~ **Hecho (25-oct, 2.4.0)**, ver abajo.
 2. **Bases embebidas para invitados** (mediano): que el contenedor herede el nivel de la página que lo enseña (o colgarlo de ella al crearlo). Es lo que más se notará al compartir una página con una tabla dentro.
 3. **Duplicar en el mismo espacio copia las bases embebidas** (pequeño): hoy la copia sigue enseñando la base de la original; en otro espacio ya se copian.
 4. **Que un invitado con Acceso total pueda compartir** (pequeño, decidir): como Notion; abrir `pages.perms.*` al invitado exige revisar que no vea la lista de miembros.
@@ -199,3 +199,38 @@ faltó crear más. Revisado lo que podía romperse con varios espacios propios:
 6. **Varios propietarios por espacio** (mediano): `Workspace.ownerId` es único en todo el código; el traspaso cubre el caso familiar.
 7. **Ctrl+Mayús+número** para saltar de espacio, como Notion (pequeño).
 8. Al traspasar el único espacio propio, quien lo era recibe uno nuevo y vacío en su siguiente login (`ensureWorkspace`) (pequeño; quizá es lo deseable).
+
+### App Android 2.4.0 (propuesta 1, hecha el 25-oct)
+
+Regla de Jose: «si has puesto un botón en la web, tiene que estar en la app». Mismos
+procedimientos tRPC, mismos textos, roles y reglas que la web.
+
+- **Servidor** (`d901c34`): abiertos a los invitados, uno a uno, los `app.*` que miran el
+  nivel de su página o fila con `exigeNivel` (`pagina`, `bloques`, `aplicar`, `vista`,
+  `fila`, `bloquesFila`, `aplicarFila`, `exportarMarkdown`) y los que solo devuelven lo
+  suyo (`recordatorios`, que ya filtraba con `filtraQuienesVen`, y el nuevo `app.avisos`).
+  `app.vista` le daba a un invitado los nombres y correos de todo el espacio (las
+  personas de los campos Persona): ahora solo el suyo, como `workspace.members`. Siguen
+  cerrados `app.plantillas`, `app.markdownABloques` y `app.calendario`. `app.avisos`: mis
+  últimos 50 avisos de todos mis espacios con el suyo (el push de la app solo veía los del
+  activo, y «te han añadido a un espacio» llega en ese espacio). Todo probado en
+  `scripts/integracion-espacios.ts` (rojo si se quita el filtro de personas).
+- **App** (`0420464`): selector con no leídos y «Nuevo espacio»; Ajustes → General y
+  Personas (Miembros/Invitados, pendientes, roles, traspasar); «Compartir» de una página;
+  «Mover a» con el espacio abajo y «Entiendo, duplicar»; avisos `space`/`share` (y los
+  tipos desconocidos ya no dicen «te mencionó en una página borrada») que al tocarlos pasan
+  a su espacio; modo invitado (como el panel, el Inicio y el menú de la web). Lo que
+  faltaba para que varios espacios no se mezclaran: la caché era una para todos (se
+  borraba entera al cambiar de espacio), los cambios en cola se mandaban al espacio activo
+  **al enviarse** (si se cambiaba de espacio antes, iban al otro y se perdían), y un widget
+  pedía su página al espacio activo (si se cambiaba de espacio, «no existe»). Ahora cada
+  petición, caché y cambio en cola lleva su espacio; los widgets lo recuerdan (los de antes
+  lo averiguan con `workspace.dePagina`), y una página que no está en el activo pasa a su
+  espacio, como `PaginaNoEncontrada` de la web.
+- **Pruebas**: `EspaciosTest`, `EspaciosRedTest`, `WidgetsEspacioTest`,
+  `AvisadorEspaciosTest` (rojas sin la lógica: comprobado), `CapturasEspaciosTest` y el
+  recorrido contra Notiono local (`scripts/recorrido-android.ts`: crear espacio y entrar,
+  invitar, compartir con Rocío, abrir avisos de otros espacios y usar la app como
+  invitada de su huerto, comprobado después en el servidor).
+- Diferencia con Notion que queda: en la app el cambio de rol y el nivel se eligen en una
+  hoja (en Notion, un desplegable), y no hay «Ctrl+Mayús+número».

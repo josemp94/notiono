@@ -142,6 +142,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Varios espacios por persona** (oct-2026, `docs/ESTUDIO-2026-10.md` §8): «Nuevo espacio» en el selector, nombre e icono, Ajustes → General (Zona de peligro: salir / eliminar escribiendo el nombre) y Personas (invitar por correo o usuario del NAS, **invitaciones pendientes**, cambiar rol, quitar, **traspasar la propiedad**), avisos al añadir a alguien, no leídos por espacio en el selector.
 - ✅ **«Mover a» otro espacio**: duplica allí, como Notion («Entiendo, duplicar»).
 - ✅ **Invitados de página** (guests): «Compartir» invita a alguien de fuera del espacio, que solo ve esa página y sus subpáginas (sección «Compartido»). ❌ Aún no ven las bases embebidas de la página ni pueden volver a compartir.
+- ✅ **Todo lo anterior también en la app de Android** (2.4.0, 25-oct-2026): selector con no leídos por espacio y «Nuevo espacio», Ajustes → General y Personas, «Compartir» de una página, «Mover a» otro espacio, avisos `space`/`share` que pasan a su espacio, y la app usable como invitado de página. Cada espacio guarda lo suyo sin conexión y los widgets siguen con su espacio.
 - ✅ **Comentarios** de página con resolver y borrar (`CommentsPanel.tsx`).
 - ✅ **Menciones** @página y @persona + **bandeja de notificaciones** con contador.
 - ✅ **Historial de versiones** con UI (snapshot con throttle de 2 min, últimas 50, restaurar). Solo páginas `doc`.
@@ -165,7 +166,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Tema claro/oscuro manual** (`data-theme`, sin parpadeo al cargar).
 - ✅ **Plantillas**: galería con 6 (tareas, notas de reunión, CRM, presupuesto, diario, wiki).
 - ✅ **Import/Export**: Markdown ↔ página, CSV ↔ base de datos, **página con subpáginas a ZIP** y **copia de seguridad del espacio entero** (Ajustes; MD + CSV + adjuntos). ❌ PDF y HTML.
-- ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide.
+- ✅ **PWA instalable** + responsive con drawer; iconos y favicon de marca; iconos de interfaz lucide. Y **app nativa de Android** (`app-android/`, `docs/app-nativa.md`), al día con la web en espacios y compartir desde la 2.4.0.
 - ✅ **API REST v1** con tokens por espacio (`docs/api.md`).
 - 🟡 **Atajos de teclado**: Ctrl+K (buscar), Ctrl+\ (plegar el panel), Ctrl+Alt+N (nueva página), Ctrl+Mayús+L (modo oscuro) y Ctrl+[ / Ctrl+] (atrás/adelante). Faltan favorito, cambiar de vista y mover bloque.
 - ✅ **Tooltips estilo Notion** en los botones del panel: pastilla propia con el atajo en la segunda línea (`data-pista`/`data-atajo` en CSS puro, solo con ratón).

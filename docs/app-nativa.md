@@ -57,6 +57,8 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 
 - [x] 2.3.0 (`versionCode 9`): **Inicio personalizable**, el mismo de la web (lo pidió Yago). `PantallaInicio` pinta los bloques (recientes, mis tareas, tareas para hoy, próximas fechas con recordatorios, favoritos, enlaces fijados) en el orden y con la visibilidad de `inicio.get` (caché si no hay red) y «Personalizar» los edita con flechas (subir/bajar, mostrar/ocultar, restablecer, enlaces a página o web con nombre) y «Abrir al iniciar»; guarda con `inicio.guardar` (se pinta ya, va a la caché y, sin red, a la cola). La lógica (`ui/inicio/ConfigInicio.kt`) es la de `src/lib/inicio.ts` y se prueba en `ConfigInicioTest`. «Abrir al iniciar» solo al abrir la app desde el icono (`ArranqueInicio.pendiente`, que rearma `MainActivity.onCreate` sin estado guardado ni intent con destino), nunca al volver a Inicio; decide con lo guardado sin esperar a la red. `HojaElegirPagina` (sale de `HojaMover`) elige páginas. Capturas nuevas `inicio_bloques` e `inicio_personalizar` en `CapturasTest`. 85 pruebas JVM (5 de integración saltadas sin Notiono local; `CapturasTest` pasada aparte contra Notiono local), `lintRelease` sin errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `611eca66…1ebe32`, 4,0 MB; copia en `~/notiono-apk/notiono-2.3.0.apk`. Lleva la migración `20261022120000_inicio_personalizable`. Falta desplegar.
 
+- [x] 2.4.0 (`versionCode 10`): **espacios y compartir como la web** (la propuesta 1 de `docs/ESTUDIO-2026-10.md` §8, con el detalle allí). Selector con no leídos por espacio y «Nuevo espacio» (`ui/espacios/Espacios.kt`), Ajustes → General y Personas (`ui/espacios/AjustesEspacio.kt`), «Compartir» de una página (`ui/pagina/Compartir.kt`), «Mover a» con el espacio abajo, avisos `space`/`share` en la bandeja y en la notificación (que trae los de todos los espacios con `app.avisos`), y modo invitado (`Puede`, lo mismo que esconde la web). Lo que tocó la base: el espacio activo es observable (`Sesion.espacioFlujo`; `rememberConsulta` vuelve a empezar al cambiarlo), cada petición puede llevar su espacio (`Api.query/mutation(…, espacio)`), la caché va por espacio (`Cache.clave`; ya no se borra al cambiar), un cambio en cola lleva el suyo (`Pendiente.espacio`), los widgets lo recuerdan (`ConfigWidget.espacio`) y una página o fila de otro espacio pasa a él (`Espacios.buscaPagina`). Novedades en Ajustes. 109 pruebas JVM (6 de integración saltadas sin Notiono local; el recorrido, aparte contra Notiono local, en verde), `lintRelease` sin errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `dda98433…2fa3ff5`, 4,1 MB; copia en `~/notiono-apk/notiono-2.4.0.apk`. Necesita el servidor de `d901c34` (sin él, los avisos caen a los del espacio activo y el modo invitado da «prohibido»). Falta desplegar.
+
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.
 - [x] Pruebas JVM (fixtures reales del editor web): 19 sin servidor, 0 fallos (las 3 de integración y capturas se saltan sin Notiono local y pasan con él).
@@ -80,6 +82,17 @@ app no los enseña). Lint deja 50 avisos de estilo o de versiones (las más nuev
 compileSdk 37), ninguno de error.
 
 ## Bitácora (decisiones y comprobaciones)
+- **Espacios (2.4.0, 25-oct-2026)**. Trampas de las pruebas que costaron: en Robolectric,
+  `compose.waitUntil` con una condición que no mira la pantalla no deja correr el hilo
+  principal (lo que sigue a una llamada de red se queda esperando): hay que meter
+  `compose.waitForIdle()` en la condición. Un `delay` en `Dispatchers.Main` (el envío del
+  editor) no avanza con `mainClock`: hace falta `shadowOf(mainLooper).idleFor(…)`. Y el
+  `LaunchedEffect` de los destinos de `Principal` puede seguir en otro hilo tras la red con
+  el despachador de pruebas: navega dentro de `withContext(Dispatchers.Main.immediate)`.
+  Sin red de verdad en MockWebServer: `onResponseStart(SocketEffect.CloseSocket())` (un 503
+  es «error del servidor», no «sin conexión»). Una vez, en el recorrido completo, la página
+  de la papelera quedó archivada al final (un `pages.archive` repetido); no se repitió en
+  las pasadas siguientes ni pasando el recorrido solo.
 - **Vista Matriz y subpáginas (web, 19-oct-2026), sin APK nuevo.** La app no conoce el
   tipo de vista `matrix`: `PantallaBD.kt` pinta lo desconocido como Tabla (no se cae), y
   `src/server/app/vista.ts` se la sirve **agrupada por sus dos ejes** (filas y, dentro,
