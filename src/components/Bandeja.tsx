@@ -130,6 +130,11 @@ export function BandejaHost() {
                             {n.page ? `${emojiIcono(n.page.icon)}${n.page.title || "Sin título"}` : "una base borrada"}»
                             {n.title ? <>: «{n.title}»</> : null}
                           </>
+                        ) : n.type === "space" ? (
+                          <>
+                            <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> te ha añadido al espacio «
+                            {n.title || "Sin título"}»
+                          </>
                         ) : n.type === "follow" ? (
                           <>
                             <span className="font-medium">{n.actor?.name || n.actor?.email || "Alguien"}</span> editó «

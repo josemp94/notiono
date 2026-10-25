@@ -75,7 +75,7 @@ export default function PageView() {
     );
   }
   if (error || !page) {
-    return <div className="px-12 py-16 text-[var(--muted)]">Página no encontrada.</div>;
+    return <PaginaNoEncontrada pageId={pageId} />;
   }
 
   return (
@@ -475,4 +475,17 @@ function FavoriteButton({ pageId }: { pageId: string }) {
       <Star size={16} fill={isFav ? "currentColor" : "none"} />
     </button>
   );
+}
+
+/**
+ * La página no está en el espacio activo: si es de otro espacio tuyo (un aviso, un
+ * enlace), se pasa a él y se abre, como Notion; si no, «no encontrada».
+ */
+function PaginaNoEncontrada({ pageId }: { pageId: string }) {
+  const { data, isLoading } = trpc.workspace.dePagina.useQuery({ pageId });
+  useEffect(() => {
+    if (data) window.location.replace(`/api/espacio/${data.workspaceId}?a=${encodeURIComponent(`/p/${pageId}${window.location.search}`)}`);
+  }, [data, pageId]);
+  if (isLoading || data) return <div className="px-12 py-16 text-[var(--muted)]">Abriendo…</div>;
+  return <div className="px-12 py-16 text-[var(--muted)]">Página no encontrada.</div>;
 }
