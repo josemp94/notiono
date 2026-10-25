@@ -15,6 +15,12 @@ import { appRouter } from "@/server/root";
 import { createContext } from "@/server/context";
 import { createSession } from "@/server/auth";
 import { ensureWorkspace } from "@/server/provision";
+import { canjeaInvitaciones, MAX_ESPACIOS } from "@/server/services/espacios";
+import { GET as listaBasesApi } from "@/app/api/v1/databases/route";
+
+/** Una llamada de la API REST v1 con ese token (lista de bases de datos). */
+const fetchApi = (token: string) =>
+  listaBasesApi(new Request("http://prueba/api/v1/databases", { headers: { authorization: `Bearer ${token}` } }));
 
 const sufijo = randomBytes(3).toString("hex");
 
@@ -63,6 +69,83 @@ async function main() {
   assert.equal(r.ctx.role, "editor");
   await falla(r.c.workspace.update({ name: "Mía" }), "FORBIDDEN", "una editora no renombra");
   assert.equal((await r.c.workspace.list()).find((w) => w.id === casa.id)?.compartido, true, "compartido con Rocío");
+
+  // --- Invitación a quien aún no ha entrado nunca (por usuario del NAS) ---
+  const usuario = `abuela${sufijo}`;
+  assert.deepEqual(await g2.c.workspace.share({ email: usuario.toUpperCase(), role: "viewer" }), { pendiente: true });
+  await falla(g2.c.workspace.share({ email: "no vale con espacios" }), "BAD_REQUEST", "ni email ni usuario");
+  await falla(r.c.workspace.share({ email: "x@y.es" }), "FORBIDDEN", "solo el propietario invita");
+  const conInv = await g2.c.workspace.members();
+  assert.deepEqual(conInv.invitaciones.map((i) => [i.destino, i.role]), [[usuario, "viewer"]]);
+  assert.deepEqual((await r.c.workspace.members()).invitaciones, [], "una miembro no ve las pendientes");
+  assert.deepEqual(conInv.members.map((m) => m.role), ["owner", "editor"], "el propietario, primero");
+  // Su primer login por SSO (sin email del NAS: <usuario>@sso.local).
+  const abuelaUser = await db.user.create({ data: { email: `${usuario}@sso.local`, name: "Abuela" } });
+  await ensureWorkspace(db, abuelaUser);
+  await canjeaInvitaciones(db, abuelaUser, usuario);
+  const abuela = { user: abuelaUser, token: await createSession(abuelaUser.id) };
+  const a = await como(abuela, casa.id);
+  assert.equal(a.ctx.role, "viewer", "entra con el rol de la invitación");
+  assert.deepEqual((await g2.c.workspace.members()).invitaciones, [], "la invitación se gasta");
+  const avisos = await a.c.notifications.list();
+  assert.equal(avisos[0]?.type, "space", "le llega el aviso de que la han añadido");
+  assert.equal(avisos[0]?.title, "Casa");
+  // Anular una pendiente.
+  await g2.c.workspace.share({ email: `nadie-${sufijo}@prueba.local` });
+  const inv = (await g2.c.workspace.members()).invitaciones[0];
+  await g2.c.workspace.cancelInvite({ id: inv.id });
+  assert.equal((await g2.c.workspace.members()).invitaciones.length, 0);
+
+  // --- Página de otro espacio: dePagina dice adónde pasar, si la puedes ver ---
+  const enCasa = (await g2.c.pages.tree())[0];
+  assert.deepEqual(await (await como(rocio)).c.workspace.dePagina({ pageId: enCasa.id }), { workspaceId: casa.id });
+  const ajena = await persona("Ajena");
+  assert.equal(await (await como(ajena)).c.workspace.dePagina({ pageId: enCasa.id }), null, "ajena: ni sabe que existe");
+  assert.equal(await g2.c.workspace.dePagina({ pageId: enCasa.id }), null, "ya estás en su espacio");
+
+  // --- Salir de un espacio compartido: cae en el suyo y sus tokens dejan de valer ---
+  const { token: tokenRocio } = await r.c.apiTokens.create({ name: "prueba" });
+  const api = () => fetchApi(tokenRocio);
+  assert.equal((await api()).ok, true, "el token vale mientras es miembro");
+  await falla(g2.c.workspace.leave({ workspaceId: casa.id }), "BAD_REQUEST", "el propietario no sale");
+  const salida = await r.c.workspace.leave({ workspaceId: casa.id });
+  assert.equal(salida.workspaceId, rocio.propio.id, "pasa a su espacio");
+  assert.ok(r.cookieNueva().includes(`notiono_ws=${rocio.propio.id}`));
+  assert.equal((await como(rocio, casa.id)).ctx.workspace?.id, rocio.propio.id, "la cookie vieja ya no entra");
+  assert.equal(await db.apiToken.count({ where: { workspaceId: casa.id, createdById: rocio.user.id } }), 0, "fuera sus tokens");
+  assert.equal((await api()).ok, false, "y el token ya no vale");
+  await falla((await como(rocio)).c.workspace.leave({ workspaceId: rocio.propio.id }), "BAD_REQUEST", "ni del suyo");
+
+  // --- Traspasar la propiedad ---
+  await g2.c.workspace.share({ email: rocio.user.email });
+  await falla(r.c.workspace.transfer({ userId: rocio.user.id }), "FORBIDDEN", "solo el propietario traspasa");
+  await falla(g2.c.workspace.transfer({ userId: ajena.user.id }), "BAD_REQUEST", "solo a un miembro");
+  await g2.c.workspace.transfer({ userId: rocio.user.id });
+  assert.equal((await como(rocio, casa.id)).ctx.role, "owner");
+  assert.equal((await como(gio, casa.id)).ctx.role, "editor", "Gio queda como miembro");
+  await (await como(rocio, casa.id)).c.workspace.transfer({ userId: gio.user.id });
+
+  // --- Eliminar el espacio ---
+  const g3 = await como(gio, casa.id);
+  await falla(g3.c.workspace.delete({ confirmacion: "casa" }), "BAD_REQUEST", "hay que escribir el nombre exacto");
+  await falla((await como(rocio, casa.id)).c.workspace.delete({ confirmacion: "Casa" }), "FORBIDDEN", "una miembro no borra");
+  const asset = await db.asset.create({ data: { workspaceId: casa.id, mime: "image/png", bytes: Buffer.from("x") } });
+  const compartido = await db.asset.create({ data: { workspaceId: casa.id, mime: "image/png", bytes: Buffer.from("y") } });
+  await db.page.update({ where: { id: (await (await como(gio)).c.pages.tree())[0].id }, data: { cover: `url:/api/asset/${compartido.id}` } });
+  const fin = await g3.c.workspace.delete({ confirmacion: " Casa " });
+  assert.equal(fin.workspaceId, gio.propio.id);
+  assert.equal(await db.workspace.count({ where: { id: casa.id } }), 0);
+  assert.equal(await db.page.count({ where: { workspaceId: casa.id } }), 0, "sus páginas, fuera");
+  assert.equal(await db.asset.count({ where: { id: asset.id } }), 0, "sus archivos, fuera");
+  assert.equal(await db.asset.count({ where: { id: compartido.id } }), 1, "menos los que usa otro espacio");
+  assert.equal((await como(rocio, casa.id)).ctx.workspace?.id, rocio.propio.id, "los demás caen en otro sin error");
+  await falla((await como(gio)).c.workspace.delete({ confirmacion: gio.propio.name }), "BAD_REQUEST", "nunca el último propio");
+
+  // --- Tope de espacios propios ---
+  for (let i = await db.workspace.count({ where: { ownerId: ajena.user.id } }); i < MAX_ESPACIOS; i++) {
+    await (await como(ajena)).c.workspace.create({ name: `E${i}` });
+  }
+  await falla((await como(ajena)).c.workspace.create({ name: "Uno más" }), "BAD_REQUEST", "tope de espacios");
 
   console.log("integracion-espacios: todo bien");
 }

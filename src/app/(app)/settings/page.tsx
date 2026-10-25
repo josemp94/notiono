@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { AbrirAlIniciar } from "@/components/AbrirAlIniciar";
-import { AjustesEspacio } from "@/components/Espacios";
+import { AjustesEspacio, PersonasEspacio } from "@/components/Espacios";
 import { trpc } from "@/trpc/react";
 import apk from "@/lib/apk.json";
 import { WEBHOOK_EVENTS } from "@/lib/webhookEvents";
@@ -38,8 +38,10 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 md:px-8 md:py-12">
-      <h1 className="font-display mb-6 text-2xl font-extrabold md:text-3xl">Ajustes de cuenta</h1>
+      <h1 className="font-display mb-6 text-2xl font-extrabold md:text-3xl">Ajustes</h1>
 
+      {/* Como Notion: lo tuyo («Mi cuenta») y lo del espacio activo, cada uno en su grupo. */}
+      <GrupoAjustes titulo="Mi cuenta" />
       <section className="mb-8">
         <div className="mb-2 text-sm text-[var(--muted)]">Cuenta (SSO)</div>
         <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)]">
@@ -76,13 +78,21 @@ export default function SettingsPage() {
         <AbrirAlIniciar />
       </section>
 
-      <AjustesEspacio />
-      <BackupSection />
-      <AppSection />
-      <EstadoSection />
       <PushSection />
+      <AppSection />
+
+      <GrupoAjustes titulo={`Espacio · ${me?.workspace?.name ?? "…"}`} />
+      <AjustesEspacio />
+      <section id="personas" className="mt-8 scroll-mt-4">
+        <h2 className="font-display mb-2 font-bold">Personas</h2>
+        <PersonasEspacio />
+      </section>
+      <BackupSection />
       <ApiTokensSection />
       <WebhooksSection />
+
+      <GrupoAjustes titulo="Instalación" />
+      <EstadoSection />
     </div>
   );
 }
@@ -516,5 +526,14 @@ function WebhooksSection() {
         {!hooks?.length && <li className="px-3 py-3 text-sm text-[var(--muted)]">Ningún aviso configurado.</li>}
       </ul>
     </section>
+  );
+}
+
+/** Rótulo de cada grupo de ajustes (Mi cuenta, Espacio…), como los del menú de Ajustes de Notion. */
+function GrupoAjustes({ titulo }: { titulo: string }) {
+  return (
+    <div className="mb-4 mt-12 truncate border-b border-[var(--border)] pb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)] first:mt-0">
+      {titulo}
+    </div>
   );
 }

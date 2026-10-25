@@ -87,7 +87,8 @@ export async function exchangeCode(cfg: OidcConfig, origin: string, code: string
   return (await res.json()) as TokenResponse;
 }
 
-export type OidcUser = { sub: string; email: string; name: string | null };
+/** `usuario`: el nombre de usuario del NAS (preferred_username), para canjear invitaciones hechas por usuario. */
+export type OidcUser = { sub: string; email: string; name: string | null; usuario: string | null };
 
 /** Decodifica el payload de un JWT sin verificar firma (solo para leer claims tras un intercambio seguro). */
 function decodeJwt(jwt: string): Record<string, unknown> | null {
@@ -122,7 +123,7 @@ export async function resolveUser(cfg: OidcConfig, tokens: TokenResponse): Promi
     emailClaim ?? (preferred ? `${preferred}@sso.local` : sub ? `${sub}@sso.local` : "")
   ).toLowerCase();
   const name = str(claims.name) ?? preferred ?? null;
-  return { sub, email, name };
+  return { sub, email, name, usuario: str(claims.preferred_username) ?? str(claims.username) ?? null };
 }
 
 /** Base pública de la app para redirecciones propias (evita url.origin = 0.0.0.0:3000 tras un proxy inverso). */

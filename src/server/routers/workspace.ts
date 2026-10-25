@@ -2,7 +2,10 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure, authedProcedure } from "../trpc";
 import { WS_COOKIE } from "../context";
-import { creaEspacio, limpiaNombre, MAX_NOMBRE } from "../services/espacios";
+import { alcanza, nivelDePagina, rolEnEspacio } from "../services/perms";
+import {
+  borraEspacio, creaEspacio, invitaMiembro, limpiaNombre, MAX_NOMBRE, quitaMiembro, salDeEspacio, traspasaEspacio,
+} from "../services/espacios";
 
 const accessibleBy = (userId: string) => ({
   OR: [{ ownerId: userId }, { members: { some: { userId } } }],
@@ -23,6 +26,13 @@ export const workspaceRouter = router({
       orderBy: { createdAt: "asc" },
       include: { owner: { select: { name: true, email: true } }, _count: { select: { members: true } } },
     });
+    // Avisos sin leer de cada espacio: el selector los enseña en los demás, como Notion.
+    const sinLeer = await ctx.db.notification.groupBy({
+      by: ["workspaceId"],
+      where: { userId: ctx.user.id, read: false },
+      _count: { _all: true },
+    });
+    const pendientes = new Map(sinLeer.map((n) => [n.workspaceId, n._count._all]));
     return wss.map((w) => ({
       id: w.id,
       name: w.name,
@@ -32,16 +42,30 @@ export const workspaceRouter = router({
       // Hay alguien más que el dueño: el selector lo marca, para saber qué ven otros.
       compartido: w._count.members > 1,
       miembros: w._count.members,
+      sinLeer: pendientes.get(w.id) ?? 0,
     }));
   }),
 
-  /** Miembros del espacio activo + rol propio. */
+  /**
+   * Miembros del espacio activo + rol propio; el propietario, primero (como Notion),
+   * y para el propietario también las invitaciones pendientes.
+   */
   members: workspaceProcedure.query(async ({ ctx }) => {
     const ms = await ctx.db.member.findMany({
       where: { workspaceId: ctx.workspace.id },
       include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { role: "asc" },
+      orderBy: { id: "asc" },
     });
+    const orden = (r: string) => (r === "owner" ? 0 : r === "editor" ? 1 : 2);
+    ms.sort((a, b) => orden(a.role) - orden(b.role) || (a.user.name ?? a.user.email).localeCompare(b.user.name ?? b.user.email));
+    const invitaciones =
+      ctx.role === "owner"
+        ? await ctx.db.invitacion.findMany({
+            where: { workspaceId: ctx.workspace.id },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, destino: true, role: true, createdAt: true },
+          })
+        : [];
     return {
       myRole: ctx.role,
       isOwner: ctx.role === "owner",
@@ -52,30 +76,24 @@ export const workspaceRouter = router({
         email: m.user.email,
         role: m.role,
       })),
+      invitaciones,
     };
   }),
 
-  /** Compartir con otra persona (por email; debe haber entrado ya alguna vez). */
+  /**
+   * «Añadir miembros» por email o usuario del NAS. Si aún no ha entrado nunca, queda
+   * como invitación pendiente y se canjea sola en su primer login (oidc/callback).
+   */
   share: workspaceProcedure
-    .input(z.object({ email: z.string().email(), role: z.enum(["editor", "viewer"]).default("editor") }))
+    .input(z.object({ email: z.string().max(200), role: z.enum(["editor", "viewer"]).default("editor") }))
+    .mutation(({ ctx, input }) => invitaMiembro(ctx.db, ctx.user.id, ctx.workspace.id, input.email, input.role)),
+
+  /** Anular una invitación pendiente (solo el propietario). */
+  cancelInvite: workspaceProcedure
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.role !== "owner") throw new TRPCError({ code: "FORBIDDEN", message: "Solo el propietario comparte." });
-      const email = input.email.toLowerCase();
-      const u = await ctx.db.user.findUnique({ where: { email } });
-      if (!u) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Esa persona aún no existe en Notiono. Pídele que entre una vez con su cuenta del NAS.",
-        });
-      }
-      if (u.id === ctx.workspace.ownerId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Esa persona ya es la propietaria." });
-      }
-      await ctx.db.member.upsert({
-        where: { workspaceId_userId: { workspaceId: ctx.workspace.id, userId: u.id } },
-        update: { role: input.role },
-        create: { workspaceId: ctx.workspace.id, userId: u.id, role: input.role },
-      });
+      if (ctx.role !== "owner") throw new TRPCError({ code: "FORBIDDEN" });
+      await ctx.db.invitacion.deleteMany({ where: { id: input.id, workspaceId: ctx.workspace.id } });
       return { ok: true };
     }),
 
@@ -94,16 +112,55 @@ export const workspaceRouter = router({
       return { ok: true };
     }),
 
-  /** Dejar de compartir con un miembro. */
+  /** Quitar a un miembro del espacio (y lo suyo en él). */
   unshare: workspaceProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.role !== "owner") throw new TRPCError({ code: "FORBIDDEN" });
-      if (input.userId === ctx.workspace.ownerId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "El propietario no se puede quitar." });
-      }
-      await ctx.db.member.deleteMany({ where: { workspaceId: ctx.workspace.id, userId: input.userId } });
+      await quitaMiembro(ctx.db, ctx.user.id, ctx.workspace.id, input.userId);
       return { ok: true };
+    }),
+
+  /** Darle la propiedad a otro miembro; quien la tenía queda como miembro. */
+  transfer: workspaceProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await traspasaEspacio(ctx.db, ctx.user.id, ctx.workspace.id, input.userId);
+      return { ok: true };
+    }),
+
+  /**
+   * «Salir del espacio». authedProcedure: un lector también puede salir. Pasa al
+   * espacio propio (o al primero que le quede).
+   */
+  leave: authedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const siguiente = await salDeEspacio(ctx.db, ctx.user.id, input.workspaceId);
+      fijaActivo(ctx, siguiente);
+      return { workspaceId: siguiente };
+    }),
+
+  /** «Eliminar todo el espacio»: hay que escribir su nombre. */
+  delete: workspaceProcedure
+    .input(z.object({ confirmacion: z.string().max(MAX_NOMBRE * 2) }))
+    .mutation(async ({ ctx, input }) => {
+      const siguiente = await borraEspacio(ctx.db, ctx.user.id, ctx.workspace.id, input.confirmacion);
+      fijaActivo(ctx, siguiente);
+      return { workspaceId: siguiente };
+    }),
+
+  /**
+   * En qué otro espacio está una página que no es del activo (un aviso o un enlace
+   * de otro espacio): la web pasa a él y la abre, como Notion. null si no la puedes ver.
+   */
+  dePagina: authedProcedure
+    .input(z.object({ pageId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const p = await ctx.db.page.findUnique({ where: { id: input.pageId }, select: { workspaceId: true, archivedAt: true } });
+      if (!p || p.workspaceId === ctx.workspace?.id) return null;
+      const role = await rolEnEspacio(ctx.db, p.workspaceId, ctx.user.id);
+      if (!role || !alcanza(await nivelDePagina(ctx.db, input.pageId, ctx.user.id, role), "view")) return null;
+      return { workspaceId: p.workspaceId };
     }),
 
   /** Cambiar el espacio activo (fija la cookie). */

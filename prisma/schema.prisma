@@ -107,6 +107,23 @@ model Workspace {
   apiTokens ApiToken[]
   webhooks  Webhook[]
   notifications Notification[]
+  invitaciones  Invitacion[]
+}
+
+// Invitación a un espacio para quien aún no ha entrado nunca: se canjea sola en su
+// primer login SSO (src/server/services/espacios.ts). `destino` = email o usuario del
+// NAS, en minúsculas.
+model Invitacion {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  destino     String
+  role        String    @default("editor") // editor | viewer
+  invitedById String? // sin FK, como Record.createdById
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, destino])
+  @@index([destino])
 }
 
 model Member {

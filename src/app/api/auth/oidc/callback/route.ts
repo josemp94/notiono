@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getOidcConfig, exchangeCode, resolveUser, appBaseUrl } from "@/server/oidc";
 import { ensureWorkspace } from "@/server/provision";
+import { canjeaInvitaciones } from "@/server/services/espacios";
 import { createSession, sessionCookie, SESSION_MAX_AGE } from "@/server/auth";
 import { APP_CHALLENGE_COOKIE, emiteCodigoApp, esChallenge } from "@/server/appAuth";
 
@@ -31,6 +32,8 @@ export async function GET(req: NextRequest) {
       });
     }
     await ensureWorkspace(db, user);
+    // Espacios a los que la invitaron antes de que hubiera entrado nunca.
+    await canjeaInvitaciones(db, user, info.usuario);
 
     // La app nativa (entró con ?app=1): nada de cookie en la Custom Tab, un código de
     // un solo uso de vuelta a la app, que lo canjea con su verificador PKCE.

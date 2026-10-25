@@ -17,7 +17,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openSearchPalette } from "@/components/SearchPalette";
 import { MovePageModal } from "@/components/MovePage";
-import { IconoEspacio, NuevoEspacio } from "@/components/Espacios";
+import { IconoEspacio, InvitarMiembros, NuevoEspacio } from "@/components/Espacios";
 import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 
 type Node = {
@@ -493,7 +493,6 @@ type Me = {
  * repartido entre una fila con el rol, otra de iconos y un pie.
  */
 function WorkspaceMenu({ me }: { me: Me }) {
-  const utils = trpc.useUtils();
   const { data: spaces } = trpc.workspace.list.useQuery();
   const [open, setOpen] = useState(false);
   const [share, setShare] = useState(false);
@@ -535,6 +534,9 @@ function WorkspaceMenu({ me }: { me: Me }) {
       >
         <IconoEspacio nombre={nombre} icon={current?.icon} />
         <span className="truncate text-sm font-semibold">{nombre}</span>
+        {(spaces ?? []).some((s) => s.id !== current?.id && s.sinLeer > 0) && (
+          <span className="h-2 w-2 shrink-0 rounded-full bg-brand" title="Hay avisos en otros espacios" />
+        )}
         <ChevronDown size={14} className="shrink-0 text-[var(--muted)]" />
       </button>
 
@@ -594,6 +596,11 @@ function WorkspaceMenu({ me }: { me: Me }) {
               ) : (
                 <span className="max-w-[40%] shrink-0 truncate text-[10px] text-[var(--muted)]">de {s.ownerName}</span>
               )}
+              {s.id !== current?.id && s.sinLeer > 0 && (
+                <span className="shrink-0 rounded-full bg-brand px-1.5 text-[10px] font-medium leading-4 text-white" title="Avisos sin leer">
+                  {s.sinLeer}
+                </span>
+              )}
               {s.id === current?.id && <Check size={14} className="shrink-0 text-brand" />}
             </button>
           ))}
@@ -631,118 +638,9 @@ function WorkspaceMenu({ me }: { me: Me }) {
         </div>
       )}
 
-      {share && <ShareDialog onClose={() => setShare(false)} onChange={() => utils.workspace.members.invalidate()} />}
+      {share && <InvitarMiembros onClose={() => setShare(false)} />}
       {nuevo && <NuevoEspacio onClose={() => setNuevo(false)} />}
     </div>
-  );
-}
-
-function ShareDialog({ onClose, onChange }: { onClose: () => void; onChange: () => void }) {
-  const utils = trpc.useUtils();
-  const { data } = trpc.workspace.members.useQuery();
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"editor" | "viewer">("editor");
-  const [err, setErr] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const refresh = async () => {
-    await utils.workspace.members.invalidate();
-    onChange();
-  };
-  const share = trpc.workspace.share.useMutation({
-    onSuccess: async () => {
-      setEmail("");
-      setErr(null);
-      await refresh();
-    },
-    onError: (e) => setErr(e.message),
-  });
-  const setRoleM = trpc.workspace.setRole.useMutation({ onSuccess: refresh });
-  const unshare = trpc.workspace.unshare.useMutation({ onSuccess: refresh });
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-            <Users size={18} /> Compartir espacio
-          </h2>
-          <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
-            <X size={16} />
-          </button>
-        </div>
-        <p className="mb-4 text-xs text-[var(--muted)]">
-          La persona debe haber entrado antes una vez con su cuenta del NAS.
-        </p>
-
-        <div className="mb-1 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && email.trim() && share.mutate({ email: email.trim(), role })}
-            placeholder="email de la persona"
-            className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-brand"
-          />
-          <div className="flex gap-2">
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as "editor" | "viewer")}
-              className="rounded-lg border border-[var(--border)] bg-transparent px-2 py-2 text-sm"
-            >
-              <option value="editor">Editor</option>
-              <option value="viewer">Solo lectura</option>
-            </select>
-            <button
-              onClick={() => share.mutate({ email: email.trim(), role })}
-              disabled={!email.trim() || share.isPending}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              Añadir
-            </button>
-          </div>
-        </div>
-        {err && <p className="mb-2 text-xs text-red-500">{err}</p>}
-
-        <ul className="mt-3 space-y-1">
-          {(data?.members ?? []).map((m) => {
-            const isOwner = m.userId === data?.ownerId;
-            return (
-              <li key={m.userId} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-[var(--border)]/30">
-                <span className="min-w-0 flex-1 truncate">{m.name || m.email}</span>
-                {isOwner ? (
-                  <span className="text-xs text-[var(--muted)]">Propietario</span>
-                ) : (
-                  <>
-                    <select
-                      value={m.role}
-                      onChange={(e) => setRoleM.mutate({ userId: m.userId, role: e.target.value as "editor" | "viewer" })}
-                      className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
-                    >
-                      <option value="editor">Editor</option>
-                      <option value="viewer">Solo lectura</option>
-                    </select>
-                    <button
-                      onClick={() => unshare.mutate({ userId: m.userId })}
-                      className="rounded px-1 text-xs text-[var(--muted)] hover:text-red-500"
-                      title="Quitar acceso"
-                    >
-                      <X size={14} />
-                    </button>
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>,
-    document.body,
   );
 }
 
