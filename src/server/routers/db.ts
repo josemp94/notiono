@@ -421,6 +421,27 @@ export const dbRouter = router({
         where: { id: input.recordId, collection: { page: { workspaceId: ctx.workspace.id } } },
       });
       if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
+      const campo = await ctx.db.field.findFirst({
+        where: { id: input.fieldId, collectionId: rec.collectionId },
+        select: { type: true, config: true },
+      });
+      if (!campo) throw new TRPCError({ code: "NOT_FOUND" });
+      // Una relación solo enlaza filas de SU base, y solo si la ves; con espejo, además
+      // se escribe en esas filas: hace falta poder editarla. Sin esto se podía enlazar
+      // (y, por el espejo, escribir en) cualquier fila por id, de otra base o espacio.
+      if (campo.type === "relation" && Array.isArray(input.value)) {
+        const cfg = (campo.config ?? {}) as { targetCollectionId?: string; mirrorFieldId?: string };
+        if (!input.value.every((x: unknown) => typeof x === "string")) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Valor de relación no válido." });
+        }
+        const ids = [...new Set(input.value as string[])];
+        if (ids.length) {
+          if (!cfg.targetCollectionId) throw new TRPCError({ code: "BAD_REQUEST", message: "La relación no apunta a ninguna base." });
+          await assertCollection(ctx, cfg.targetCollectionId, cfg.mirrorFieldId ? "edit" : "view");
+          const suyas = await ctx.db.record.count({ where: { id: { in: ids }, collectionId: cfg.targetCollectionId } });
+          if (suyas !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Esas filas no son de la base relacionada." });
+        }
+      }
       // Un recordatorio sin dueño es de quien lo pone (a él le avisa si la fila no tiene a nadie asignado).
       if (input.value && typeof input.value === "object" && !Array.isArray(input.value) && input.value.reminder && !input.value.reminderBy) {
         input.value = { ...input.value, reminderBy: ctx.user.id };
@@ -1038,7 +1059,7 @@ export const dbRouter = router({
       });
       if (!col) throw new TRPCError({ code: "NOT_FOUND" });
       // La lógica vive en la capa de servicio: la comparten la gráfica y la API.
-      return calculaComputados(ctx.db, ctx.workspace.id, col);
+      return calculaComputados(ctx.db, ctx.workspace.id, col, { userId: ctx.user.id, role: ctx.role ?? "member" });
     }),
 
 
@@ -1086,7 +1107,7 @@ export const dbRouter = router({
         ...[cfg.xFieldId, cfg.yFieldId, cfg.breakdownFieldId].filter((x): x is string => !!x),
       ];
       const base = necesitaComputados(col.fields, usados)
-        ? conComputados(all, (await calculaComputados(ctx.db, ctx.workspace.id, col)).rollups)
+        ? conComputados(all, (await calculaComputados(ctx.db, ctx.workspace.id, col, { userId: ctx.user.id, role: ctx.role ?? "member" })).rollups)
         : all;
       // Filtrar ANTES de agregar; ctx.user resuelve el valor especial "Yo" (me).
       const records = applyViewConfig(base, fields, view?.config ?? {}, ctx.user.id);

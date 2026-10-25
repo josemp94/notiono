@@ -19,6 +19,7 @@ import { verifyCollabToken } from "../src/server/collabToken";
 import { aplicarOpsDoc, bloquesDeDoc, cargarLibs, docVacio, type BloqueBN, type OpBloque } from "../src/server/app/bloquesYjs";
 import { leerBloquesPagina } from "../src/server/app/documento";
 import { archivarPagina, sacarDePapelera } from "../src/server/papelera";
+import { alcanza, nivelDePagina, rolEnEspacio } from "../src/server/services/perms";
 import { cambiosEnlaces, resumenEnlaces, type Resumen } from "../src/lib/subpaginas";
 
 const db = new PrismaClient();
@@ -98,7 +99,7 @@ async function alGuardar(hocuspocus: Hocuspocus, madreId: string, doc: Parameter
  * web (pages.collabToken); aquí se vuelve a comprobar la pertenencia al espacio,
  * para que un token viejo no valga si a alguien se le retiró el acceso.
  */
-async function authorize(token: string | null, pageId: string) {
+export async function authorize(token: string | null, pageId: string) {
   if (!token) return null;
   const claim = verifyCollabToken(token, pageId);
   if (!claim) return null;
@@ -109,12 +110,13 @@ async function authorize(token: string | null, pageId: string) {
   });
   if (!page || page.archivedAt) return null;
 
-  const member = await db.member.findUnique({
-    where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: claim.userId } },
-    select: { role: true },
-  });
-  if (!member) return null;
-  return { userId: claim.userId, role: member.role };
+  // El rol y el nivel de ESTA página, ahora (no los de cuando se firmó el permiso): a
+  // quien le quitan el acceso, o un invitado con otra página, no le vale el token.
+  const role = await rolEnEspacio(db, page.workspaceId, claim.userId);
+  if (!role) return null;
+  const nivel = await nivelDePagina(db, pageId, claim.userId, role);
+  if (!alcanza(nivel, "view")) return null;
+  return { userId: claim.userId, role, soloLectura: role === "viewer" || !alcanza(nivel, "edit") };
 }
 
 /**
@@ -157,7 +159,7 @@ export function createHocuspocus() {
       const access = await authorize(token, documentName);
       if (!access) throw new Error("Sin acceso a esta página");
       // Los invitados de solo lectura ven los cambios en vivo pero no pueden escribir.
-      connectionConfig.readOnly = access.role === "viewer";
+      connectionConfig.readOnly = access.soloLectura;
       return { userId: access.userId, role: access.role };
     },
 

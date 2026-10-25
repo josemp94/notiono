@@ -142,9 +142,10 @@ export const commentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await ctx.db.comment.findFirst({
         where: { id: input.id, page: { workspaceId: ctx.workspace.id } },
-        select: { id: true, reactions: true },
+        select: { id: true, reactions: true, pageId: true },
       });
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertPage(ctx, c.pageId, "comment");
       const reactions = { ...((c.reactions as Record<string, string[]>) ?? {}) };
       const quienes = reactions[input.emoji] ?? [];
       const next = quienes.includes(ctx.user.id)
@@ -164,9 +165,10 @@ export const commentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await ctx.db.comment.findFirst({
         where: { id: input.id, page: { workspaceId: ctx.workspace.id } },
-        select: { id: true, resolved: true },
+        select: { id: true, resolved: true, pageId: true },
       });
       if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+      await assertPage(ctx, c.pageId, "comment");
       return ctx.db.comment.update({
         where: { id: c.id },
         data: { resolved: !c.resolved },

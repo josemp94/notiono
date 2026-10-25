@@ -8,6 +8,7 @@ import { aFecha, evalFormula, type Val } from "../formula";
 import { dateValue } from "@/lib/cellText";
 import { agregaRollup } from "@/lib/rollup";
 import { peopleOf } from "./cells";
+import { alcanza, mapaDeNiveles } from "./perms";
 
 type DB = typeof import("@/lib/db").db;
 
@@ -29,10 +30,16 @@ export type Computados = {
   rollups: Record<string, Record<string, string | number>>;
 };
 
+/**
+ * `quien`: las relaciones y rollups solo leen bases que esa persona puede ver; una
+ * restringida (o, para un invitado, cualquiera que no le hayan compartido) sale como
+ * si la relación estuviera vacía de títulos y valores.
+ */
 export async function calculaComputados(
   db: DB,
   workspaceId: string,
   col: { fields: FieldRow[]; records: RecordRow[] },
+  quien: { userId: string; role: string },
 ): Promise<Computados> {
   const relationFields = col.fields.filter((f) => f.type === "relation");
   const rollupFields = col.fields.filter((f) => f.type === "rollup");
@@ -76,10 +83,13 @@ export async function calculaComputados(
         .filter((x): x is string => !!x),
     ),
   ];
-  const targetCols = await db.collection.findMany({
-    where: { id: { in: targetColIds }, page: { workspaceId } },
-    include: { fields: { orderBy: { order: "asc" } }, records: true },
-  });
+  const nivel = targetColIds.length ? await mapaDeNiveles(db, workspaceId, quien.userId, quien.role) : null;
+  const targetCols = (
+    await db.collection.findMany({
+      where: { id: { in: targetColIds }, page: { workspaceId } },
+      include: { fields: { orderBy: { order: "asc" } }, records: true },
+    })
+  ).filter((tc) => nivel && alcanza(nivel(tc.pageId), "view"));
   // Índice: colección destino -> (recordId -> {title, cells}), y su titleFieldId.
   const targetIndex = new Map<
     string,

@@ -57,7 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     ...(sorts ?? []).map((s) => s.fieldId),
   ];
   const base = necesitaComputados(col.fields, usados)
-    ? conComputados(all, (await calculaComputados(db, auth.workspaceId, col)).rollups)
+    ? conComputados(all, (await calculaComputados(db, auth.workspaceId, col, auth)).rollups)
     : all;
   const filtradas = applyViewConfig(base, fields, { filters, filterOp, sorts }, auth.userId);
 

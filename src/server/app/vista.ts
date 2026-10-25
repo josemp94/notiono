@@ -30,7 +30,7 @@ function colorDeFila(r: DbRecord, fields: DbField[], cfg: Record<string, unknown
 
 export async function calculaVista(
   db: DB,
-  quien: { workspaceId: string; userId: string },
+  quien: { workspaceId: string; userId: string; role: string },
   pageId: string,
   viewId: string | null | undefined,
   q: string | null | undefined,
@@ -57,7 +57,7 @@ export async function calculaVista(
   });
   const people = new Map(miembros.map((m) => [m.user.id, m.user.name || m.user.email]));
 
-  const computados = await calculaComputados(db, quien.workspaceId, col);
+  const computados = await calculaComputados(db, quien.workspaceId, col, quien);
   const base: DbRecord[] = conComputados(
     col.records.map((r) => ({
       id: r.id,

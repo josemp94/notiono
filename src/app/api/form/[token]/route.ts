@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { filtraQuienesVen } from "@/server/services/perms";
 import { createRecord } from "@/server/services/db";
 import { ipDe, permitido } from "@/server/ratelimit";
 import { sendPush } from "@/server/push";
@@ -81,7 +82,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .map((f) => cells[f.id])
     .find((v) => typeof v === "string") as string | undefined;
   const resumen = titulo?.slice(0, 80) ?? null;
-  const miembros = await db.member.findMany({ where: { workspaceId }, select: { userId: true } });
+  // Solo a quien puede ver la base (ni restringida ni invitados de otra página).
+  const todos = await db.member.findMany({ where: { workspaceId }, select: { userId: true } });
+  const miembros = (await filtraQuienesVen(db, workspaceId, pageId, todos.map((m) => m.userId))).map((userId) => ({ userId }));
   await db.notification.createMany({
     data: miembros.map((m) => ({ userId: m.userId, workspaceId, type: "form", title: resumen, pageId })),
   });

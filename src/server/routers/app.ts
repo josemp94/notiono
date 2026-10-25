@@ -142,7 +142,7 @@ export const appNativaRouter = router({
     .query(async ({ ctx, input }) => {
       const page = await paginaDelEspacio(ctx, input.pageId);
       const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
-      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id }, page.id, input.viewId, input.q);
+      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id, role: ctx.role ?? "member" }, page.id, input.viewId, input.q);
       if (!v) throw new TRPCError({ code: "NOT_FOUND", message: "Esta página no es una base de datos." });
       return { ...v, nivel, locked: page.locked };
     }),
@@ -153,7 +153,7 @@ export const appNativaRouter = router({
     .query(async ({ ctx, input }) => {
       const page = await paginaDelEspacio(ctx, input.pageId);
       const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
-      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id }, page.id, null, null, input.recordId);
+      const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id, role: ctx.role ?? "member" }, page.id, null, null, input.recordId);
       if (!v) throw new TRPCError({ code: "NOT_FOUND" });
       const fila = v.filas.find((f) => f.id === input.recordId);
       if (!fila) throw new TRPCError({ code: "NOT_FOUND", message: "Esta fila ya no existe (¿la borraron?)." });
