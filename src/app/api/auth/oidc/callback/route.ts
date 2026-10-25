@@ -32,9 +32,14 @@ export async function GET(req: NextRequest) {
       });
     }
     await ensureWorkspace(db, user);
-    // Espacios a los que la invitaron antes de que hubiera entrado nunca.
-    await canjeaInvitaciones(db, user, info.usuario);
-    await canjeaInvitacionesPagina(db, user, info.usuario);
+    // Espacios y páginas a los que la invitaron antes de que hubiera entrado nunca. Un
+    // fallo aquí no puede dejar a nadie sin entrar: se apunta y se sigue.
+    try {
+      await canjeaInvitaciones(db, user, info.usuario);
+      await canjeaInvitacionesPagina(db, user, info.usuario);
+    } catch (e) {
+      console.error("[oidc] canjear invitaciones", e);
+    }
 
     // La app nativa (entró con ?app=1): nada de cookie en la Custom Tab, un código de
     // un solo uso de vuelta a la app, que lo canjea con su verificador PKCE.
