@@ -260,7 +260,7 @@ Todos los errores son JSON `{ "error": "…" }` con el código que toca:
 | Código | Cuándo |
 |---|---|
 | 400 | el cuerpo no vale (falta un campo, un tipo que no existe), o la operación no se puede hacer (borrar la última vista, convertir una columna calculada) |
-| 401 | falta el token o no vale |
+| 401 | falta el token o no vale (también si quien lo creó ya no es del espacio, o solo es invitado de alguna página: la API es para miembros) |
 | 404 | el recurso no existe **o no es de tu espacio** — desde el token son lo mismo a propósito: así no se puede averiguar qué existe en otro espacio probando ids |
 
 ## Probar que todo funciona

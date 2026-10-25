@@ -139,6 +139,9 @@ el panel de registro, el historial y las páginas publicadas.
 ## 3. COLABORACIÓN, PERMISOS Y ORGANIZACIÓN
 
 - ✅ Espacios compartidos con roles `owner` / `editor` / `viewer` (`viewer` no puede mutar nada: se bloquea en `workspaceProcedure`, no solo en la UI).
+- ✅ **Varios espacios por persona** (oct-2026, `docs/ESTUDIO-2026-10.md` §8): «Nuevo espacio» en el selector, nombre e icono, Ajustes → General (Zona de peligro: salir / eliminar escribiendo el nombre) y Personas (invitar por correo o usuario del NAS, **invitaciones pendientes**, cambiar rol, quitar, **traspasar la propiedad**), avisos al añadir a alguien, no leídos por espacio en el selector.
+- ✅ **«Mover a» otro espacio**: duplica allí, como Notion («Entiendo, duplicar»).
+- ✅ **Invitados de página** (guests): «Compartir» invita a alguien de fuera del espacio, que solo ve esa página y sus subpáginas (sección «Compartido»). ❌ Aún no ven las bases embebidas de la página ni pueden volver a compartir.
 - ✅ **Comentarios** de página con resolver y borrar (`CommentsPanel.tsx`).
 - ✅ **Menciones** @página y @persona + **bandeja de notificaciones** con contador.
 - ✅ **Historial de versiones** con UI (snapshot con throttle de 2 min, últimas 50, restaurar). Solo páginas `doc`.
@@ -148,7 +151,7 @@ el panel de registro, el historial y las páginas publicadas.
 - ✅ **Publicar página en la web** (`/s/<token>`, solo lectura, resuelve también las BD embebidas).
 - ✅ **Recordatorios**: al abrir la app avisa en la bandeja de lo que tienes asignado y ya vence.
 - ✅ **Colaboración en tiempo real**: edición simultánea, cursores con nombre y **avatares de presencia** en la cabecera.
-- ❌ **Compartir por página** con herencia padre→hijo; niveles «puede comentar» / «acceso total».
+- ✅ **Compartir por página** con herencia padre→hijo; niveles Ver / Comentar / Editar / Acceso total (`services/perms.ts`).
 - ❌ Hilos anidados y reacciones en comentarios; seguir página.
 - ❌ Publicación con contraseña, caducidad o control de indexación.
 

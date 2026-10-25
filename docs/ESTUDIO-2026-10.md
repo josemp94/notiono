@@ -124,3 +124,78 @@ Cada tanda se prueba en PC y móvil en una copia aparte antes de subirla.
 - `FormFields.tsx`: los tipos no soportados en formularios se omiten sin avisar al dueño.
 - `Notification.type` en `schema.prisma` documenta 4 tipos y se usan 6 (`form`, `follow`).
 - `ratelimit.ts` es en memoria: válido con una réplica, dejaría de limitar con varias.
+
+## 8. Espacios y compartir (25-oct)
+
+Encargo: Gio quiere compartir con Rocío solo una parte de su Notiono y tener aparte un
+espacio común de la casa. Regla de Jose a mitad del encargo: **todo como en Notion**.
+
+### Por qué faltaba «Nuevo espacio»
+
+No hubo un motivo. `ddd269e` (compartir espacios y roles) ya montó el selector y la
+cookie `notiono_ws` pensando en varios espacios por persona (los compartidos); solo
+faltó crear más. Revisado lo que podía romperse con varios espacios propios:
+
+- **Recientes** (localStorage): ya iban por espacio (`notiono.recents.<id>`). **Inicio**
+  y «Abrir al iniciar»: por persona y espacio (`Member.inicio`). **Búsqueda, Mis tareas,
+  tokens y webhooks**: por espacio activo. Nada se mezclaba.
+- **Bandeja**: por espacio; lo de los demás espacios no se veía → ahora el selector
+  enseña sus no leídos.
+- **Push y enlaces**: un aviso de otro espacio abría «Página no encontrada» → ahora
+  pasa a ese espacio y la abre (`/api/espacio/<id>?a=…`).
+- **Contexto sin cookie**: caía en el espacio más antiguo al que tuvieras acceso, que
+  podía ser uno ajeno → ahora el propio primero.
+- **App Android**: manda `notiono_ws` y su hoja lee `workspace.list`: ve los espacios nuevos.
+
+### Qué dice Notion (centro de ayuda) y qué se ha copiado
+
+- *Create, join & leave workspaces*: el selector con el nombre del espacio, desplegable
+  con los espacios y el activo marcado, crear uno nuevo; salir en Ajustes → General →
+  «Zona de peligro». Copiado tal cual (el selector, arriba a la izquierda como hoy en Notion).
+- *Delete a workspace*: «Eliminar todo el espacio» en la Zona de peligro, escribiendo su
+  nombre. Copiado.
+- *Workspace settings*: General con nombre e icono (emoji o imagen). Copiado, con el
+  selector de iconos de las páginas.
+- *Add members, admins, guests*: miembros frente a invitados; invitar por correo con
+  rol; invitaciones pendientes; cambiar rol y quitar; convertir un invitado en miembro;
+  pestañas Miembros e Invitados. Copiado en Ajustes → Personas (y «Invitar miembros» del
+  selector, que abre lo mismo). Roles presentados con nombre y qué pueden hacer:
+  Propietario del espacio, Miembro (nuestro editor) y Lector (nuestro viewer).
+- *Sharing & permissions*: «Compartir» de una página invita por correo con Acceso total /
+  Editar / Comentar / Ver; el invitado la ve en «Compartido» del panel; las subpáginas
+  heredan. Copiado.
+- *Move & duplicate content between workspaces*: «Mover a» lleva abajo el selector de
+  espacio; a otro espacio, la página **se duplica** tras «Entiendo, duplicar» y el
+  original se queda; enlaces, relaciones y permisos pueden romperse. Copiado.
+- Diferencias que quedan: Notion admite varios propietarios (aquí uno, que se traspasa),
+  invita por correo (aquí también por usuario del NAS, que es el SSO) y no tiene rol Lector.
+
+### Hecho
+
+- `b4b67a4` **Nuevo espacio** (nombre + icono, entra en él), renombrar e icono; el alta por SSO y el botón comparten `creaEspacio` (`services/espacios.ts`); tope de 20 espacios propios.
+- `0b91413` **Ajustes del espacio** como Notion: General (nombre, icono, Zona de peligro con salir / eliminar escribiendo el nombre, nunca el último propio), Personas (invitar por correo o usuario del NAS, **invitaciones pendientes** que se canjean en el primer login —tabla `Invitacion`—, cambiar rol, quitar, **traspasar la propiedad**) y **aviso** en la bandeja y push al añadir a alguien.
+- `30b36f8` **Avisos y enlaces entre espacios**: no leídos de cada espacio en el selector y abrir una página de otro espacio pasando a él.
+- `8b0849b` **«Mover a» otro espacio** = duplicar allí (con las bases embebidas, sin lo que no ves, sin permisos, quitando relaciones a bases que no viajan). De paso, duplicar en el mismo espacio ya no pierde la restricción de las páginas restringidas.
+- `b782d57` **Arreglos de permisos** vistos al auditar (valen también para páginas restringidas): relaciones/rollups leían bases que no ves; `updateCell` aceptaba cualquier fila en una relación y escribía en ella por el espejo; reaccionar/resolver comentarios no miraba el nivel; el formulario público avisaba a todos; la sala en vivo no revalidaba el nivel de la página.
+- `2893c23` **Invitados de página** (los *guests* de Notion), estancos y cerrados por defecto: lista `PERMITIDO_INVITADO` en `trpc.ts`, nivel solo por página en `perms.ts`, sección «Compartido», Inicio propio, pendientes (`InvitacionPagina`) y avisos. Probado vía por vía en `scripts/integracion-espacios.ts`, con un barrido de los 140 procedimientos y una prueba de mutación (quitar la lista hace fallar la prueba).
+- `a249298` Retoques tras revisar las pantallas con capturas (390 px oscuro y 1440 px).
+- Salir de un espacio: comprobado que los tokens de API de esa persona dejan de valer (`apiAuth.ts` exige ser miembro) y además se borran.
+- Borrar un espacio: páginas, bases, comentarios, versiones, permisos, miembros, tokens, webhooks, avisos e invitaciones en cascada; los archivos subidos (sin FK) se borran a mano salvo los que nombre otro espacio (una copia duplicada allí). Los demás miembros caen en otro espacio sin error.
+
+### Límites conocidos de los invitados (documentados, no son fugas de datos)
+
+- **Bases embebidas** dentro de una página compartida: el invitado no las ve (su página contenedora no cuelga de la compartida). Las bases que son subpáginas sí.
+- El **texto** de la página compartida se ve entero, incluidos los títulos de las menciones y enlaces a páginas que no puede abrir (es contenido de la página, como en un documento).
+- La **app Android** le responde «prohibido» casi todo (`app.*` está fuera de la lista): para invitados, mejor la web por ahora.
+- Un invitado con Acceso total **no puede volver a compartir** la página (en Notion sí); no tiene API, Mis tareas, papelera ni plantillas.
+
+### Propuesto, por prioridad
+
+1. **App Android** (mediano): crear espacio, renombrar e icono, salir, Personas, y pintar los avisos nuevos `space` y `share` (hoy salen como «te mencionó en una página borrada»); y un modo invitado que use solo lo permitido. Su hoja de espacios ya ve los nuevos.
+2. **Bases embebidas para invitados** (mediano): que el contenedor herede el nivel de la página que lo enseña (o colgarlo de ella al crearlo). Es lo que más se notará al compartir una página con una tabla dentro.
+3. **Duplicar en el mismo espacio copia las bases embebidas** (pequeño): hoy la copia sigue enseñando la base de la original; en otro espacio ya se copian.
+4. **Que un invitado con Acceso total pueda compartir** (pequeño, decidir): como Notion; abrir `pages.perms.*` al invitado exige revisar que no vea la lista de miembros.
+5. **Correo de invitación** (mediano): no hay SMTP; quien no ha entrado nunca no se entera hasta que entra. Con el SSO del NAS basta avisar por WhatsApp.
+6. **Varios propietarios por espacio** (mediano): `Workspace.ownerId` es único en todo el código; el traspaso cubre el caso familiar.
+7. **Ctrl+Mayús+número** para saltar de espacio, como Notion (pequeño).
+8. Al traspasar el único espacio propio, quien lo era recibe uno nuevo y vacío en su siguiente login (`ensureWorkspace`) (pequeño; quizá es lo deseable).
