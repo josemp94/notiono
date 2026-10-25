@@ -17,6 +17,7 @@ import { arreglosEnlaces } from "@/lib/subpaginas";
 import { aplicarOpsJson } from "../app/bloquesYjs";
 import type { BloqueBN } from "../app/bloquesYjs";
 import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, rolEnEspacio, type Nivel } from "../services/perms";
+import { invitaAPagina, sueltaInvitadoSinPaginas } from "../services/espacios";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
 const TRASH_TTL_DAYS = 30;
@@ -42,7 +43,11 @@ export const pagesRouter = router({
     });
     // Una página restringida no existe para quien no está invitado: ni en el árbol.
     const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
-    const pages = todas.filter((p) => alcanza(nivel(p.id), "view"));
+    const visibles = todas.filter((p) => alcanza(nivel(p.id), "view"));
+    // Si la madre no se ve (restringida, o a un invitado solo le compartieron la hija),
+    // la página sale en la raíz en vez de perderse: como «Compartido» en Notion.
+    const ids = new Set(visibles.map((p) => p.id));
+    const pages = visibles.map((p) => (p.parentId && !ids.has(p.parentId) ? { ...p, parentId: null } : p));
     const childCount = new Map<string, number>();
     for (const p of pages) {
       if (p.parentId) childCount.set(p.parentId, (childCount.get(p.parentId) ?? 0) + 1);
@@ -214,7 +219,8 @@ export const pagesRouter = router({
       // El nivel viaja con la página: el cliente decide con él si edita o solo lee.
       const nivel = await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
       // Enlaces con títulos viejos (de antes de que se pusieran al día solos): se arreglan en vivo.
-      repararMenciones(ctx.db, ctx.workspace.id, page);
+      // No para un invitado: le traería el título actual de páginas que no ve.
+      if (ctx.role !== "guest") repararMenciones(ctx.db, ctx.workspace.id, page);
       // «Editado por X hace Y»: el autor sale de la última versión con autor (solo
       // las páginas doc versionan; las de BD enseñan solo el «hace Y»).
       const ultima = await ctx.db.version.findFirst({
@@ -281,6 +287,7 @@ export const pagesRouter = router({
     .input(z.object({ parentId: z.string().nullish(), title: z.string().default(""), enlazar: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
       if (input.parentId) await assertOwned(ctx, input.parentId);
+      else if (ctx.role === "guest") throw new TRPCError({ code: "FORBIDDEN", message: "Un invitado solo crea subpáginas de lo que le han compartido." });
       return createPage(
         { db: ctx.db, workspaceId: ctx.workspace.id, userId: ctx.user.id },
         { title: input.title, parentId: input.parentId ?? null, enlazar: input.enlazar },
@@ -877,14 +884,29 @@ export const pagesRouter = router({
           where: { pageId: input.pageId },
           select: { userId: true, level: true, user: { select: { name: true, email: true } } },
         });
+        // Los invitados (de fuera del espacio) van aparte, como en el «Compartir» de Notion.
+        const invitados = new Set(
+          (
+            await ctx.db.member.findMany({
+              where: { workspaceId: ctx.workspace.id, role: "guest", userId: { in: permisos.map((p) => p.userId) } },
+              select: { userId: true },
+            })
+          ).map((m) => m.userId),
+        );
+        const fila = (p: (typeof permisos)[number]) => ({ userId: p.userId, level: p.level, name: p.user.name || p.user.email, email: p.user.email });
+        const pendientes = alcanza(nivel, "full")
+          ? await ctx.db.invitacionPagina.findMany({
+              where: { pageId: input.pageId },
+              select: { id: true, destino: true, level: true },
+              orderBy: { createdAt: "asc" },
+            })
+          : [];
         return {
           restricted: page.restricted,
           nivel,
-          permisos: permisos.map((p) => ({
-            userId: p.userId,
-            level: p.level,
-            name: p.user.name || p.user.email,
-          })),
+          permisos: permisos.filter((p) => !invitados.has(p.userId)).map(fila),
+          invitados: permisos.filter((p) => invitados.has(p.userId)).map(fila),
+          pendientes,
         };
       }),
 
@@ -901,7 +923,8 @@ export const pagesRouter = router({
             });
             await ctx.db.pagePermission.createMany({
               data: miembros
-                .filter((m) => m.role !== "admin" && m.role !== "owner")
+                // Los invitados no: restringir no le abre la página a quien no la tenía.
+                .filter((m) => m.role !== "admin" && m.role !== "owner" && m.role !== "guest")
                 .map((m) => ({
                   pageId: input.pageId,
                   userId: m.userId,
@@ -940,6 +963,30 @@ export const pagesRouter = router({
       .mutation(async ({ ctx, input }) => {
         await assertOwned(ctx, input.pageId, "full");
         await ctx.db.pagePermission.deleteMany({ where: { pageId: input.pageId, userId: input.userId } });
+        // Un invitado sin ninguna página compartida ya no pinta nada en el espacio.
+        await sueltaInvitadoSinPaginas(ctx.db, ctx.workspace.id, input.userId);
+        return { ok: true };
+      }),
+
+    /**
+     * Invitar a la página por email o usuario del NAS (el «Compartir» de Notion): quien
+     * no es del espacio entra como invitado y solo ve esta página y sus subpáginas.
+     */
+    invitar: workspaceProcedure
+      .input(z.object({ pageId: z.string(), email: z.string().max(200), level: z.enum(["view", "comment", "edit", "full"]) }))
+      .mutation(async ({ ctx, input }) => {
+        await assertOwned(ctx, input.pageId, "full");
+        const p = await ctx.db.page.findUniqueOrThrow({ where: { id: input.pageId }, select: { embedded: true, archivedAt: true } });
+        if (p.embedded || p.archivedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta página no se puede compartir." });
+        return invitaAPagina(ctx.db, ctx.user.id, ctx.workspace.id, input.pageId, input.email, input.level);
+      }),
+
+    /** Anular una invitación pendiente a la página. */
+    anularInvitacion: workspaceProcedure
+      .input(z.object({ pageId: z.string(), id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await assertOwned(ctx, input.pageId, "full");
+        await ctx.db.invitacionPagina.deleteMany({ where: { id: input.id, pageId: input.pageId } });
         return { ok: true };
       }),
   }),

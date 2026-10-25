@@ -83,13 +83,18 @@ export default function SettingsPage() {
 
       <GrupoAjustes titulo={`Espacio · ${me?.workspace?.name ?? "…"}`} />
       <AjustesEspacio />
-      <section id="personas" className="mt-8 scroll-mt-4">
-        <h2 className="font-display mb-2 font-bold">Personas</h2>
-        <PersonasEspacio />
-      </section>
-      <BackupSection />
-      <ApiTokensSection />
-      <WebhooksSection />
+      {/* Un invitado solo tiene las páginas que le compartieron: nada del espacio entero. */}
+      {me && me.wsRole !== "guest" && (
+        <>
+          <section id="personas" className="mt-8 scroll-mt-4">
+            <h2 className="font-display mb-2 font-bold">Personas</h2>
+            <PersonasEspacio />
+          </section>
+          <BackupSection />
+          <ApiTokensSection />
+          <WebhooksSection />
+        </>
+      )}
 
       <GrupoAjustes titulo="Instalación" />
       <EstadoSection />

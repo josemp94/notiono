@@ -47,7 +47,10 @@ export function Sidebar() {
   const router = useRouter();
   const { data: me } = trpc.auth.me.useQuery();
   const { data: pages } = trpc.pages.tree.useQuery();
-  const canEdit = me?.wsRole !== "viewer";
+  // Invitado de página (el «guest» de Notion): solo lo compartido con él, sin crear
+  // en la raíz ni papelera, plantillas o Mis tareas (el servidor tampoco le deja).
+  const invitado = me?.wsRole === "guest";
+  const canEdit = me?.wsRole !== "viewer" && !invitado;
   const [showTemplates, setShowTemplates] = useState(false);
   const noLeidas = useNoLeidas();
 
@@ -225,14 +228,16 @@ export function Sidebar() {
         <FilaPanel icono={<Inbox size={16} />} onClick={abrirBandeja} contador={noLeidas}>
           Bandeja de entrada
         </FilaPanel>
-        <FilaPanel icono={<CircleCheck size={16} />} href="/my-tasks">
-          Mis tareas
-        </FilaPanel>
+        {!invitado && (
+          <FilaPanel icono={<CircleCheck size={16} />} href="/my-tasks">
+            Mis tareas
+          </FilaPanel>
+        )}
 
         <div className="mt-4">
           <Favorites />
           <Section
-            title="Páginas"
+            title={invitado ? "Compartido" : "Páginas"}
             accion={
               canEdit && (
                 <button
@@ -248,7 +253,7 @@ export function Sidebar() {
           >
             <Tree nodes={byParent.get(null) ?? []} byParent={byParent} parentById={parentById} depth={0} canEdit={canEdit} />
             {pages && pages.length === 0 && (
-              <p className="px-2 py-1 text-xs text-[var(--muted)]">Aún no hay páginas.</p>
+              <p className="px-2 py-1 text-xs text-[var(--muted)]">{invitado ? "Ya no tienes páginas compartidas aquí." : "Aún no hay páginas."}</p>
             )}
           </Section>
         </div>
@@ -275,9 +280,11 @@ export function Sidebar() {
               {input}
             </>
           )}
-          <FilaPanel icono={<Trash2 size={16} />} href="/trash">
-            Papelera
-          </FilaPanel>
+          {!invitado && (
+            <FilaPanel icono={<Trash2 size={16} />} href="/trash">
+              Papelera
+            </FilaPanel>
+          )}
         </div>
       </nav>
       {showTemplates && <TemplatesGallery onClose={() => setShowTemplates(false)} />}
@@ -483,7 +490,7 @@ type Me = {
   id: string;
   email: string;
   name: string | null;
-  wsRole: "owner" | "editor" | "viewer" | null;
+  wsRole: "owner" | "editor" | "viewer" | "guest" | null;
   workspace: { id: string; name: string; icon: string | null } | null;
 } | null | undefined;
 
@@ -509,7 +516,7 @@ function WorkspaceMenu({ me }: { me: Me }) {
 
   const current = me?.workspace;
   const roleLabel =
-    me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Miembro" : me?.wsRole === "viewer" ? "Lector" : "";
+    me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Miembro" : me?.wsRole === "viewer" ? "Lector" : me?.wsRole === "guest" ? "Invitado" : "";
   const nombre = current?.name ?? "Espacio";
   const actual = spaces?.find((s) => s.id === current?.id);
 

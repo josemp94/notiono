@@ -220,7 +220,7 @@ export const ROLES: { id: "owner" | "editor" | "viewer"; nombre: string; desc: s
   { id: "editor", nombre: "Miembro", desc: "Ve y edita todo lo que no esté restringido; no cambia los ajustes." },
   { id: "viewer", nombre: "Lector", desc: "Ve el espacio, pero no edita nada." },
 ];
-export const nombreRol = (r: string) => ROLES.find((x) => x.id === r)?.nombre ?? r;
+export const nombreRol = (r: string) => (r === "guest" ? "Invitado" : (ROLES.find((x) => x.id === r)?.nombre ?? r));
 
 /**
  * Personas del espacio (Ajustes → Personas, y el diálogo «Invitar miembros»): añadir
@@ -256,13 +256,15 @@ export function PersonasEspacio() {
     onSuccess: () => window.location.reload(),
     onError,
   });
+  const miembros = data?.members.filter((m) => m.role !== "guest");
+  const invitados = (data?.members ?? []).filter((m) => m.role === "guest");
   const invitar = () => {
     if (!email.trim() || share.isPending) return;
     setMsg(null);
     share.mutate({ email: email.trim(), role });
   };
 
-  const cambia = async (m: { userId: string; name: string | null; email: string }, valor: string) => {
+  const cambia = async (m: { userId: string; name: string | null; email: string; role: string }, valor: string) => {
     setMsg(null);
     const quien = m.name || m.email;
     if (valor === "quitar") {
@@ -271,6 +273,8 @@ export function PersonasEspacio() {
       if (await confirmar(`¿Hacer a ${quien} propietario del espacio? Tú pasarás a ser miembro y ya no podrás cambiar los ajustes.`, "Traspasar"))
         transfer.mutate({ userId: m.userId });
     } else {
+      if (m.role === "guest" && !(await confirmar(`¿Convertir a ${quien} en ${nombreRol(valor).toLowerCase()}? Verá todo el espacio, no solo lo compartido.`, "Convertir")))
+        return;
       setRoleM.mutate({ userId: m.userId, role: valor as "editor" | "viewer" });
     }
   };
@@ -312,9 +316,9 @@ export function PersonasEspacio() {
       )}
       {msg && <p className={`mt-2 text-xs ${msg.error ? "text-red-500" : "text-[var(--muted)]"}`}>{msg.texto}</p>}
 
-      <div className="mb-1 mt-4 text-xs font-medium text-[var(--muted)]">Miembros · {data?.members.length ?? "…"}</div>
+      <div className="mb-1 mt-4 text-xs font-medium text-[var(--muted)]">Miembros · {miembros?.length ?? "…"}</div>
       <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
-        {(data?.members ?? []).map((m) => {
+        {(miembros ?? []).map((m) => {
           const esElDueno = m.userId === data?.ownerId;
           return (
             <li key={m.userId} className="flex items-center gap-2 px-3 py-2 text-sm">
@@ -349,6 +353,40 @@ export function PersonasEspacio() {
           );
         })}
       </ul>
+
+      {!!invitados.length && (
+        <>
+          <div className="mb-1 mt-4 text-xs font-medium text-[var(--muted)]">Invitados · {invitados.length}</div>
+          <p className="mb-1 text-xs text-[var(--muted)]">
+            Personas de fuera del espacio que solo ven las páginas que se les han compartido (desde «Compartir» de cada página).
+          </p>
+          <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+            {invitados.map((m) => (
+              <li key={m.userId} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{m.name || m.email}</span>
+                  {m.name && <span className="block truncate text-xs text-[var(--muted)]">{m.email}</span>}
+                </span>
+                {esDueno ? (
+                  <select
+                    value="guest"
+                    onChange={(e) => cambia(m, e.target.value)}
+                    aria-label={`Acceso de ${m.name || m.email}`}
+                    className="toque-estrecho max-w-[45%] rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-1 text-xs"
+                  >
+                    <option value="guest">Invitado</option>
+                    <option value="editor">Convertir en miembro</option>
+                    <option value="viewer">Convertir en lector</option>
+                    <option value="quitar">Quitar del espacio</option>
+                  </select>
+                ) : (
+                  <span className="shrink-0 text-xs text-[var(--muted)]">Invitado</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {esDueno && !!data?.invitaciones.length && (
         <>

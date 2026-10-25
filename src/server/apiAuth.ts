@@ -34,6 +34,8 @@ export async function authApiRequest(req: Request): Promise<ApiAuth | NextRespon
       if (!t.createdById || !role) {
         return jsonError(401, "Token sin dueño: quien lo creó ya no pertenece a este espacio.");
       }
+      // Un invitado de página no tiene API (ni puede crear tokens): cerrado por defecto.
+      if (role === "guest") return jsonError(401, "Quien creó este token es invitado en este espacio: la API es para miembros.");
       await db.apiToken.update({ where: { id: t.id }, data: { lastUsed: new Date() } });
       // Quien creó el token responde de lo que se haga con él: así lo hecho por API
       // queda firmado con un nombre y no aparece como salido de la nada.

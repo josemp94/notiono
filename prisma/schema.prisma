@@ -126,13 +126,28 @@ model Invitacion {
   @@index([destino])
 }
 
+// Invitado de página pendiente (el «guest» de Notion que aún no ha entrado nunca): al
+// canjearse queda como Member con rol «guest» y un PagePermission sobre esta página.
+model InvitacionPagina {
+  id          String   @id @default(cuid())
+  pageId      String
+  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  destino     String // email o usuario del NAS, en minúsculas
+  level       String   @default("view") // view | comment | edit | full
+  invitedById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([pageId, destino])
+  @@index([destino])
+}
+
 model Member {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        String    @default("editor") // owner | editor | viewer
+  role        String    @default("editor") // owner | editor | viewer | guest (invitado de página: solo lo compartido con él)
   inicio      Json?     // Inicio personalizable (src/lib/inicio.ts); null = el de por defecto
 
   @@unique([workspaceId, userId])
@@ -175,6 +190,7 @@ model Page {
   favorites   Favorite[]
   permissions PagePermission[]
   followers   PageFollow[]
+  invitaciones InvitacionPagina[]
 
   @@index([workspaceId, parentId])
 }

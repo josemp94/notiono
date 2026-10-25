@@ -26,7 +26,8 @@ export const workspaceRouter = router({
       orderBy: { createdAt: "asc" },
       include: {
         owner: { select: { name: true, email: true } },
-        _count: { select: { members: true } },
+        // Los invitados no cuentan como miembros (como en Notion).
+        _count: { select: { members: { where: { role: { not: "guest" } } } } },
         members: { where: { userId: ctx.user.id }, select: { role: true } },
       },
     });
@@ -56,12 +57,13 @@ export const workspaceRouter = router({
    * y para el propietario también las invitaciones pendientes.
    */
   members: workspaceProcedure.query(async ({ ctx }) => {
+    // Un invitado no ve quién más hay en el espacio: solo a sí mismo.
     const ms = await ctx.db.member.findMany({
-      where: { workspaceId: ctx.workspace.id },
+      where: { workspaceId: ctx.workspace.id, ...(ctx.role === "guest" ? { userId: ctx.user.id } : {}) },
       include: { user: { select: { id: true, name: true, email: true } } },
       orderBy: { id: "asc" },
     });
-    const orden = (r: string) => (r === "owner" ? 0 : r === "editor" ? 1 : 2);
+    const orden = (r: string) => (r === "owner" ? 0 : r === "editor" ? 1 : r === "viewer" ? 2 : 3);
     ms.sort((a, b) => orden(a.role) - orden(b.role) || (a.user.name ?? a.user.email).localeCompare(b.user.name ?? b.user.email));
     const invitaciones =
       ctx.role === "owner"
@@ -74,7 +76,7 @@ export const workspaceRouter = router({
     return {
       myRole: ctx.role,
       isOwner: ctx.role === "owner",
-      ownerId: ctx.workspace.ownerId,
+      ownerId: ctx.role === "guest" ? null : ctx.workspace.ownerId,
       members: ms.map((m) => ({
         userId: m.userId,
         name: m.user.name,

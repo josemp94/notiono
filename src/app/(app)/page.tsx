@@ -46,6 +46,7 @@ import { tomaArranqueEnInicio } from "@/lib/arranque";
 import { IconoPagina } from "@/components/PageIcon";
 import { MovePageModal } from "@/components/MovePage";
 import { AbrirAlIniciar, useInicio } from "@/components/AbrirAlIniciar";
+import { BotonPanel } from "@/components/AppShell";
 
 const BLOQUE: Record<BloqueInicio, { titulo: string; icono: ReactNode; vacio: string }> = {
   recientes: { titulo: "Recientes", icono: <Clock size={15} />, vacio: "Aún no has abierto ninguna página en este dispositivo." },
@@ -64,6 +65,36 @@ type Tarea = { recordId: string; pageId: string; dbTitle: string; title: string;
  * otro ordenador y en la app). También decide «Abrir al iniciar» (src/lib/arranque.ts).
  */
 export default function Inicio() {
+  const { data: me, isLoading } = trpc.auth.me.useQuery();
+  if (isLoading) return null;
+  // El invitado de página no tiene tareas ni recordatorios del espacio: solo lo
+  // compartido con él (en Notion le pasa igual).
+  return me?.wsRole === "guest" ? <InicioInvitado nombre={me.workspace?.name ?? ""} /> : <InicioMiembro />;
+}
+
+/** Inicio de un invitado: las páginas que le han compartido en este espacio. */
+function InicioInvitado({ nombre }: { nombre: string }) {
+  const { data: tree } = trpc.pages.tree.useQuery();
+  const raices = (tree ?? []).filter((p) => !p.parentId);
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8 md:px-8 md:py-12">
+      <div className="mb-6 flex items-center gap-2">
+        <BotonPanel />
+        <h1 className="font-display text-2xl font-extrabold md:text-3xl">Compartido contigo</h1>
+      </div>
+      <p className="mb-4 text-sm text-[var(--muted)]">
+        Eres invitado en «{nombre}»: solo ves las páginas que te han compartido, y lo que cuelga de ellas.
+      </p>
+      {raices.length ? (
+        <Tarjetas paginas={raices} />
+      ) : (
+        <p className="text-sm text-[var(--muted)]">Ya no tienes páginas compartidas en este espacio.</p>
+      )}
+    </div>
+  );
+}
+
+function InicioMiembro() {
   const router = useRouter();
   const { data: me } = trpc.auth.me.useQuery();
   const { datos, error, guardar, fallo } = useInicio();

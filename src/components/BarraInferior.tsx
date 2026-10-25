@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { openSearchPalette } from "@/components/SearchPalette";
 import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 import { NEW_PAGE_EVENT } from "@/lib/shortcuts";
+import { trpc } from "@/trpc/react";
 
 /**
  * La barra de abajo del móvil.
@@ -26,6 +27,8 @@ export function BarraInferior() {
   const ruta = usePathname();
   const noLeidas = useNoLeidas();
   const teclado = useTecladoAbierto();
+  // El invitado de página no crea en la raíz ni tiene Mis tareas (como en el panel).
+  const invitado = trpc.auth.me.useQuery().data?.wsRole === "guest";
   // «Inicio» es donde vive el contenido: la portada redirige a la primera página, así
   // que estando en una página el sitio marcado tiene que ser ese.
   const enPaginas = ruta === "/" || ruta.startsWith("/p/");
@@ -39,7 +42,7 @@ export function BarraInferior() {
     <nav className="no-imprimir zona-segura-abajo flex shrink-0 items-stretch border-t border-[var(--border)] bg-[var(--surface)] pt-1 md:hidden">
       <Boton href="/" icono={<House size={20} />} etiqueta="Inicio" activo={enPaginas} />
       <Boton onClick={openSearchPalette} icono={<Search size={20} />} etiqueta="Buscar" />
-      <button
+      {!invitado && <button
         onClick={() => window.dispatchEvent(new Event(NEW_PAGE_EVENT))}
         className="flex flex-1 flex-col items-center gap-1 px-1 py-1 text-[var(--muted)] active:opacity-70"
         aria-label="Nueva página"
@@ -48,13 +51,15 @@ export function BarraInferior() {
           <Plus size={20} strokeWidth={2.25} />
         </span>
         <span className="text-[10px] leading-none">Nueva</span>
-      </button>
-      <Boton
-        href="/my-tasks"
-        icono={<CircleCheck size={20} />}
-        etiqueta="Tareas"
-        activo={ruta === "/my-tasks"}
-      />
+      </button>}
+      {!invitado && (
+        <Boton
+          href="/my-tasks"
+          icono={<CircleCheck size={20} />}
+          etiqueta="Tareas"
+          activo={ruta === "/my-tasks"}
+        />
+      )}
       <Boton
         onClick={abrirBandeja}
         icono={

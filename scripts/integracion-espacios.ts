@@ -15,7 +15,10 @@ import { appRouter } from "@/server/root";
 import { createContext } from "@/server/context";
 import { createSession } from "@/server/auth";
 import { ensureWorkspace } from "@/server/provision";
-import { canjeaInvitaciones, MAX_ESPACIOS } from "@/server/services/espacios";
+import { canjeaInvitaciones, canjeaInvitacionesPagina, MAX_ESPACIOS } from "@/server/services/espacios";
+import { PERMITIDO_INVITADO } from "@/server/trpc";
+import { createCollabToken } from "@/server/collabToken";
+import { authorize } from "../collab/hocuspocus";
 import { GET as listaBasesApi } from "@/app/api/v1/databases/route";
 
 /** Una llamada de la API REST v1 con ese token (lista de bases de datos). */
@@ -145,6 +148,9 @@ async function main() {
   // --- «Mover a» otro espacio = duplicar allí (como Notion) ---
   await duplicarEnOtroEspacio();
 
+  // --- Invitados de página (los «guests» de Notion), estancos ---
+  await invitados();
+
   // --- Tope de espacios propios ---
   for (let i = await db.workspace.count({ where: { ownerId: ajena.user.id } }); i < MAX_ESPACIOS; i++) {
     await (await como(ajena)).c.workspace.create({ name: `E${i}` });
@@ -221,6 +227,146 @@ async function duplicarEnOtroEspacio() {
   const pd = await db.page.findUniqueOrThrow({ where: { id: dup.id }, include: { permissions: true } });
   assert.equal(pd.restricted, true);
   assert.deepEqual(pd.permissions.map((x) => [x.userId, x.level]), [[luis.user.id, "view"]]);
+}
+
+/**
+ * Lo que un invitado SÍ puede llamar sin pasar por workspaceProcedure (authed/public):
+ * auditados a mano. Si aparece uno nuevo, el barrido de abajo falla hasta revisarlo.
+ */
+const FUERA_DEL_ESPACIO = new Set([
+  "auth.me", "auth.logout",
+  "workspace.list", "workspace.switch", "workspace.create", "workspace.leave", "workspace.dePagina",
+  "notifications.markRead", "notifications.markAllRead", "notifications.checkDue",
+  "inicio.guardar",
+  "push.publicKey", "push.subscribe", "push.unsubscribe", "push.isSubscribed",
+]);
+
+async function invitados() {
+  const gio = await persona("GioInv");
+  const rocio = await persona("RocioInv");
+  const g = (await como(gio)).c;
+  const ws = gio.propio.id;
+  // Lo compartido: «Para Rocío» → «Sub», «Restringida» (cortada) y la base «Compras».
+  const compartida = await g.pages.create({ title: "Para Rocío" });
+  const sub = await g.pages.create({ title: "Sub", parentId: compartida.id });
+  const cortada = await g.pages.create({ title: "Restringida", parentId: compartida.id });
+  // Lo privado: «Privada» con su hija, y la base «Tareas privadas» con una fila SECRETO.
+  const privada = await g.pages.create({ title: "Privada" });
+  await g.pages.create({ title: "Hija privada", parentId: privada.id });
+  await g.pages.updateContent({ id: privada.id, content: [{ id: "p1", type: "paragraph", content: "texto SECRETO" }] });
+  const tareas = await g.db.create({ title: "Tareas privadas" });
+  const tcol = await g.db.get({ pageId: tareas.id });
+  const titulo = tcol.fields.find((f) => f.type === "text")!;
+  await g.db.updateCell({ recordId: tcol.records[0].id, fieldId: titulo.id, value: "SECRETO" });
+  const compras = await g.db.create({ title: "Compras", parentId: compartida.id });
+  const ccol = await g.db.get({ pageId: compras.id });
+  await g.db.addRelation({ collectionId: ccol.id, name: "Tarea", targetCollectionId: tcol.id, mirror: true });
+  const rel = (await g.db.get({ pageId: compras.id })).fields.find((f) => f.name === "Tarea")!;
+  await g.db.updateCell({ recordId: ccol.records[0].id, fieldId: rel.id, value: [tcol.records[0].id] });
+  await g.comments.add({ pageId: privada.id, body: "comentario privado" });
+
+  // Gio invita a Rocío (que no es del espacio) a «Para Rocío» con edición.
+  const r0 = await g.pages.perms.invitar({ pageId: compartida.id, email: rocio.user.email, level: "edit" });
+  assert.deepEqual(r0, { pendiente: false, miembro: false });
+  await g.pages.perms.setRestricted({ pageId: cortada.id, restricted: true });
+  const permsCortada = await g.pages.perms.get({ pageId: cortada.id });
+  assert.ok(!permsCortada.permisos.some((p) => p.userId === rocio.user.id), "restringir no siembra a los invitados");
+  assert.deepEqual((await g.pages.perms.get({ pageId: compartida.id })).invitados.map((p) => p.userId), [rocio.user.id]);
+
+  const R = await como(rocio, ws);
+  const r = R.c;
+  assert.equal(R.ctx.role, "guest");
+  assert.equal((await r.workspace.list()).find((w) => w.id === ws)?.rol, "guest", "el espacio sale en su selector");
+  assert.equal((await g.workspace.list()).find((w) => w.id === ws)?.miembros, 1, "un invitado no cuenta como miembro");
+  assert.equal((await r.notifications.list())[0]?.type, "share", "le llega el aviso");
+
+  // Árbol: solo lo compartido, con la compartida en la raíz («Compartido»).
+  const arbol = await r.pages.tree();
+  assert.deepEqual(arbol.map((p) => [p.title, p.parentId === null]).sort(), [["Compras", false], ["Para Rocío", true], ["Sub", false]]);
+  // Buscador (títulos y contenido), menciones y enlaces entrantes.
+  assert.deepEqual(await r.pages.search({ query: "Priv" }), []);
+  assert.deepEqual(await r.pages.search({ query: "SECRETO", inContent: true }), []);
+  assert.deepEqual((await r.pages.search({ query: "Sub" })).map((p) => p.id), [sub.id]);
+  await g.pages.updateContent({ id: privada.id, content: [{ id: "p2", type: "paragraph", content: [{ type: "mention", props: { pageId: compartida.id } }] }] });
+  assert.deepEqual(await r.pages.backlinks({ id: compartida.id }), [], "un enlace desde una privada no se ve");
+  // @personas: solo se ve a sí misma.
+  assert.deepEqual((await r.workspace.members()).members.map((m) => m.userId), [rocio.user.id]);
+  assert.equal((await r.workspace.members()).ownerId, null);
+  // Páginas, comentarios, versiones y colaboración de lo no compartido: no existen.
+  for (const id of [privada.id, cortada.id, tareas.id]) {
+    await falla(r.pages.get({ id }), "NOT_FOUND", "no ve la página");
+    await falla(r.comments.list({ pageId: id }), "NOT_FOUND", "ni sus comentarios");
+    await falla(r.pages.versions.list({ pageId: id }), "NOT_FOUND", "ni su historial");
+    await falla(r.pages.collabToken({ id }), "NOT_FOUND", "ni su sala de edición");
+    await falla(r.pages.toggleFavorite({ pageId: id }), "NOT_FOUND", "ni favoritos");
+  }
+  const comPriv = await db.comment.findFirstOrThrow({ where: { pageId: privada.id } });
+  await falla(r.comments.react({ id: comPriv.id, emoji: "👍" }), "NOT_FOUND", "ni reaccionar por id");
+  await falla(r.comments.toggleResolve({ id: comPriv.id }), "NOT_FOUND", "ni resolver por id");
+  assert.ok(await r.pages.get({ id: sub.id }), "las subpáginas de lo compartido, sí");
+  const sala = await r.pages.collabToken({ id: compartida.id });
+  assert.equal((await authorize(sala.token, compartida.id))?.soloLectura, false, "y edita en vivo lo compartido");
+  // La sala revalida el nivel en cada conexión: un permiso firmado para otra página,
+  // o uno de antes de que le bajaran el nivel, no vale.
+  assert.equal(await authorize(createCollabToken(privada.id, rocio.user.id, "guest"), privada.id), null, "ni con un token firmado");
+  await g.pages.perms.set({ pageId: compartida.id, userId: rocio.user.id, level: "view" });
+  assert.equal((await authorize(sala.token, compartida.id))?.soloLectura, true, "con «Ver», en vivo pero sin escribir");
+  await g.pages.perms.set({ pageId: compartida.id, userId: rocio.user.id, level: "edit" });
+  // Crear: solo dentro de lo compartido.
+  await falla(r.pages.create({ title: "Mía" }), "FORBIDDEN", "nada en la raíz del espacio");
+  await falla(r.pages.create({ title: "x", parentId: privada.id }), "NOT_FOUND", "ni dentro de lo privado");
+  const nueva = await r.pages.create({ title: "Nueva de Rocío", parentId: compartida.id });
+  assert.ok(nueva.id);
+  // Bases de datos relacionadas: la compartida se lee, la relación a la privada no da títulos.
+  await falla(r.db.get({ pageId: tareas.id }), "NOT_FOUND", "no ve la base privada");
+  await falla(r.db.relationOptions({ collectionId: tcol.id }), "NOT_FOUND", "ni sus filas para relacionar");
+  const calc = await r.db.computed({ pageId: compras.id });
+  assert.ok(!JSON.stringify(calc).includes("SECRETO"), "ni el título de la fila relacionada");
+  assert.ok(JSON.stringify(await g.db.computed({ pageId: compras.id })).includes("SECRETO"), "(Gio sí lo ve)");
+  await falla(
+    r.db.updateCell({ recordId: ccol.records[1].id, fieldId: rel.id, value: [tcol.records[1].id] }),
+    "NOT_FOUND",
+    "ni enlazar (y escribir por el espejo) filas de la base privada",
+  );
+  // Notificaciones: un comentario con @Rocío en una privada no le llega.
+  await g.comments.add({ pageId: privada.id, body: "@RocioInv mira esto" });
+  assert.ok(!(await r.notifications.list()).some((n) => n.pageId === privada.id));
+  // API: un token suyo no vale.
+  const { token } = await (await como(gio)).c.apiTokens.create({ name: "de Rocío" });
+  await db.apiToken.updateMany({ where: { workspaceId: ws, name: "de Rocío" }, data: { createdById: rocio.user.id } });
+  assert.equal((await fetchApi(token)).status, 401, "la API es para miembros");
+
+  // Barrido: todo lo que no está en la lista del invitado le responde FORBIDDEN, sin
+  // llegar a mirar la entrada (papelera, plantillas, exportar, tokens, la app…).
+  const procedimientos = Object.keys((appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures);
+  assert.ok(procedimientos.length > 100, "el barrido ve todos los procedimientos");
+  for (const ruta of procedimientos) {
+    if (PERMITIDO_INVITADO.has(ruta) || FUERA_DEL_ESPACIO.has(ruta)) continue;
+    const fn = ruta.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)[k], r) as (i: unknown) => Promise<unknown>;
+    await falla(fn({}), "FORBIDDEN", `${ruta} no le está permitido`);
+  }
+  for (const ruta of PERMITIDO_INVITADO) assert.ok(procedimientos.includes(ruta), `${ruta} existe`);
+  console.log(`  barrido: ${procedimientos.length} procedimientos, ${procedimientos.filter((x) => !PERMITIDO_INVITADO.has(x) && !FUERA_DEL_ESPACIO.has(x)).length} prohibidos al invitado`);
+
+  // Quitarle la última página lo saca del espacio y cae en el suyo.
+  await g.pages.perms.remove({ pageId: compartida.id, userId: rocio.user.id });
+  assert.equal((await como(rocio, ws)).ctx.workspace?.id, rocio.propio.id);
+  assert.ok(!(await (await como(rocio)).c.workspace.list()).some((w) => w.id === ws));
+
+  // Invitada pendiente (aún no ha entrado nunca), por usuario del NAS.
+  const usuario = `suegra${sufijo}`;
+  assert.deepEqual(await g.pages.perms.invitar({ pageId: sub.id, email: usuario, level: "view" }), { pendiente: true, miembro: false });
+  assert.equal((await g.pages.perms.get({ pageId: sub.id })).pendientes.length, 1);
+  const suegraUser = await db.user.create({ data: { email: `${usuario}@sso.local`, name: "Suegra" } });
+  await ensureWorkspace(db, suegraUser);
+  await canjeaInvitacionesPagina(db, suegraUser, usuario);
+  const S = await como({ token: await createSession(suegraUser.id) }, ws);
+  assert.equal(S.ctx.role, "guest");
+  assert.deepEqual((await S.c.pages.tree()).map((p) => p.title), ["Sub"]);
+  await falla(S.c.pages.updateContent({ id: sub.id, content: [] }), "FORBIDDEN", "con «Ver» no edita");
+  // Convertirla en miembro le abre el espacio.
+  await g.workspace.setRole({ userId: suegraUser.id, role: "editor" });
+  assert.equal((await como({ token: (await db.session.findFirstOrThrow({ where: { userId: suegraUser.id } })).token }, ws)).ctx.role, "editor");
 }
 
 /** Un espacio de otra persona en el que esta no está. */

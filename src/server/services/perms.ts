@@ -7,9 +7,13 @@ const ORDEN: Record<Nivel, number> = { none: 0, view: 1, comment: 2, edit: 3, fu
 
 export const alcanza = (nivel: Nivel, min: Nivel) => ORDEN[nivel] >= ORDEN[min];
 
-/** Nivel que da el rol de espacio cuando ninguna página del camino está restringida. */
+/**
+ * Nivel que da el rol de espacio cuando ninguna página del camino está restringida.
+ * El invitado («guest», como los de Notion) no tiene nada por ser del espacio: solo
+ * lo que le hayan compartido página a página.
+ */
 const porRol = (role: string): Nivel =>
-  role === "owner" || role === "admin" ? "full" : role === "viewer" ? "view" : "edit";
+  role === "owner" || role === "admin" ? "full" : role === "viewer" ? "view" : role === "guest" ? "none" : "edit";
 
 /**
  * Nivel efectivo de un usuario sobre una página: manda el ancestro restringido más
@@ -27,12 +31,14 @@ export async function nivelDePagina(db: Db, pageId: string, userId: string, role
       select: { parentId: true, restricted: true },
     });
     if (!p) return "none";
-    if (p.restricted) {
+    // Al invitado le vale un permiso en cualquier página del camino (la compartida con
+    // él), no solo en las restringidas: para él todo el espacio está cerrado.
+    if (p.restricted || role === "guest") {
       const perm = await db.pagePermission.findUnique({
         where: { pageId_userId: { pageId: id, userId } },
         select: { level: true },
       });
-      return (perm?.level as Nivel) ?? "none";
+      if (perm || p.restricted) return (perm?.level as Nivel) ?? "none";
     }
     id = p.parentId;
   }
@@ -86,13 +92,16 @@ export async function mapaDeNiveles(
     const memo = cache.get(id);
     if (memo !== undefined) return memo;
     const p = pagina.get(id);
+    const mio = mios.get(id);
     const n: Nivel = !p
       ? "none"
       : p.restricted
-        ? (mios.get(id) ?? "none")
-        : p.parentId
-          ? nivel(p.parentId)
-          : base;
+        ? (mio ?? "none")
+        : role === "guest" && mio
+          ? mio
+          : p.parentId
+            ? nivel(p.parentId)
+            : base;
     cache.set(id, n);
     return n;
   };

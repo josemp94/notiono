@@ -227,6 +227,7 @@ export async function invitaMiembro(
   if (u) {
     if (u.id === ws.ownerId) throw mal("Esa persona ya es la propietaria.");
     const antes = await db.member.findUnique({ where: { workspaceId_userId: { workspaceId, userId: u.id } } });
+    // Un invitado de página al que se añade como miembro pasa a serlo (sin aviso nuevo).
     await db.member.upsert({
       where: { workspaceId_userId: { workspaceId, userId: u.id } },
       update: { role },
@@ -249,10 +250,95 @@ export async function canjeaInvitaciones(db: DB, user: { id: string; email: stri
   for (const inv of invs) {
     const ws = await db.workspace.findUnique({ where: { id: inv.workspaceId }, select: { ownerId: true } });
     const ya = await db.member.findUnique({ where: { workspaceId_userId: { workspaceId: inv.workspaceId, userId: user.id } } });
+    const rol = inv.role === "viewer" ? "viewer" : "editor";
     if (ws && ws.ownerId !== user.id && !ya) {
-      await db.member.create({ data: { workspaceId: inv.workspaceId, userId: user.id, role: inv.role === "viewer" ? "viewer" : "editor" } });
+      await db.member.create({ data: { workspaceId: inv.workspaceId, userId: user.id, role: rol } });
       await avisaAlta(db, inv.workspaceId, user.id, inv.invitedById);
+    } else if (ya?.role === "guest") {
+      await db.member.update({ where: { id: ya.id }, data: { role: rol } });
     }
     await db.invitacion.delete({ where: { id: inv.id } });
   }
+}
+
+export type NivelInvitado = "view" | "comment" | "edit" | "full";
+
+/** Aviso en la bandeja (y push) a quien le comparten una página. */
+async function avisaPagina(db: DB, workspaceId: string, pageId: string, userId: string, actorId: string | null) {
+  const page = await db.page.findUnique({ where: { id: pageId }, select: { title: true } });
+  const actor = actorId ? await db.user.findUnique({ where: { id: actorId }, select: { name: true, email: true } }) : null;
+  await db.notification.create({ data: { userId, workspaceId, type: "share", pageId, actorId } });
+  sendPush(userId, {
+    title: "Notiono",
+    body: `${actor?.name || actor?.email || "Alguien"} ha compartido «${page?.title || "Sin título"}» contigo`,
+    url: `/api/espacio/${workspaceId}?a=${encodeURIComponent(`/p/${pageId}`)}`,
+  });
+}
+
+/** Da a alguien permiso sobre una página; si no es del espacio, entra como invitado. */
+async function compartePagina(db: DB, workspaceId: string, pageId: string, userId: string, level: NivelInvitado, actorId: string) {
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { ownerId: true } });
+  if (ws?.ownerId === userId) return;
+  const m = await db.member.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } });
+  if (!m) await db.member.create({ data: { workspaceId, userId, role: "guest" } });
+  const antes = await db.pagePermission.findUnique({ where: { pageId_userId: { pageId, userId } } });
+  await db.pagePermission.upsert({
+    where: { pageId_userId: { pageId, userId } },
+    create: { pageId, userId, level },
+    update: { level },
+  });
+  if (!antes && (!m || m.role === "guest")) await avisaPagina(db, workspaceId, pageId, userId, actorId);
+}
+
+/**
+ * «Compartir» de una página con alguien por email o usuario del NAS, como en Notion:
+ * si no es del espacio, queda como invitado y solo ve esa página (y sus subpáginas)
+ * con el nivel dado. Si aún no ha entrado nunca, queda pendiente hasta su primer
+ * login. Quien comparte necesita acceso total a la página (lo comprueba el router).
+ */
+export async function invitaAPagina(
+  db: DB,
+  actorId: string,
+  workspaceId: string,
+  pageId: string,
+  texto: string,
+  level: NivelInvitado,
+): Promise<{ pendiente: boolean; miembro: boolean }> {
+  const destino = destinoInvitacion(texto);
+  if (!destino) throw mal("Escribe un email o un usuario del NAS.");
+  const emails = destino.includes("@") ? [destino] : [`${destino}@sso.local`];
+  const u = await db.user.findFirst({ where: { email: { in: emails } } });
+  if (u) {
+    const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { ownerId: true } });
+    if (u.id === ws?.ownerId) throw mal("Esa persona es la propietaria del espacio: ya lo ve todo.");
+    const m = await db.member.findUnique({ where: { workspaceId_userId: { workspaceId, userId: u.id } } });
+    await compartePagina(db, workspaceId, pageId, u.id, level, actorId);
+    return { pendiente: false, miembro: !!m && m.role !== "guest" };
+  }
+  await db.invitacionPagina.upsert({
+    where: { pageId_destino: { pageId, destino } },
+    update: { level, invitedById: actorId },
+    create: { pageId, destino, level, invitedById: actorId },
+  });
+  return { pendiente: true, miembro: false };
+}
+
+/** Al entrar por SSO: las páginas que le compartieron antes de que hubiera entrado. */
+export async function canjeaInvitacionesPagina(db: DB, user: { id: string; email: string }, usuario?: string | null) {
+  const invs = await db.invitacionPagina.findMany({
+    where: { destino: { in: destinosDe(user.email, usuario) } },
+    include: { page: { select: { workspaceId: true } } },
+  });
+  for (const inv of invs) {
+    await compartePagina(db, inv.page.workspaceId, inv.pageId, user.id, inv.level as NivelInvitado, inv.invitedById ?? user.id);
+    await db.invitacionPagina.delete({ where: { id: inv.id } });
+  }
+}
+
+/** Tras quitarle un permiso: un invitado que ya no tiene ninguna página, fuera del espacio. */
+export async function sueltaInvitadoSinPaginas(db: DB, workspaceId: string, userId: string) {
+  const m = await db.member.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } });
+  if (m?.role !== "guest") return;
+  const quedan = await db.pagePermission.count({ where: { userId, page: { workspaceId } } });
+  if (!quedan) await quitaDeEspacio(db, workspaceId, userId);
 }

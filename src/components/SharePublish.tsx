@@ -28,14 +28,105 @@ function AccesoSection({ pageId }: { pageId: string }) {
   const setRestricted = trpc.pages.perms.setRestricted.useMutation({ onSuccess: invalidate });
   const setPerm = trpc.pages.perms.set.useMutation({ onSuccess: invalidate });
   const removePerm = trpc.pages.perms.remove.useMutation({ onSuccess: invalidate });
+  const [email, setEmail] = useState("");
+  const [nivelInv, setNivelInv] = useState<"view" | "comment" | "edit" | "full">("view");
+  const [aviso, setAviso] = useState<{ texto: string; error?: boolean } | null>(null);
+  const invitar = trpc.pages.perms.invitar.useMutation({
+    onSuccess: (r) => {
+      setEmail("");
+      setAviso({
+        texto: r.pendiente
+          ? "Invitación pendiente: verá la página cuando entre por primera vez con el NAS."
+          : r.miembro
+            ? "Es miembro del espacio: ya ve la página según su rol (restríngela para elegir quién)."
+            : "Invitado: solo verá esta página y sus subpáginas.",
+      });
+      invalidate();
+      utils.workspace.members.invalidate();
+    },
+    onError: (e) => setAviso({ texto: e.message, error: true }),
+  });
+  const anular = trpc.pages.perms.anularInvitacion.useMutation({ onSuccess: invalidate });
   if (!data) return null;
+  const enviar = () => {
+    if (!email.trim() || invitar.isPending) return;
+    setAviso(null);
+    invitar.mutate({ pageId, email: email.trim(), level: nivelInv });
+  };
 
   const sinPermiso = (ws?.members ?? []).filter(
-    (m) => m.role !== "admin" && m.role !== "owner" && !data.permisos.some((p) => p.userId === m.userId),
+    (m) => m.role !== "admin" && m.role !== "owner" && m.role !== "guest" && !data.permisos.some((p) => p.userId === m.userId),
   );
 
   return (
     <div className="mb-3 border-b border-[var(--border)] pb-3">
+      {/* Como el «Compartir» de Notion: invitar por correo; quien no es del espacio
+          entra como invitado y solo ve esta página y lo que cuelga de ella. */}
+      <div className="mb-2 flex gap-1.5">
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && enviar()}
+          placeholder="Correo o usuario del NAS"
+          className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-transparent px-2 py-1 text-sm outline-none focus:border-brand"
+        />
+        <select
+          value={nivelInv}
+          onChange={(e) => setNivelInv(e.target.value as "view" | "comment" | "edit" | "full")}
+          className="toque-estrecho rounded-md border border-[var(--border)] bg-[var(--background)] px-1 text-xs"
+        >
+          {NIVELES.map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+        <button
+          onClick={enviar}
+          disabled={!email.trim() || invitar.isPending}
+          className="toque-estrecho rounded-md bg-brand px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+        >
+          Invitar
+        </button>
+      </div>
+      {aviso && <p className={`mb-2 text-xs ${aviso.error ? "text-red-500" : "text-[var(--muted)]"}`}>{aviso.texto}</p>}
+      {(data.invitados.length > 0 || data.pendientes.length > 0) && (
+        <div className="mb-3 space-y-1">
+          <div className="text-xs font-medium text-[var(--muted)]">Invitados</div>
+          {data.invitados.map((p) => (
+            <div key={p.userId} className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate" title={p.email}>{p.name}</span>
+              <select
+                value={p.level}
+                onChange={(e) => setPerm.mutate({ pageId, userId: p.userId, level: e.target.value as "view" | "comment" | "edit" | "full" })}
+                className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 text-xs"
+              >
+                {NIVELES.map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => removePerm.mutate({ pageId, userId: p.userId })}
+                className="toque-estrecho shrink-0 text-[var(--muted)] hover:text-red-500"
+                title="Quitar acceso"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+          {data.pendientes.map((i) => (
+            <div key={i.id} className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              <span className="min-w-0 flex-1 truncate">{i.destino}</span>
+              <span className="text-xs">Pendiente · {NIVELES.find(([v]) => v === i.level)?.[1]}</span>
+              <button
+                onClick={() => anular.mutate({ pageId, id: i.id })}
+                className="toque-estrecho shrink-0 hover:text-red-500"
+                title="Anular la invitación"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mb-1 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5 text-sm font-medium">

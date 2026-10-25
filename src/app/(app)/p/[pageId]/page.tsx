@@ -98,7 +98,7 @@ export default function PageView() {
                 {haceCuanto(page.updatedAt)}
               </span>
               {page.locked && <LockedPill pageId={page.id} canEdit={canEdit} />}
-              {nivel === "full" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
+              {nivel === "full" && me?.wsRole !== "guest" && <ShareButton pageId={page.id} publicToken={page.publicToken} />}
               {/* En el móvil no caben: van dentro del «⋯», como en la app de Notion. */}
               <div className="hidden items-center gap-1 md:flex">
                 <CommentsButton pageId={page.id} onClick={() => setComments(true)} />
@@ -109,6 +109,7 @@ export default function PageView() {
               <PageMenu
                 page={page}
                 canEdit={canEdit}
+                invitado={me?.wsRole === "guest"}
                 onComments={() => setComments(true)}
                 onHistory={() => setHistory(true)}
               />
@@ -227,11 +228,14 @@ const itemMenu = "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-lef
 function PageMenu({
   page,
   canEdit,
+  invitado,
   onComments,
   onHistory,
 }: {
   page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string; icon?: string | null; content?: unknown; siguiendo?: boolean };
   canEdit: boolean;
+  /** Invitado de página: sin «Mover a» ni exportar con subpáginas (son del espacio). */
+  invitado: boolean;
   onComments: () => void;
   onHistory: () => void;
 }) {
@@ -389,14 +393,16 @@ function PageMenu({
           </>
           )}
           <div className="my-1 border-t border-[var(--border)]" />
-          <button
-            onClick={exportarZip}
-            disabled={exportando}
-            className={`${itemMenu} disabled:opacity-60`}
-          >
-            <FileArchive size={16} />
-            {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
-          </button>
+          {!invitado && (
+            <button
+              onClick={exportarZip}
+              disabled={exportando}
+              className={`${itemMenu} disabled:opacity-60`}
+            >
+              <FileArchive size={16} />
+              {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
+            </button>
+          )}
           {/* Solo docs: una BD ya exporta a CSV desde su barra. */}
           {page.type !== "database" && (
             <button onClick={exportarMarkdown} className={itemMenu}>
@@ -417,7 +423,7 @@ function PageMenu({
               Exportar HTML
             </button>
           )}
-          {canEdit && (
+          {canEdit && !invitado && (
             <button
               onClick={() => {
                 setOpen(false);

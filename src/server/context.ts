@@ -13,7 +13,7 @@ export async function createContext(opts?: { req?: Request; resHeaders?: Headers
   const user = await getSessionUser(token);
 
   let workspace = null;
-  let role: "owner" | "editor" | "viewer" | null = null;
+  let role: "owner" | "editor" | "viewer" | "guest" | null = null;
 
   if (user) {
     const accessible = { OR: [{ ownerId: user.id }, { members: { some: { userId: user.id } } }] };
@@ -21,8 +21,12 @@ export async function createContext(opts?: { req?: Request; resHeaders?: Headers
     if (wsId) {
       workspace = await db.workspace.findFirst({ where: { id: wsId, ...accessible } });
     }
+    // Sin cookie (o con la de un espacio que ya no existe o del que salió): el propio
+    // primero; si no tiene, el primero al que tenga acceso.
     if (!workspace) {
-      workspace = await db.workspace.findFirst({ where: accessible, orderBy: { createdAt: "asc" } });
+      workspace =
+        (await db.workspace.findFirst({ where: { ownerId: user.id }, orderBy: { createdAt: "asc" } })) ??
+        (await db.workspace.findFirst({ where: accessible, orderBy: { createdAt: "asc" } }));
     }
     if (workspace) {
       if (workspace.ownerId === user.id) {
@@ -32,7 +36,7 @@ export async function createContext(opts?: { req?: Request; resHeaders?: Headers
           where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
           select: { role: true },
         });
-        role = (m?.role as "editor" | "viewer") ?? "viewer";
+        role = (m?.role as "editor" | "viewer" | "guest") ?? "viewer";
       }
     }
   }
