@@ -24,7 +24,11 @@ export const workspaceRouter = router({
     const wss = await ctx.db.workspace.findMany({
       where: accessibleBy(ctx.user.id),
       orderBy: { createdAt: "asc" },
-      include: { owner: { select: { name: true, email: true } }, _count: { select: { members: true } } },
+      include: {
+        owner: { select: { name: true, email: true } },
+        _count: { select: { members: true } },
+        members: { where: { userId: ctx.user.id }, select: { role: true } },
+      },
     });
     // Avisos sin leer de cada espacio: el selector los enseña en los demás, como Notion.
     const sinLeer = await ctx.db.notification.groupBy({
@@ -38,6 +42,7 @@ export const workspaceRouter = router({
       name: w.name,
       icon: w.icon,
       isOwner: w.ownerId === ctx.user.id,
+      rol: w.ownerId === ctx.user.id ? "owner" : (w.members[0]?.role ?? "viewer"),
       ownerName: w.owner.name || w.owner.email,
       // Hay alguien más que el dueño: el selector lo marca, para saber qué ven otros.
       compartido: w._count.members > 1,

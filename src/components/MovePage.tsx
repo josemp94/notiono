@@ -5,6 +5,9 @@ import { createPortal } from "react-dom";
 import { FileText, Folder, FolderInput, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { IconoPagina } from "@/components/PageIcon";
+import { IconoEspacio } from "@/components/Espacios";
+import { confirmar } from "@/components/Confirmar";
+import { toast } from "@/components/Toast";
 
 /**
  * Modal "Mover a…": buscador sobre el árbol del workspace; al elegir destino
@@ -28,7 +31,16 @@ export function MovePageModal({
 }) {
   const utils = trpc.useUtils();
   const { data: me } = trpc.auth.me.useQuery();
-  const { data: tree } = trpc.pages.tree.useQuery();
+  const { data: arbolActivo } = trpc.pages.tree.useQuery();
+  const { data: spaces } = trpc.workspace.list.useQuery(undefined, { enabled: !onElegir });
+  // Como Notion: abajo del diálogo se elige el espacio; en otro espacio, la página se duplica allí.
+  const [espacio, setEspacio] = useState<string | null>(null);
+  const actual = me?.workspace?.id ?? null;
+  const enOtro = !!espacio && espacio !== actual;
+  const destinos = (spaces ?? []).filter((s) => s.id === actual || s.rol === "owner" || s.rol === "editor");
+  const elegido = destinos.find((s) => s.id === (espacio ?? actual));
+  const { data: arbolOtro } = trpc.pages.arbolDe.useQuery({ workspaceId: espacio ?? "" }, { enabled: enOtro });
+  const tree = enOtro ? arbolOtro : arbolActivo;
   const [q, setQ] = useState("");
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -39,6 +51,25 @@ export function MovePageModal({
       onClose();
     },
   });
+  const copiar = trpc.pages.copiarAEspacio.useMutation({
+    onSuccess: ({ id, workspaceId }) => {
+      onClose();
+      toast(`Duplicada en «${elegido?.name ?? "el otro espacio"}»`, {
+        etiqueta: "Abrir",
+        onClick: () => (window.location.href = `/api/espacio/${workspaceId}?a=${encodeURIComponent(`/p/${id}`)}`),
+      });
+    },
+  });
+  const ocupado = move.isPending || copiar.isPending;
+  const elegir = async (parentId: string | null) => {
+    if (!enOtro || !espacio) return move.mutate({ id: pageId, parentId });
+    const ok = await confirmar(
+      `La página y sus subpáginas se duplicarán en «${elegido?.name}» y el original se quedará aquí. ` +
+        "En la copia pueden romperse enlaces, relaciones con otras bases de datos y permisos.",
+      "Entiendo, duplicar",
+    );
+    if (ok) copiar.mutate({ id: pageId, workspaceId: espacio, parentId });
+  };
 
   // La página y sus descendientes no son destino válido.
   const excluded = useMemo(() => {
@@ -47,7 +78,7 @@ export function MovePageModal({
       if (p.parentId) byParent.set(p.parentId, [...(byParent.get(p.parentId) ?? []), p.id]);
     }
     const set = new Set<string>();
-    if (onElegir) return set.add(pageId);
+    if (onElegir || enOtro) return set.add(pageId);
     const stack = [pageId];
     while (stack.length) {
       const id = stack.pop()!;
@@ -55,7 +86,7 @@ export function MovePageModal({
       stack.push(...(byParent.get(id) ?? []));
     }
     return set;
-  }, [tree, pageId, onElegir]);
+  }, [tree, pageId, onElegir, enOtro]);
 
   const query = q.trim().toLowerCase();
   const candidates = (tree ?? []).filter(
@@ -89,18 +120,18 @@ export function MovePageModal({
         />
         <div className="min-h-0 overflow-y-auto">
           {!onElegir && <button
-            disabled={move.isPending}
-            onClick={() => move.mutate({ id: pageId, parentId: null })}
+            disabled={ocupado}
+            onClick={() => elegir(null)}
             className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
           >
-            <Folder size={14} className="shrink-0 text-[var(--muted)]" />
-            <span className="truncate">Raíz de {me?.workspace?.name ?? "este espacio"}</span>
+            {elegido ? <IconoEspacio nombre={elegido.name} icon={elegido.icon} size={14} /> : <Folder size={14} className="shrink-0 text-[var(--muted)]" />}
+            <span className="truncate">Raíz de {elegido?.name ?? me?.workspace?.name ?? "este espacio"}</span>
           </button>}
           {candidates.map((p) => (
             <button
               key={p.id}
-              disabled={move.isPending}
-              onClick={() => (onElegir ? onElegir(p.id) : move.mutate({ id: pageId, parentId: p.id }))}
+              disabled={ocupado}
+              onClick={() => (onElegir ? onElegir(p.id) : elegir(p.id))}
               className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-[var(--hover)] disabled:opacity-50"
             >
               {p.icon ? (
@@ -115,7 +146,27 @@ export function MovePageModal({
             <p className="px-3 py-4 text-center text-sm text-[var(--muted)]">Sin resultados para «{q}».</p>
           )}
         </div>
-        {move.error && <p className="mt-2 text-xs text-red-500">{move.error.message}</p>}
+        {(move.error ?? copiar.error) && <p className="mt-2 text-xs text-red-500">{(move.error ?? copiar.error)?.message}</p>}
+        {!onElegir && destinos.length > 1 && (
+          <label className="mt-3 flex items-center gap-2 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
+            Espacio
+            <select
+              value={espacio ?? actual ?? ""}
+              onChange={(e) => {
+                setEspacio(e.target.value);
+                setQ("");
+              }}
+              className="toque-estrecho min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-sm text-[var(--foreground)]"
+            >
+              {destinos.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.isOwner ? "" : ` (de ${s.ownerName})`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </div>,
     document.body,

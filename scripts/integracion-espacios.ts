@@ -100,6 +100,7 @@ async function main() {
   const enCasa = (await g2.c.pages.tree())[0];
   assert.deepEqual(await (await como(rocio)).c.workspace.dePagina({ pageId: enCasa.id }), { workspaceId: casa.id });
   const ajena = await persona("Ajena");
+  otroAjeno = ajena.propio.id;
   assert.equal(await (await como(ajena)).c.workspace.dePagina({ pageId: enCasa.id }), null, "ajena: ni sabe que existe");
   assert.equal(await g2.c.workspace.dePagina({ pageId: enCasa.id }), null, "ya estás en su espacio");
 
@@ -141,6 +142,9 @@ async function main() {
   assert.equal((await como(rocio, casa.id)).ctx.workspace?.id, rocio.propio.id, "los demás caen en otro sin error");
   await falla((await como(gio)).c.workspace.delete({ confirmacion: gio.propio.name }), "BAD_REQUEST", "nunca el último propio");
 
+  // --- «Mover a» otro espacio = duplicar allí (como Notion) ---
+  await duplicarEnOtroEspacio();
+
   // --- Tope de espacios propios ---
   for (let i = await db.workspace.count({ where: { ownerId: ajena.user.id } }); i < MAX_ESPACIOS; i++) {
     await (await como(ajena)).c.workspace.create({ name: `E${i}` });
@@ -149,6 +153,79 @@ async function main() {
 
   console.log("integracion-espacios: todo bien");
 }
+
+async function duplicarEnOtroEspacio() {
+  const ana = await persona("Ana");
+  const luis = await persona("Luis");
+  const origen = await (await como(ana)).c.workspace.create({ name: "Trabajo" });
+  const destino = await (await como(ana)).c.workspace.create({ name: "Casa" });
+  const o = (await como(ana, origen.id)).c;
+  await o.workspace.share({ email: luis.user.email, role: "editor" });
+  // Viaje → [base embebida con relación a «Fuera», y una relación interna], Hija, Secreta (restringida).
+  const viaje = await o.pages.create({ title: "Viaje", enlazar: false });
+  const hija = await o.pages.create({ title: "Hija", parentId: viaje.id });
+  const secreta = await o.pages.create({ title: "Secreta", parentId: viaje.id });
+  const fuera = await o.db.create({ title: "Fuera" });
+  const fueraCol = (await o.db.get({ pageId: fuera.id })).id;
+  const emb = await o.db.createInline();
+  await o.db.addRelation({ collectionId: emb.collectionId, name: "A fuera", targetCollectionId: fueraCol, mirror: true });
+  await o.db.addRelation({ collectionId: emb.collectionId, name: "A sí misma", targetCollectionId: emb.collectionId });
+  await o.pages.updateContent({
+    id: viaje.id,
+    content: [
+      { id: "b1", type: "paragraph", content: "Plan" },
+      { id: "b2", type: "database", props: { collectionId: emb.collectionId, pageId: emb.pageId, viewId: "" }, children: [] },
+    ],
+  });
+
+  // Luis (miembro de los dos) no ve la Secreta: no viaja.
+  await o.pages.perms.setRestricted({ pageId: secreta.id, restricted: true });
+  await o.pages.perms.remove({ pageId: secreta.id, userId: luis.user.id });
+  const d = (await como(ana, destino.id)).c;
+  await d.workspace.share({ email: luis.user.email, role: "editor" });
+  const l = (await como(luis, origen.id)).c;
+  await falla(l.pages.copiarAEspacio({ id: viaje.id, workspaceId: ajenoDe(ana), parentId: null }), "FORBIDDEN", "solo a espacios donde puedes crear");
+  const { id } = await l.pages.copiarAEspacio({ id: viaje.id, workspaceId: destino.id, parentId: null });
+
+  const copia = await db.page.findUniqueOrThrow({ where: { id } });
+  assert.equal(copia.workspaceId, destino.id);
+  assert.equal(copia.title, "Viaje", "sin «(copia)», como Notion");
+  assert.ok(await db.page.findUnique({ where: { id: viaje.id } }), "el original se queda");
+  const hijas = await db.page.findMany({ where: { parentId: id }, select: { title: true } });
+  assert.deepEqual(hijas.map((h) => h.title), ["Hija"], "lo que no ves no viaja");
+  assert.ok(hija.id);
+  const bloque = (copia.content as { type: string; props?: { collectionId: string; pageId: string } }[]).find((b) => b.type === "database")!;
+  assert.notEqual(bloque.props!.pageId, emb.pageId, "la base embebida también se copia");
+  const embCopia = await db.page.findUniqueOrThrow({ where: { id: bloque.props!.pageId }, include: { collection: { include: { fields: true, records: true } } } });
+  assert.equal(embCopia.workspaceId, destino.id);
+  assert.equal(embCopia.embedded, true);
+  assert.equal(embCopia.collection!.id, bloque.props!.collectionId);
+  const tipos = embCopia.collection!.fields.map((f) => [f.name, f.type, (f.config as { targetCollectionId?: string }).targetCollectionId]);
+  assert.ok(!tipos.some(([n]) => n === "A fuera"), "fuera la relación a una base que no viaja");
+  assert.ok(tipos.some(([n, t, tc]) => n === "A sí misma" && t === "relation" && tc === embCopia.collection!.id), "la interna apunta a la copia");
+  assert.equal(embCopia.collection!.records.length, 3);
+  // La copia la ven los del destino y el árbol del destino la enseña en la raíz.
+  assert.ok((await d.pages.tree()).some((p) => p.id === id));
+  // Dentro de una página del destino, con su enlace en la madre.
+  const madre = (await d.pages.tree())[0];
+  const { id: id2 } = await l.pages.copiarAEspacio({ id: hija.id, workspaceId: destino.id, parentId: madre.id });
+  assert.equal((await db.page.findUniqueOrThrow({ where: { id: id2 } })).parentId, madre.id);
+  // Un lector del destino no puede dejar nada allí.
+  await d.workspace.setRole({ userId: luis.user.id, role: "viewer" });
+  await falla(l.pages.copiarAEspacio({ id: hija.id, workspaceId: destino.id, parentId: null }), "FORBIDDEN", "un lector no crea");
+  assert.deepEqual(await l.pages.arbolDe({ workspaceId: destino.id }), []);
+
+  // Duplicar en el mismo espacio mantiene la restricción y sus permisos (antes se perdían).
+  await o.pages.perms.set({ pageId: secreta.id, userId: luis.user.id, level: "view" });
+  const dup = await o.pages.duplicate({ id: secreta.id });
+  const pd = await db.page.findUniqueOrThrow({ where: { id: dup.id }, include: { permissions: true } });
+  assert.equal(pd.restricted, true);
+  assert.deepEqual(pd.permissions.map((x) => [x.userId, x.level]), [[luis.user.id, "view"]]);
+}
+
+/** Un espacio de otra persona en el que esta no está. */
+let otroAjeno = "";
+const ajenoDe = (_p: unknown) => otroAjeno;
 
 main()
   .catch((e) => {

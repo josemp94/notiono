@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { router, workspaceProcedure } from "../trpc";
 import { rankAtEnd, rankBetween } from "@/lib/fractional";
+import { generateKeyBetween } from "fractional-indexing";
 import { TEMPLATES } from "@/lib/templates";
 import { fetchLinkPreview } from "../linkPreview";
 import { createCollabToken } from "../collabToken";
@@ -15,7 +16,7 @@ import { archivarPagina, sacarDePapelera, subarbol } from "../papelera";
 import { arreglosEnlaces } from "@/lib/subpaginas";
 import { aplicarOpsJson } from "../app/bloquesYjs";
 import type { BloqueBN } from "../app/bloquesYjs";
-import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, type Nivel } from "../services/perms";
+import { alcanza, exigeNivel, mapaDeNiveles, nivelDePagina, rolEnEspacio, type Nivel } from "../services/perms";
 
 /** Días que aguanta una página en la papelera antes de la auto-purga (también en /trash). */
 const TRASH_TTL_DAYS = 30;
@@ -697,6 +698,70 @@ export const pagesRouter = router({
     }),
 
   /**
+   * Páginas de otro espacio donde puedo dejar algo («Mover a» con otro espacio
+   * elegido): documentos vivos con nivel de edición. Vacío si no soy propietario o
+   * miembro con edición de ese espacio.
+   */
+  arbolDe: workspaceProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const role = await rolEnEspacio(ctx.db, input.workspaceId, ctx.user.id);
+      if (role !== "owner" && role !== "editor") return [];
+      const nivel = await mapaDeNiveles(ctx.db, input.workspaceId, ctx.user.id, role);
+      const ps = await ctx.db.page.findMany({
+        where: { workspaceId: input.workspaceId, archivedAt: null, embedded: false, type: "doc" },
+        select: { id: true, title: true, icon: true, type: true, parentId: true },
+        orderBy: { order: "asc" },
+      });
+      return ps.filter((p) => alcanza(nivel(p.id), "edit"));
+    }),
+
+  /**
+   * «Mover a» otro espacio, como Notion: la página y sus subpáginas se DUPLICAN allí
+   * (en la raíz o dentro de una página) y el original se queda donde estaba. Solo lo
+   * que quien copia puede ver; los permisos no viajan y las relaciones con bases que
+   * no van en la copia se quitan. Hace falta ser propietario o miembro del destino.
+   */
+  copiarAEspacio: workspaceProcedure
+    .input(z.object({ id: z.string(), workspaceId: z.string(), parentId: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.workspaceId === ctx.workspace.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Ya está en este espacio." });
+      await assertOwned(ctx, input.id, "view");
+      const destino = await rolEnEspacio(ctx.db, input.workspaceId, ctx.user.id);
+      if (destino !== "owner" && destino !== "editor") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "No puedes crear páginas en ese espacio." });
+      }
+      if (input.parentId) {
+        const madre = await ctx.db.page.findFirst({
+          where: { id: input.parentId, workspaceId: input.workspaceId, archivedAt: null, type: "doc" },
+          select: { id: true },
+        });
+        if (!madre) throw new TRPCError({ code: "NOT_FOUND" });
+        await exigeNivel(ctx.db, madre.id, ctx.user.id, destino, "edit");
+      }
+      const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
+      const ultima = await ctx.db.page.findFirst({
+        where: { workspaceId: input.workspaceId, parentId: input.parentId, archivedAt: null },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      const otro: CopiaOtroEspacio = { mapa: new Map(), ve: (id) => alcanza(nivel(id), "view"), colecciones: [] };
+      const id = await ctx.db.$transaction(
+        async (tx) => {
+          const nueva = await copyPage(tx, input.workspaceId, input.id, input.parentId, rankAtEnd(ultima?.order ?? null), true, otro);
+          await quitaRelacionesFuera(tx, otro.colecciones);
+          return nueva;
+        },
+        { timeout: 60_000 },
+      );
+      if (input.parentId) {
+        const copia = await ctx.db.page.findUniqueOrThrow({ where: { id }, select: { id: true, title: true, icon: true } });
+        await enlazar(ctx.db, input.parentId, copia);
+      }
+      return { id, workspaceId: input.workspaceId };
+    }),
+
+  /**
    * Enviar a la papelera (soft-delete, con subárbol). Su enlace sale de la madre (en
    * vivo) y se recuerda dónde estaba; los de sus hijas se quedan dentro de ella.
    */
@@ -947,7 +1012,32 @@ function asJson(v: Prisma.JsonValue | null) {
   return v === null ? Prisma.DbNull : (v as Prisma.InputJsonValue);
 }
 
-/** Copia profunda de una página: contenido, colección (campos/vistas/registros), gráficas y subpáginas. */
+/**
+ * Duplicar en otro espacio («Mover a» otro espacio, como Notion): un solo mapa de
+ * ids viejos → nuevos para toda la copia, y `ve` deja fuera lo que quien copia no ve.
+ */
+type CopiaOtroEspacio = { mapa: Map<string, string>; ve: (pageId: string) => boolean; colecciones: string[] };
+
+/** Las páginas contenedoras que nombran los bloques «database» de un documento. */
+function paginasDeBases(content: Prisma.JsonValue | null): string[] {
+  const out: string[] = [];
+  const visita = (v: unknown) => {
+    if (Array.isArray(v)) v.forEach(visita);
+    else if (v && typeof v === "object") {
+      const b = v as { type?: unknown; props?: { pageId?: unknown }; children?: unknown };
+      if (b.type === "database" && typeof b.props?.pageId === "string" && b.props.pageId) out.push(b.props.pageId);
+      visita(b.children);
+    }
+  };
+  visita(content);
+  return out;
+}
+
+/**
+ * Copia profunda de una página: contenido, colección (campos/vistas/registros), gráficas y subpáginas.
+ * Con `otro`, la copia va a otro espacio: también se copian las bases embebidas que
+ * enseñan sus bloques (en el espacio nuevo no existirían) y el título no lleva «(copia)».
+ */
 async function copyPage(
   tx: Prisma.TransactionClient,
   workspaceId: string,
@@ -955,6 +1045,7 @@ async function copyPage(
   parentId: string | null,
   order: string,
   isRoot: boolean,
+  otro?: CopiaOtroEspacio,
 ): Promise<string> {
   const src = await tx.page.findUniqueOrThrow({
     where: { id: srcId },
@@ -967,6 +1058,7 @@ async function copyPage(
         },
       },
       charts: true,
+      permissions: true,
     },
   });
 
@@ -974,19 +1066,44 @@ async function copyPage(
     data: {
       workspaceId,
       parentId,
-      title: isRoot ? `${src.title} (copia)` : src.title,
+      title: isRoot && !otro ? `${src.title} (copia)` : src.title,
       icon: src.icon,
       cover: src.cover,
       type: src.type,
+      embedded: src.embedded,
+      // En el mismo espacio, la copia de una página restringida sigue restringida a
+      // las mismas personas; en otro espacio los permisos no viajan (como Notion).
+      restricted: otro ? false : src.restricted,
       order,
       content: asJson(src.content),
     },
   });
-  const map = new Map<string, string>([[src.id, page.id]]);
+  if (!otro && src.permissions.length) {
+    await tx.pagePermission.createMany({
+      data: src.permissions.map((pp) => ({ pageId: page.id, userId: pp.userId, level: pp.level })),
+    });
+  }
+  const map = otro?.mapa ?? new Map<string, string>();
+  map.set(src.id, page.id);
+
+  // Las bases embebidas que enseña esta página (o sus filas), antes que nada: su
+  // contenido y sus filas ya se copian con los ids nuevos.
+  if (otro) {
+    const nombradas = [
+      ...paginasDeBases(src.content),
+      ...(src.collection?.records ?? []).flatMap((r) => paginasDeBases(r.content)),
+    ];
+    for (const id of new Set(nombradas)) {
+      if (map.has(id) || !otro.ve(id)) continue;
+      const emb = await tx.page.findFirst({ where: { id, workspaceId: src.workspaceId, embedded: true }, select: { id: true } });
+      if (emb) await copyPage(tx, workspaceId, emb.id, null, generateKeyBetween(null, null), false, otro);
+    }
+  }
 
   if (src.collection) {
     const col = await tx.collection.create({ data: { pageId: page.id, name: src.collection.name } });
     map.set(src.collection.id, col.id);
+    otro?.colecciones.push(col.id);
     for (const f of src.collection.fields) {
       const nf = await tx.field.create({
         data: { collectionId: col.id, name: f.name, type: f.type, order: f.order, config: f.config as Prisma.InputJsonValue },
@@ -1010,10 +1127,11 @@ async function copyPage(
     }
     // Vistas: se crean al final, con el mapa completo (campos y registros ya remapeables).
     for (const v of src.collection.views) {
-      await tx.view.create({
+      const nv = await tx.view.create({
         // El orden se copia tal cual: son claves únicas dentro de la colección nueva.
         data: { collectionId: col.id, name: v.name, type: v.type, config: remapIds(v.config, map) as Prisma.InputJsonValue, order: v.order },
       });
+      map.set(v.id, nv.id);
     }
     // Segunda pasada: configs de campo (relación/rollup a la propia colección) y celdas con relaciones internas.
     for (const f of src.collection.fields) {
@@ -1041,17 +1159,42 @@ async function copyPage(
   });
   const hijas = new Map<string, string>();
   for (const c of children) {
+    if (otro && !otro.ve(c.id)) continue;
     // Las hermanas nuevas nacen sin conflicto: se reutiliza el order original de cada hija.
-    hijas.set(c.id, await copyPage(tx, workspaceId, c.id, page.id, c.order, false));
+    hijas.set(c.id, await copyPage(tx, workspaceId, c.id, page.id, c.order, false, otro));
   }
   // Los enlaces a las hijas, a las hijas copiadas (si no, la copia llevaría a las originales).
-  if (hijas.size && src.content !== null) {
-    const content = remapIds(src.content, hijas);
+  // En otro espacio, también las bases embebidas copiadas (y con ellas sus vistas).
+  const remapa = otro ? map : hijas;
+  if (remapa.size && src.content !== null) {
+    const content = remapIds(src.content, remapa);
     if (JSON.stringify(content) !== JSON.stringify(src.content)) {
       await tx.page.update({ where: { id: page.id }, data: { content: content as Prisma.InputJsonValue } });
     }
   }
   return page.id;
+}
+
+/**
+ * Tras duplicar en otro espacio: fuera las relaciones a bases que no han ido con la
+ * copia (y los rollups que las usan). Se leerían vacías, pero su «espejo» escribiría
+ * por id en las filas del espacio de origen.
+ */
+async function quitaRelacionesFuera(tx: Prisma.TransactionClient, colecciones: string[]) {
+  const dentro = new Set(colecciones);
+  const campos = await tx.field.findMany({
+    where: { collectionId: { in: colecciones }, type: { in: ["relation", "rollup"] } },
+    select: { id: true, type: true, config: true },
+  });
+  const rotas = new Set(
+    campos
+      .filter((f) => f.type === "relation" && !dentro.has(String((f.config as { targetCollectionId?: unknown })?.targetCollectionId ?? "")))
+      .map((f) => f.id),
+  );
+  for (const f of campos) {
+    if (f.type === "rollup" && rotas.has(String((f.config as { relationFieldId?: unknown })?.relationFieldId ?? ""))) rotas.add(f.id);
+  }
+  if (rotas.size) await tx.field.deleteMany({ where: { id: { in: [...rotas] } } });
 }
 
 async function assertOwned(
