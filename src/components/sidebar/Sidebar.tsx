@@ -559,7 +559,7 @@ function WorkspaceMenu({ me }: { me: Me }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{nombre}</div>
                 <div className="truncate text-xs text-[var(--muted)]">
-                  {[roleLabel, actual ? (actual.miembros === 1 ? "1 miembro" : `${actual.miembros} miembros`) : null].filter(Boolean).join(" · ")}
+                  {[roleLabel, actual && me?.wsRole !== "guest" ? (actual.miembros === 1 ? "1 miembro" : `${actual.miembros} miembros`) : null].filter(Boolean).join(" · ")}
                 </div>
               </div>
             </div>

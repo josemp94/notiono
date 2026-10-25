@@ -27,6 +27,16 @@ export default function SettingsPage() {
     }
   }, [me?.name]);
 
+  // #espacio / #personas (desde el selector de espacios): esas secciones se pintan al
+  // llegar los datos, después del salto del navegador, así que se baja a mano.
+  const saltado = useRef(false);
+  useEffect(() => {
+    if (!me || saltado.current) return;
+    saltado.current = true;
+    const id = window.location.hash.slice(1);
+    if (id) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
+  }, [me]);
+
   const [nameMsg, setNameMsg] = useState<string | null>(null);
   const updateProfile = trpc.auth.updateProfile.useMutation({
     onSuccess: () => {

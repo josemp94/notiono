@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Trash2, UserPlus, X } from "lucide-react";
+import { Plus, SmilePlus, Trash2, UserPlus, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { trpc } from "@/trpc/react";
 import { IconoPagina, SelectorIcono } from "@/components/PageIcon";
@@ -60,7 +60,11 @@ export function ElegirIconoEspacio({
         title={disabled ? undefined : "Cambiar icono"}
         className="toque flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] hover:bg-[var(--hover)] disabled:cursor-default disabled:hover:bg-transparent"
       >
-        <IconoEspacio nombre={nombre || "?"} icon={icon} size={24} />
+        {icon || nombre.trim() ? (
+          <IconoEspacio nombre={nombre} icon={icon} size={24} />
+        ) : (
+          <SmilePlus size={20} className="text-[var(--muted)]" />
+        )}
       </button>
       {open && (
         <SelectorIcono
@@ -438,6 +442,8 @@ export function ZonaPeligro() {
   const { data: me } = trpc.auth.me.useQuery();
   const ws = me?.workspace;
   const esDueno = me?.wsRole === "owner";
+  const { data: spaces } = trpc.workspace.list.useQuery();
+  const unico = esDueno && (spaces ?? []).filter((s) => s.isOwner).length <= 1;
   const [borrando, setBorrando] = useState(false);
   const [escrito, setEscrito] = useState("");
   const salir = trpc.workspace.leave.useMutation({ onSuccess: () => (window.location.href = "/") });
@@ -451,13 +457,15 @@ export function ZonaPeligro() {
         <div className="min-w-0 text-sm">
           {esDueno ? "Eliminar todo el espacio" : "Salir del espacio"}
           <div className="text-xs text-[var(--muted)]">
-            {esDueno
-              ? "Se borra para todas las personas que están en él, con todas sus páginas. No se puede deshacer."
-              : "Dejarás de ver sus páginas y desaparecerá de tu selector de espacios."}
+            {unico
+              ? "Es tu único espacio propio: para eliminarlo, crea antes otro."
+              : esDueno
+                ? "Se borra para todas las personas que están en él, con todas sus páginas. No se puede deshacer."
+                : "Dejarás de ver sus páginas y desaparecerá de tu selector de espacios."}
           </div>
         </div>
         {esDueno ? (
-          <button className={boton} onClick={() => setBorrando(true)}>
+          <button className={boton} disabled={unico} onClick={() => setBorrando(true)}>
             Eliminar
           </button>
         ) : (
