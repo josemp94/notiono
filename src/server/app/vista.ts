@@ -50,9 +50,10 @@ export async function calculaVista(
   const cfg = ((view?.config ?? {}) as Record<string, unknown>) ?? {};
   const fields = col.fields.map((f) => ({ id: f.id, name: f.name, type: f.type, config: f.config })) as DbField[];
 
-  // Miembros del espacio (para personas, «Creado por» y la búsqueda por nombre).
+  // Miembros del espacio (para personas, «Creado por» y la búsqueda por nombre). Un
+  // invitado no ve quién más hay en el espacio (como workspace.members): solo a sí mismo.
   const miembros = await db.member.findMany({
-    where: { workspaceId: quien.workspaceId },
+    where: { workspaceId: quien.workspaceId, ...(quien.role === "guest" ? { userId: quien.userId } : {}) },
     select: { user: { select: { id: true, name: true, email: true } } },
   });
   const people = new Map(miembros.map((m) => [m.user.id, m.user.name || m.user.email]));

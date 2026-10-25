@@ -65,6 +65,19 @@ export const PERMITIDO_INVITADO = new Set([
   "db.restoreRecord",
   "db.updateRecordContent",
   "inicio.get",
+  // La app nativa: cada uno mira el nivel de su página o fila (exigeNivel) y app.vista
+  // solo le pone nombre a la propia persona; avisos y recordatorios son solo suyos.
+  // Siguen cerrados: importar, plantillas y el calendario del widget (miran el espacio).
+  "app.pagina",
+  "app.bloques",
+  "app.aplicar",
+  "app.vista",
+  "app.fila",
+  "app.bloquesFila",
+  "app.aplicarFila",
+  "app.exportarMarkdown",
+  "app.recordatorios",
+  "app.avisos",
 ]);
 
 /**

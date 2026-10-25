@@ -202,6 +202,28 @@ export const appNativaRouter = router({
     }));
   }),
 
+  /**
+   * Mis últimos avisos de TODOS mis espacios, con el suyo: la app los saca como
+   * notificación del sistema aunque sean de otro espacio (`notifications.list` es solo
+   * el activo) y al tocarlos pasa a ese espacio, como el push de la web.
+   */
+  avisos: workspaceProcedure.query(async ({ ctx }) => {
+    const lista = await ctx.db.notification.findMany({
+      where: {
+        userId: ctx.user.id,
+        workspace: { OR: [{ ownerId: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        actor: { select: { name: true, email: true } },
+        page: { select: { id: true, title: true, icon: true } },
+        workspace: { select: { id: true, name: true } },
+      },
+    });
+    return lista.map(({ workspace, ...n }) => ({ ...n, espacio: workspace }));
+  }),
+
   plantillas: workspaceProcedure.query(() =>
     Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, icon: t.icon, description: t.description })),
   ),

@@ -336,6 +336,40 @@ async function invitados() {
   await db.apiToken.updateMany({ where: { workspaceId: ws, name: "de Rocío" }, data: { createdById: rocio.user.id } });
   assert.equal((await fetchApi(token)).status, 401, "la API es para miembros");
 
+  // La app nativa: lo compartido sí, lo privado no existe, y nadie más del espacio.
+  for (const id of [privada.id, cortada.id, tareas.id]) {
+    await falla(r.app.pagina({ id }), "NOT_FOUND", "app: no ve la página");
+    await falla(r.app.bloques({ id }), "NOT_FOUND", "app: ni sus bloques");
+    await falla(r.app.exportarMarkdown({ id }), "NOT_FOUND", "app: ni la exporta");
+    await falla(r.app.aplicar({ id, ops: [{ op: "delete", id: "p1" }] }), "NOT_FOUND", "app: ni la edita");
+  }
+  await falla(r.app.vista({ pageId: tareas.id }), "NOT_FOUND", "app: ni la base privada");
+  await falla(r.app.fila({ pageId: tareas.id, recordId: tcol.records[0].id }), "NOT_FOUND", "app: ni su fila");
+  await falla(r.app.bloquesFila({ recordId: tcol.records[0].id }), "NOT_FOUND", "app: ni el cuerpo de la fila");
+  await falla(r.app.aplicarFila({ recordId: tcol.records[0].id, ops: [{ op: "delete", id: "x" }] }), "NOT_FOUND", "app: ni lo escribe");
+  assert.equal((await r.app.pagina({ id: compartida.id })).nivel, "edit");
+  const ops = [{ op: "upsert" as const, block: { id: "app1", type: "paragraph", content: [{ type: "text", text: "desde la app", styles: {} }] } }];
+  assert.ok((await r.app.aplicar({ id: compartida.id, ops })).bloques.some((b) => b.id === "app1"), "app: edita lo compartido");
+  const vistaCompras = await r.app.vista({ pageId: compras.id });
+  assert.deepEqual(vistaCompras.personas.map((p) => p.id), [rocio.user.id], "app: en las personas, solo ella");
+  assert.ok(!JSON.stringify(vistaCompras).includes("SECRETO"), "app: ni el título de la fila relacionada");
+  assert.ok(!JSON.stringify(vistaCompras).includes(gio.user.email), "app: ni el correo de Gio");
+  assert.equal((await r.app.fila({ pageId: compras.id, recordId: ccol.records[0].id })).fila.id, ccol.records[0].id);
+  await r.app.aplicarFila({ recordId: ccol.records[0].id, ops });
+  assert.equal((await r.app.bloquesFila({ recordId: ccol.records[0].id })).bloques?.[0]?.id, "app1");
+  assert.ok(Array.isArray(await r.app.recordatorios()));
+  await db.notification.create({ data: { userId: rocio.user.id, workspaceId: rocio.propio.id, type: "mention", actorId: gio.user.id } });
+  const susAvisos = await r.app.avisos();
+  assert.ok(susAvisos.length > 0 && susAvisos.every((n) => n.userId === rocio.user.id), "app: solo sus avisos");
+  assert.ok(susAvisos.some((n) => n.type === "share" && n.espacio.id === ws), "app: el de la página compartida, con su espacio");
+  assert.ok(susAvisos.some((n) => n.espacio.id === rocio.propio.id), "app: y los de su espacio propio, desde el de invitada");
+  await g.pages.perms.set({ pageId: compartida.id, userId: rocio.user.id, level: "view" });
+  await falla(r.app.aplicar({ id: compartida.id, ops }), "FORBIDDEN", "app: con «Ver» no escribe");
+  await falla(r.app.aplicarFila({ recordId: ccol.records[0].id, ops }), "FORBIDDEN", "app: ni en las filas");
+  await g.pages.perms.set({ pageId: compartida.id, userId: rocio.user.id, level: "edit" });
+  // Lo que mira el espacio entero, cerrado también desde la app (lo cubre el barrido).
+  for (const ruta of ["app.plantillas", "app.markdownABloques", "app.calendario"]) assert.ok(!PERMITIDO_INVITADO.has(ruta), `${ruta} sigue cerrado`);
+
   // Barrido: todo lo que no está en la lista del invitado le responde FORBIDDEN, sin
   // llegar a mirar la entrada (papelera, plantillas, exportar, tokens, la app…).
   const procedimientos = Object.keys((appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures);
