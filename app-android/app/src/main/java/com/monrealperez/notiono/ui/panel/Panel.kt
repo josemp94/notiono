@@ -58,6 +58,10 @@ import com.monrealperez.notiono.ui.comun.PedirTexto
 import com.monrealperez.notiono.ui.comun.Separador
 import com.monrealperez.notiono.ui.comun.TituloSeccion
 import com.monrealperez.notiono.ui.comun.rememberConsulta
+import com.monrealperez.notiono.ui.espacios.Espacios
+import com.monrealperez.notiono.ui.espacios.HojaEspacios
+import com.monrealperez.notiono.ui.espacios.Puede
+import androidx.compose.foundation.shape.CircleShape
 import com.monrealperez.notiono.ui.tema.C
 import kotlinx.coroutines.launch
 
@@ -81,6 +85,8 @@ fun Panel(onCerrar: () -> Unit) {
     var moviendo by remember { mutableStateOf<String?>(null) }
     var renombrando by remember { mutableStateOf<NodoArbol?>(null) }
     var espacios by remember { mutableStateOf(false) }
+    val puede = Puede.de(yo)
+    val listaEspacios = Espacios.lista(rememberConsulta("workspace.list", etiquetas = setOf("espacios", "bandeja")).datos)
 
     fun ir(accion: () -> Unit) {
         accion()
@@ -120,8 +126,11 @@ fun Panel(onCerrar: () -> Unit) {
                     yo?.workspace?.name ?: "Notiono",
                     fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = C.texto,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    modifier = Modifier.weight(1f, fill = false).padding(start = 10.dp, end = 6.dp),
                 )
+                // Avisos sin leer en otro espacio: un punto, como en la web.
+                if (Espacios.avisosFuera(listaEspacios, yo?.workspace?.id)) Box(Modifier.size(8.dp).clip(CircleShape).background(com.monrealperez.notiono.ui.tema.Marca))
+                Box(Modifier.weight(1f))
                 Icono("chevron-down", tam = 16.dp, color = C.apagado)
             }
             FilaPanel("Buscar", "search") { ir { n.a("buscar") } }
@@ -140,14 +149,15 @@ fun Panel(onCerrar: () -> Unit) {
             }
         }
         item {
-            TituloSeccion("Páginas") {
-                Box(Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { ir { n.nuevaPagina(null) } }, contentAlignment = Alignment.Center) {
+            // Para un invitado, lo compartido con él (como el panel de la web y el de Notion).
+            TituloSeccion(if (puede.invitado) "Compartido" else "Páginas") {
+                if (puede.crear) Box(Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { ir { n.nuevaPagina(null) } }, contentAlignment = Alignment.Center) {
                     Icono("plus", tam = 16.dp, color = C.apagado)
                 }
             }
         }
         if (filas.isEmpty() && !arbolQ.cargando) {
-            item { Text("Aún no hay páginas", color = C.apagado, fontSize = 14.sp, modifier = Modifier.padding(16.dp)) }
+            item { Text(if (puede.invitado) "Ya no tienes páginas compartidas aquí." else "Aún no hay páginas", color = C.apagado, fontSize = 14.sp, modifier = Modifier.padding(16.dp)) }
         }
         items(filas, key = { it.first.id }) { (nodo, nivel) ->
             FilaArbol(
@@ -156,13 +166,13 @@ fun Panel(onCerrar: () -> Unit) {
                 onAlternar = { abiertos = if (nodo.id in abiertos) abiertos - nodo.id else abiertos + nodo.id },
                 onClick = { ir { n.pagina(nodo.id) } },
                 onLargo = { menuDe = nodo; menuEnFavoritos = false },
-                onMas = { abiertos = abiertos + nodo.id; ir { n.nuevaPagina(nodo.id) } },
+                onMas = if (puede.rol == "viewer") null else ({ abiertos = abiertos + nodo.id; ir { n.nuevaPagina(nodo.id) } }),
             )
         }
         item {
             Separador(Modifier.padding(vertical = 8.dp))
-            FilaPanel("Nueva página", "square-pen") { ir { n.nuevaPagina(null) } }
-            FilaPanel("Nueva base de datos", "database") {
+            if (puede.crear) FilaPanel("Nueva página", "square-pen") { ir { n.nuevaPagina(null) } }
+            if (puede.crear) FilaPanel("Nueva base de datos", "database") {
                 alcance.launch {
                     try {
                         val r = s.repo.mutacion("db.create", objeto("title" to "Base de datos"), encolable = false, etiquetas = listOf("arbol"))
@@ -172,9 +182,9 @@ fun Panel(onCerrar: () -> Unit) {
                     }
                 }
             }
-            FilaPanel("Plantillas", "sparkles") { ir { n.a("plantillas") } }
-            FilaPanel("Importar (Markdown o CSV)", "file-up") { importar.launch(arrayOf("text/*", "text/markdown", "text/csv", "application/octet-stream")) }
-            FilaPanel("Papelera", "trash-2") { ir { n.a("papelera") } }
+            if (puede.crear) FilaPanel("Plantillas", "sparkles") { ir { n.a("plantillas") } }
+            if (puede.crear) FilaPanel("Importar (Markdown o CSV)", "file-up") { importar.launch(arrayOf("text/*", "text/markdown", "text/csv", "application/octet-stream")) }
+            if (puede.papelera) FilaPanel("Papelera", "trash-2") { ir { n.a("papelera") } }
             Box(Modifier.height(24.dp))
         }
     }
@@ -182,13 +192,15 @@ fun Panel(onCerrar: () -> Unit) {
     menuDe?.let { nodo ->
         val esFav = favoritos.any { it.str("id") == nodo.id }
         Hoja({ menuDe = null }, nodo.title.ifBlank { "Sin título" }) {
-            FilaMenu("Añadir subpágina", "plus") { menuDe = null; abiertos = abiertos + nodo.id; ir { n.nuevaPagina(nodo.id) } }
+            if (puede.rol != "viewer") FilaMenu("Añadir subpágina", "plus") { menuDe = null; abiertos = abiertos + nodo.id; ir { n.nuevaPagina(nodo.id) } }
             FilaMenu(if (esFav) "Quitar de favoritos" else "Añadir a favoritos", if (esFav) "star-off" else "star") {
                 menuDe = null; alcance.launch { AccionesPagina.favorito(s.repo, nodo.id) }
             }
-            FilaMenu("Renombrar", "pencil") { menuDe = null; renombrando = nodo }
-            FilaMenu("Duplicar", "copy-plus") { menuDe = null; alcance.launch { AccionesPagina.duplicar(s.repo, nodo.id) } }
-            FilaMenu("Mover a…", "folder-input") { menuDe = null; moviendo = nodo.id }
+            if (puede.rol != "viewer") FilaMenu("Renombrar", "pencil") { menuDe = null; renombrando = nodo }
+            if (puede.organizar) {
+                FilaMenu("Duplicar", "copy-plus") { menuDe = null; alcance.launch { AccionesPagina.duplicar(s.repo, nodo.id) } }
+                FilaMenu("Mover a…", "folder-input") { menuDe = null; moviendo = nodo.id }
+            }
             if (menuEnFavoritos) {
                 val i = favoritos.indexOfFirst { it.str("id") == nodo.id }
                 favoritos.getOrNull(i - 1)?.str("id")?.let { antes ->
@@ -197,11 +209,11 @@ fun Panel(onCerrar: () -> Unit) {
                 favoritos.getOrNull(i + 1)?.str("id")?.takeIf { i >= 0 }?.let { despues ->
                     FilaMenu("Bajar en favoritos", "arrow-down") { menuDe = null; alcance.launch { AccionesPagina.mueveFavorito(s.repo, nodo.id, despuesDe = despues) } }
                 }
-            } else {
+            } else if (puede.organizar) {
                 FilaMenu("Subir", "arrow-up") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, -1) } }
                 FilaMenu("Bajar", "arrow-down") { menuDe = null; alcance.launch { AccionesPagina.desplazar(s.repo, arbol, nodo.id, 1) } }
             }
-            FilaMenu("Enviar a la papelera", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {
+            if (puede.organizar) FilaMenu("Enviar a la papelera", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {
                 menuDe = null
                 alcance.launch { AccionesPagina.archivar(s.repo, nodo.id) { alcance.launch { AccionesPagina.restaurar(s.repo, nodo.id) } } }
             }
@@ -214,7 +226,13 @@ fun Panel(onCerrar: () -> Unit) {
             alcance.launch { AccionesPagina.renombrar(s.repo, nodo.id, t) }
         }, onNo = { renombrando = null })
     }
-    if (espacios) HojaEspacios(yo) { espacios = false }
+    if (espacios) HojaEspacios(
+        yo, onCerrar = { espacios = false },
+        // Otro espacio: al Inicio de ese espacio, sin las páginas del anterior detrás (como la web al recargar).
+        onCambiado = { ir { n.nav.navigate("inicio") { popUpTo(0) { inclusive = true } } } },
+        onAjustes = { espacios = false; ir { n.a("espacio/general") } },
+        onInvitar = { espacios = false; ir { n.a("espacio/personas") } },
+    )
 }
 
 @Composable
@@ -262,34 +280,6 @@ private fun FilaArbol(
         if (onMas != null) {
             Box(Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).clickable(onClick = onMas), contentAlignment = Alignment.Center) {
                 Icono("plus", tam = 15.dp, color = C.apagado)
-            }
-        }
-    }
-}
-
-/** Cambiar de espacio de trabajo si hay varios (propios o compartidos). */
-@Composable
-private fun HojaEspacios(yo: Yo?, onCerrar: () -> Unit) {
-    val s = Servicios.de(LocalContext.current)
-    val q = rememberConsulta("workspace.list")
-    val alcance = rememberAlcance()
-    val lista = q.datos?.comoLista?.map { it.comoObjeto } ?: emptyList()
-    Hoja(onCerrar, "Espacios de trabajo") {
-        for (w in lista) {
-            val id = w.str("id") ?: continue
-            FilaMenu(
-                w.str("name") ?: "Espacio",
-                if (w.bool("isOwner")) "house" else "users",
-                detalle = if (w.bool("isOwner")) "Tuyo" else "De ${w.str("ownerName").orEmpty()}",
-                derecha = { if (id == yo?.workspace?.id) Icono("check", color = com.monrealperez.notiono.ui.tema.Marca) },
-            ) {
-                alcance.launch {
-                    // El espacio activo viaja como la cookie notiono_ws, igual que en la web.
-                    s.sesion.espacio = id
-                    s.cache.vacia()
-                    s.repo.avisa("espacio", "arbol", "favoritos", "bandeja")
-                    onCerrar()
-                }
             }
         }
     }

@@ -80,6 +80,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
     val alcance = s.alcance
     var hoja by remember { mutableStateOf<String?>(null) }
     var borrar by remember { mutableStateOf(false) }
+    val puede = com.monrealperez.notiono.ui.espacios.rememberPuede()
     val id = info.id
     fun accion(etiqueta: String, ruta: String, input: JsonObject, aviso: String? = null) {
         alcance.launch {
@@ -99,6 +100,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         "historial" -> { HojaHistorial(info) { hoja = null; onCerrar() }; return }
         "entrantes" -> { HojaEntrantes(id) { hoja = null; onCerrar() }; return }
         "publicar" -> { HojaPublicar(id) { hoja = null; onCerrar() }; return }
+        "compartir" -> { HojaCompartir(id, info.publicToken != null, onPublicar = { hoja = "publicar" }) { hoja = null; onCerrar() }; return }
         "mover" -> { HojaMover(id) { hoja = null; onCerrar() }; return }
         "tipografia" -> {
             Hoja({ hoja = null; onCerrar() }, "Tipografía") {
@@ -137,7 +139,8 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             )
             onCerrar()
         }
-        FilaMenu("Compartir y publicar en la web", "globe", detalle = if (info.publicToken != null) "Publicada" else null) { hoja = "publicar" }
+        // Como en la web: solo con acceso total y sin ser invitado (el «Compartir» de Notion).
+        if (puede.compartir(info.nivel)) FilaMenu("Compartir", "user-plus", detalle = if (info.publicToken != null) "Invitar personas · publicada en la web" else "Invitar personas o publicar en la web") { hoja = "compartir" }
         Separador(Modifier.padding(vertical = 4.dp))
         if (info.puedeEditar) {
             FilaMenu(if (info.locked) "Desbloquear página" else "Bloquear página", if (info.locked) "lock-open" else "lock",
@@ -145,19 +148,22 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
                 accion("arbol", "pages.setLocked", objeto("id" to id, "value" to !info.locked)); onCerrar()
             }
             FilaMenu("Tipografía", "type", detalle = when (info.font) { "serif" -> "Serif"; "mono" -> "Monoespaciada"; else -> "Predeterminada" }) { hoja = "tipografia" }
-            FilaMenu("Mover a…", "folder-input") { hoja = "mover" }
-            FilaMenu("Duplicar", "copy-plus") {
-                alcance.launch { AccionesPagina.duplicar(s.repo, id)?.let { n.pagina(it) } }; onCerrar()
+            if (puede.organizar) {
+                FilaMenu("Mover a…", "folder-input") { hoja = "mover" }
+                FilaMenu("Duplicar", "copy-plus") {
+                    alcance.launch { AccionesPagina.duplicar(s.repo, id)?.let { n.pagina(it) } }; onCerrar()
+                }
             }
         }
         if (!info.esBd) FilaMenu("Historial de versiones", "history") { hoja = "historial" }
         FilaMenu("Enlaces entrantes", "corner-down-right") { hoja = "entrantes" }
         Separador(Modifier.padding(vertical = 4.dp))
         if (info.esBd) {
-            FilaMenu("Exportar a CSV", "file-down") {
+            // Exportar e importar CSV miran la base entera por su colección: no para invitados.
+            if (puede.organizar) FilaMenu("Exportar a CSV", "file-down") {
                 alcance.launch { Archivos.exportaCsv(ctx, id) }; onCerrar()
             }
-            if (info.puedeEditar) FilaMenu("Importar CSV en esta base de datos", "file-up") {
+            if (info.puedeEditar && puede.organizar) FilaMenu("Importar CSV en esta base de datos", "file-up") {
                 importarCsv.launch(arrayOf("text/*", "text/csv", "application/octet-stream"))
             }
         } else {
@@ -168,7 +174,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         FilaMenu("Abrir en el navegador", "external-link") {
             com.monrealperez.notiono.util.Enlaces.abre(ctx, "${BuildConfig.BASE_URL}/p/$id"); onCerrar()
         }
-        if (info.puedeEditar) {
+        if (info.puedeEditar && puede.organizar) {
             Separador(Modifier.padding(vertical = 4.dp))
             FilaMenu("Enviar a la papelera", "trash-2", color = Color(0xFFD44C47)) { borrar = true }
         }

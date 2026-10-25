@@ -90,6 +90,38 @@ private val TITULOS = mapOf(
  */
 @Composable
 fun PantallaInicio() {
+    // El invitado de página no tiene tareas ni recordatorios del espacio: solo lo compartido
+    // con él (como el Inicio de la web y el de Notion).
+    val yo = com.monrealperez.notiono.ui.espacios.rememberYo()
+    if (yo?.wsRole == "guest") InicioInvitado(yo) else InicioMiembro()
+}
+
+/** Inicio de un invitado: las páginas que le han compartido en este espacio. */
+@Composable
+private fun InicioInvitado(yo: Yo) {
+    val n = LocalNavegador.current
+    LaunchedEffect(Unit) { ArranqueInicio.pendiente = false }
+    val arbol = Arbol.de(rememberConsulta("pages.tree", etiquetas = setOf("arbol")).datos)
+    val raices = arbol.de(null)
+    Column(Modifier.fillMaxSize()) {
+        BarraSuperior(izquierda = { BotonIcono("panel-left", n.abrirPanel) })
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            Text(
+                "Compartido contigo", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = C.texto, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
+            )
+            Text(
+                "Eres invitado en «${yo.workspace?.name.orEmpty()}»: solo ves las páginas que te han compartido, y lo que cuelga de ellas.",
+                fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            if (raices.isNotEmpty()) Tarjetas(raices.map { Triple(it.id, it.title, it.icon) })
+            else Text("Ya no tienes páginas compartidas en este espacio.", fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun InicioMiembro() {
     val ctx = LocalContext.current
     val s = Servicios.de(ctx)
     val n = LocalNavegador.current
@@ -231,7 +263,7 @@ private fun guardaInicio(s: Servicios, q: EstadoConsulta, nuevo: DatosInicio, al
     val paginas = nuevo.paginas.mapValues { (_, v) -> objeto("title" to v.first, "icon" to v.second) }
     val json = objeto("config" to nuevo.config.aJson(), "paginas" to paginas)
     q.datos = json
-    s.repo.cache.guarda(s.repo.cache.clave("inicio.get", null), json)
+    s.repo.cache.guarda(s.repo.clave("inicio.get"), json)
     alcance.launch {
         try {
             s.repo.mutacion("inicio.guardar", nuevo.config.aJson(), etiquetas = listOf("inicio"))

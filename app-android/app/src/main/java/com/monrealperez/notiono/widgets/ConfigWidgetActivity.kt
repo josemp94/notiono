@@ -66,7 +66,8 @@ class ConfigWidgetActivity : ComponentActivity() {
             else -> "nota"
         }
         val guarda: (ConfigWidget) -> Unit = { c ->
-            Configs.guarda(this, id, c)
+            // Con su espacio: si luego se cambia de espacio en la app, el widget sigue con lo suyo.
+            Configs.guarda(this, id, c.copy(espacio = Servicios.de(this).espacioActivo()))
             Instantaneas.borra(this, id)
             val p = Widgets.proveedorDe(this, id)
             p?.pinta(this, id)

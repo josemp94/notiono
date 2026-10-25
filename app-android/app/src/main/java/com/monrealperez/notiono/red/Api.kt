@@ -45,19 +45,25 @@ val json = Json {
  */
 class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) {
 
-    private fun cookies(): String? {
+    /** El espacio activo, el que va en la cookie si la llamada no lleva otro. */
+    fun espacio(): String? = sesion.espacio
+
+    private fun cookies(ws: String?): String? {
         val token = sesion.token ?: return null
-        val ws = sesion.espacio
         return if (ws != null) "notiono_session=$token; notiono_ws=$ws" else "notiono_session=$token"
     }
 
-    private fun Request.Builder.conSesion(): Request.Builder {
-        cookies()?.let { header("Cookie", it) }
+    /**
+     * `espacio`: el de esta llamada, si no es el activo (un widget puesto en otro espacio,
+     * un cambio que quedó en cola antes de cambiar de espacio).
+     */
+    private fun Request.Builder.conSesion(espacio: String? = null): Request.Builder {
+        cookies(espacio ?: sesion.espacio)?.let { header("Cookie", it) }
         header("User-Agent", "NotionoAndroid/${sesion.version}")
         return this
     }
 
-    suspend fun query(ruta: String, input: JsonElement? = null): JsonElement {
+    suspend fun query(ruta: String, input: JsonElement? = null, espacio: String? = null): JsonElement {
         val url = "$base/api/trpc/$ruta".toHttpUrl().newBuilder().apply {
             if (input != null && input != JsonNull) {
                 addQueryParameter("input", json.encodeToString(JsonElement.serializer(), envoltorio(input)))
@@ -65,14 +71,14 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
         }.build()
         // Las consultas se pueden cortar a medias (un widget al que se le acaba el tiempo);
         // las mutaciones no: que se corte la pantalla no puede dejar un cambio a medio mandar.
-        return ejecuta(Request.Builder().url(url).get().conSesion().build(), interrumpible = true)
+        return ejecuta(Request.Builder().url(url).get().conSesion(espacio).build(), interrumpible = true)
     }
 
-    suspend fun mutation(ruta: String, input: JsonElement? = null): JsonElement {
+    suspend fun mutation(ruta: String, input: JsonElement? = null, espacio: String? = null): JsonElement {
         val cuerpo = json.encodeToString(JsonElement.serializer(), envoltorio(input ?: JsonNull))
         val req = Request.Builder().url("$base/api/trpc/$ruta")
             .post(cuerpo.toRequestBody(JSON))
-            .conSesion()
+            .conSesion(espacio)
             .build()
         return ejecuta(req)
     }

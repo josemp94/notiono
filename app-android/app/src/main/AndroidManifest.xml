@@ -62,12 +62,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="notiono" />
             </intent-filter>
-            <!-- Los enlaces a páginas de Notiono se abren en la app. -->
+            <!-- Los enlaces a páginas de Notiono se abren en la app (y los de otro espacio, /api/espacio/…). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="notiono.monrealperez.com" android:pathPrefix="/p/" />
+                <data android:scheme="https" android:host="notiono.monrealperez.com" android:pathPrefix="/api/espacio/" />
             </intent-filter>
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>

@@ -36,12 +36,14 @@ import com.monrealperez.notiono.ui.comun.Icono
 import com.monrealperez.notiono.ui.comun.IconoPagina
 import com.monrealperez.notiono.ui.comun.Vacio
 import com.monrealperez.notiono.ui.comun.rememberConsulta
+import com.monrealperez.notiono.ui.espacios.Espacios
 import com.monrealperez.notiono.ui.tema.C
 
 /** Una página: documento (editor de bloques) o base de datos, con su barra y su menú «⋯». */
 @Composable
 fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) {
-    val s = Servicios.de(LocalContext.current)
+    val ctx = LocalContext.current
+    val s = Servicios.de(ctx)
     val n = LocalNavegador.current
     val q = rememberConsulta("app.pagina", objeto("id" to id), etiquetas = setOf("pagina:$id"))
     val info = q.datos?.let { runCatching { json.decodeFromJsonElement(PaginaInfo.serializer(), it) }.getOrNull() }
@@ -49,6 +51,16 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
     val arbol = androidx.compose.runtime.remember(id, info?.parentId, info?.title) { Arbol.de(s.repo.cacheada("pages.tree")) }
     var menu by remember { mutableStateOf(false) }
     var comentarios by remember { mutableStateOf(false) }
+    // No está en este espacio: si es de otro tuyo (un widget, un recordatorio, un enlace),
+    // se pasa a él y se abre, como la web; si no, «no existe».
+    var buscando by remember(id) { mutableStateOf(false) }
+    LaunchedEffect(id, q.error?.tipo) {
+        if (info == null && q.error?.tipo == ErrorApi.Tipo.NoEncontrado) {
+            buscando = true
+            Espacios.buscaPagina(ctx, id)
+            buscando = false
+        }
+    }
 
     LaunchedEffect(info?.id, info?.title, info?.icon) {
         if (info != null && !info.embedded) {
@@ -85,6 +97,7 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
         when {
             info != null && info.esBd -> PantallaBD(info, vista)
             info != null -> EditorPagina(info, alFinal)
+            buscando -> Vacio("Abriendo…", icono = "file-text")
             q.error != null -> Vacio(
                 when (q.error?.tipo) {
                     ErrorApi.Tipo.NoEncontrado -> "Esta página no existe o no tienes acceso."
@@ -103,7 +116,10 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
 /** Una fila de BD abierta como página completa (enlace ?r=, Mis tareas, widgets). */
 @Composable
 fun PantallaFila(pageId: String, recordId: String) {
+    val ctx = LocalContext.current
     val n = LocalNavegador.current
+    // Una fila de otro espacio (un recordatorio, un widget): se pasa a él.
+    LaunchedEffect(pageId) { Espacios.buscaPagina(ctx, pageId) }
     var comentarios by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         BarraSuperior(izquierda = { BotonIcono("arrow-left", { n.atras() }) }, acciones = {

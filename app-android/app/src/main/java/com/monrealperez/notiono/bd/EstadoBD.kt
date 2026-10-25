@@ -166,6 +166,10 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
     val campos get() = datos?.fields ?: emptyList()
     val editable get() = datos?.puedeEditar == true
 
+    /** Invitado de página: edita filas si su nivel lo deja, pero no las vistas (son del espacio). */
+    var invitado by mutableStateOf(false)
+    val gestionaVistas get() = editable && !invitado
+
     fun campo(id: String?) = campos.firstOrNull { it.id == id }
 
     /** El campo título: el primero de texto (como la web). */
@@ -252,6 +256,8 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
         val v = vista ?: return
         val nueva = JsonObject(v.cfg().toMutableMap().apply { for ((k, x) in cambios) if (x == null) remove(k) else put(k, x) })
         datos = datos?.copy(view = v.copy(config = nueva), views = datos!!.views.map { if (it.id == v.id) it.copy(config = nueva) else it })
+        // Sin permiso para guardar la vista (lector, invitado), el cambio se queda en esta pantalla.
+        if (!gestionaVistas) return
         alcance.launch { muta("db.updateView", objeto("id" to v.id, "config" to nueva)); recarga(0) }
     }
 

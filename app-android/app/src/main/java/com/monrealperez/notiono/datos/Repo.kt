@@ -44,27 +44,35 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         }
     }
 
+    /** La clave de caché de una consulta en ese espacio (por defecto, el activo). */
+    fun clave(ruta: String, input: JsonElement? = null, espacio: String? = null) = cache.clave(ruta, input, espacio ?: api.espacio())
+
     /** Lo último que se guardó de esta consulta (para pintar al instante). */
-    fun cacheada(ruta: String, input: JsonElement? = null): JsonElement? = cache.lee(cache.clave(ruta, input))
+    fun cacheada(ruta: String, input: JsonElement? = null, espacio: String? = null): JsonElement? = cache.lee(clave(ruta, input, espacio))
 
     /**
      * Consulta al servidor y guarda la respuesta. Sin red, devuelve lo guardado; si no
-     * hay nada guardado, lanza el error de conexión.
+     * hay nada guardado, lanza el error de conexión. `espacio`: si no es el activo.
      */
-    suspend fun consulta(ruta: String, input: JsonElement? = null, cachear: Boolean = true): JsonElement =
-        try {
-            fresca(ruta, input, cachear)
+    suspend fun consulta(ruta: String, input: JsonElement? = null, cachear: Boolean = true, espacio: String? = null): JsonElement {
+        // Se fija antes de salir a la red: si a medio camino se cambia de espacio, la
+        // respuesta se guarda en el que la pidió.
+        val ws = espacio ?: api.espacio()
+        return try {
+            fresca(ruta, input, cachear, ws)
         } catch (e: ErrorApi) {
-            if (e.sinConexion) cacheada(ruta, input) ?: throw e else throw e
+            if (e.sinConexion) cacheada(ruta, input, ws) ?: throw e else throw e
         }
+    }
 
     /** Solo del servidor (y se guarda): para quien quiere saber si falló, como los widgets. */
-    suspend fun fresca(ruta: String, input: JsonElement? = null, cachear: Boolean = true): JsonElement =
+    suspend fun fresca(ruta: String, input: JsonElement? = null, cachear: Boolean = true, espacio: String? = null): JsonElement =
         try {
-            val r = api.query(ruta, input)
+            val ws = espacio ?: api.espacio()
+            val r = api.query(ruta, input, ws)
             _sinConexion.value = false
             // Una BD grande son megas de JSON: se escriben fuera del hilo principal.
-            if (cachear) withContext(Dispatchers.IO) { cache.guarda(cache.clave(ruta, input), r) }
+            if (cachear) withContext(Dispatchers.IO) { cache.guarda(clave(ruta, input, ws), r) }
             r
         } catch (e: ErrorApi) {
             anota(e, ruta)
@@ -82,21 +90,23 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
         encolable: Boolean = true,
         pagina: String? = null,
         etiquetas: List<String> = emptyList(),
+        espacio: String? = null,
     ): JsonElement? {
+        val ws = espacio ?: api.espacio()
         if (encolable && !cola.estaVacia()) {
-            cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina))
+            cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina, espacio = ws))
             alEncolar()
             return null
         }
         return try {
-            val r = envio.withLock { api.mutation(ruta, input) }
+            val r = envio.withLock { api.mutation(ruta, input, ws) }
             _sinConexion.value = false
             avisa(*etiquetas.toTypedArray())
             r
         } catch (e: ErrorApi) {
             anota(e, ruta)
             if (e.sinConexion && encolable) {
-                cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina))
+                cola.añade(Pendiente(ruta = ruta, input = input, pagina = pagina, espacio = ws))
                 alEncolar()
                 avisa(*etiquetas.toTypedArray())
                 null
@@ -112,7 +122,7 @@ class Repo(val api: Api, val cache: Cache, val cola: Cola, private val alEncolar
     suspend fun vaciaCola(): Boolean {
         for (p in cola.pendientes()) {
             try {
-                envio.withLock { api.mutation(p.ruta, p.input) }
+                envio.withLock { api.mutation(p.ruta, p.input, p.espacio) }
                 cola.quita(p.id)
                 _sinConexion.value = false
                 p.pagina?.let { avisa("pagina:$it") }

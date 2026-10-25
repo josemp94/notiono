@@ -135,22 +135,79 @@ object AccionesPagina {
     }
 }
 
-/** Elegir a dónde mover una página: el árbol entero (sin su propio subárbol) o la raíz. */
+/**
+ * Elegir a dónde mover una página: el árbol entero (sin su propio subárbol) o la raíz.
+ * Abajo, como en Notion y la web, el espacio: en otro espacio la página no se mueve, se
+ * duplica allí tras «Entiendo, duplicar» y el original se queda.
+ */
 @Composable
 fun HojaMover(id: String, onCerrar: () -> Unit) {
-    val s = Servicios.de(LocalContext.current)
+    val ctx = LocalContext.current
+    val s = Servicios.de(ctx)
+    val nav = com.monrealperez.notiono.ui.LocalNavegador.current
     val alcance = rememberAlcance()
+    val actual = com.monrealperez.notiono.ui.espacios.rememberYo()?.workspace?.id
+    val lista = com.monrealperez.notiono.ui.espacios.Espacios.lista(rememberConsulta("workspace.list", etiquetas = setOf("espacios")).datos)
+    val destinos = com.monrealperez.notiono.ui.espacios.Espacios.destinosMover(lista, actual)
+    var espacio by remember { mutableStateOf<String?>(null) }
+    val enOtro = espacio != null && espacio != actual
+    val elegido = destinos.find { it.id == (espacio ?: actual) }
+    val arbolOtro = if (enOtro) rememberConsulta("pages.arbolDe", objeto("workspaceId" to espacio)).datos else null
+    var duplicarEn by remember { mutableStateOf<NodoArbol?>(null) }
+    var aLaRaiz by remember { mutableStateOf(false) }
+    var eligeEspacio by remember { mutableStateOf(false) }
+
+    fun duplica(padre: String?) = alcance.launch {
+        val ws = espacio ?: return@launch
+        try {
+            val r = s.repo.mutacion("pages.copiarAEspacio", objeto("id" to id, "workspaceId" to ws, "parentId" to padre), encolable = false)?.comoObjeto
+            onCerrar()
+            val nueva = r?.str("id")
+            Avisos.di("Duplicada en «${elegido?.name ?: "el otro espacio"}»", if (nueva != null) "Abrir" else null) {
+                if (nueva != null) s.alcance.launch { if (com.monrealperez.notiono.ui.espacios.Espacios.pasaA(ctx, ws)) nav.pagina(nueva) }
+            }
+        } catch (e: ErrorApi) {
+            Avisos.di(if (e.sinConexion) "Sin conexión: no se puede duplicar ahora" else e.message ?: "No se pudo duplicar")
+        }
+    }
+
+    if (eligeEspacio) {
+        HojaLista({ eligeEspacio = false }, "Espacio") {
+            for (w in destinos) FilaMenu(
+                w.name, null, detalle = if (w.isOwner) null else "de ${w.ownerName}",
+                derecha = { if (w.id == (espacio ?: actual)) Icono("check", color = com.monrealperez.notiono.ui.tema.Marca) },
+            ) { espacio = w.id; eligeEspacio = false }
+        }
+        return
+    }
     HojaElegirPagina(
         "Mover a", onCerrar,
-        excluye = { arbol, n -> arbol.dentroDe(n, id) },
+        excluye = { arbol, n -> if (enOtro) false else arbol.dentroDe(n, id) },
+        arbolDatos = if (enOtro) (arbolOtro ?: kotlinx.serialization.json.JsonArray(emptyList())) else null,
         arriba = {
-            FilaMenu("Espacio de trabajo (raíz)", "house") {
-                alcance.launch { AccionesPagina.mover(s.repo, id, null); Avisos.di("Movida a la raíz"); onCerrar() }
+            FilaMenu("Raíz de ${elegido?.name ?: "este espacio"}", "house") {
+                if (enOtro) aLaRaiz = true
+                else alcance.launch { AccionesPagina.mover(s.repo, id, null); Avisos.di("Movida a la raíz"); onCerrar() }
+            }
+        },
+        abajo = {
+            if (destinos.size > 1) {
+                Separador(Modifier.padding(top = 8.dp))
+                FilaMenu("Espacio", "layers", detalle = elegido?.name, derecha = { Icono("chevron-down", tam = 16.dp, color = C.apagado) }) { eligeEspacio = true }
             }
         },
     ) { n ->
-        alcance.launch { AccionesPagina.mover(s.repo, id, n.id); Avisos.di("Movida a «${n.title.ifBlank { "Sin título" }}»"); onCerrar() }
+        if (enOtro) duplicarEn = n
+        else alcance.launch { AccionesPagina.mover(s.repo, id, n.id); Avisos.di("Movida a «${n.title.ifBlank { "Sin título" }}»"); onCerrar() }
     }
+    if (duplicarEn != null || aLaRaiz) Confirmar(
+        "¿Duplicar en «${elegido?.name}»?",
+        "La página y sus subpáginas se duplicarán en «${elegido?.name}» y el original se quedará aquí. " +
+            "En la copia pueden romperse enlaces, relaciones con otras bases de datos y permisos.",
+        boton = "Entiendo, duplicar", peligro = false,
+        onSi = { val padre = duplicarEn?.id; duplicarEn = null; aLaRaiz = false; duplica(padre) },
+        onNo = { duplicarEn = null; aLaRaiz = false },
+    )
 }
 
 /** Elegir una página del árbol, con buscador (mover, fijar en el Inicio, «Abrir al iniciar»). */
@@ -160,9 +217,13 @@ fun HojaElegirPagina(
     onCerrar: () -> Unit,
     excluye: (Arbol, String) -> Boolean = { _, _ -> false },
     arriba: @Composable () -> Unit = {},
+    /** Otro árbol (el de otro espacio, de `pages.arbolDe`); si no, el del espacio activo. */
+    arbolDatos: kotlinx.serialization.json.JsonElement? = null,
+    abajo: @Composable () -> Unit = {},
     onElegir: (NodoArbol) -> Unit,
 ) {
-    val arbol = Arbol.de(rememberConsulta("pages.tree").datos)
+    val delActivo = rememberConsulta("pages.tree").datos
+    val arbol = Arbol.de(arbolDatos ?: delActivo)
     var filtro by remember { mutableStateOf("") }
     HojaLista(onCerrar, titulo) {
         Box(Modifier.padding(horizontal = 16.dp)) { Campo(filtro, { filtro = it }, placeholder = "Buscar página…") }
@@ -180,6 +241,7 @@ fun HojaElegirPagina(
                 Text(n.title.ifBlank { "Sin título" }, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = C.texto)
             }
         }
+        abajo()
         Box(Modifier.size(8.dp))
     }
 }

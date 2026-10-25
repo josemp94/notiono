@@ -71,6 +71,10 @@ import com.monrealperez.notiono.ui.buscar.PantallaBuscar
 import com.monrealperez.notiono.ui.comun.Avisos
 import com.monrealperez.notiono.ui.comun.Icono
 import com.monrealperez.notiono.ui.comun.rememberConsulta
+import com.monrealperez.notiono.ui.espacios.Espacios
+import com.monrealperez.notiono.ui.espacios.PantallaEspacioGeneral
+import com.monrealperez.notiono.ui.espacios.PantallaPersonas
+import com.monrealperez.notiono.ui.espacios.rememberPuede
 import com.monrealperez.notiono.ui.inicio.PantallaInicio
 import com.monrealperez.notiono.ui.pagina.PantallaFila
 import com.monrealperez.notiono.ui.pagina.PantallaPagina
@@ -151,8 +155,17 @@ fun Principal(destinos: Flow<Destino>) {
 
     // Enlaces, atajos y widgets.
     LaunchedEffect(Unit) {
-        destinos.collect { d ->
+        // En el hilo principal: tras pasar de espacio (red de por medio) se navega, y el
+        // NavController no deja hacerlo desde otro hilo.
+        destinos.collect { abre -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            // De otro espacio (un aviso, el push de la web): primero se pasa a él, como la web con /api/espacio/<id>.
+            val d = if (abre is Destino.EnEspacio) {
+                if (!Espacios.pasaA(ctx, abre.espacio)) return@withContext
+                abre.destino
+            } else abre
             when (d) {
+                is Destino.EnEspacio -> {}
+                is Destino.Espacio -> if (Espacios.pasaA(ctx, d.id)) nav.navigate("inicio") { popUpTo(0) { inclusive = true } }
                 is Destino.Pagina -> navegador.pagina(d.id, vista = d.vista)
                 is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
                 Destino.Buscar -> navegador.a("buscar")
@@ -165,7 +178,14 @@ fun Principal(destinos: Flow<Destino>) {
                 // El «+» de los widgets Lista y Calendario: fila nueva en esa BD y a su ficha.
                 is Destino.NuevaFila -> alcance.launch {
                     try {
-                        val col = s.repo.consulta("app.vista", objeto("pageId" to d.pageId)).comoObjeto["collection"]?.comoObjeto?.str("id")
+                        // Un widget de otro espacio: si la base no está en este, se pasa al suyo.
+                        val vista = try {
+                            s.repo.consulta("app.vista", objeto("pageId" to d.pageId))
+                        } catch (e: ErrorApi) {
+                            if (e.tipo != ErrorApi.Tipo.NoEncontrado || !Espacios.buscaPagina(ctx, d.pageId)) throw e
+                            s.repo.consulta("app.vista", objeto("pageId" to d.pageId))
+                        }
+                        val col = vista.comoObjeto["collection"]?.comoObjeto?.str("id")
                         val fila = s.repo.mutacion("db.addRecord", objeto("collectionId" to col), encolable = false, etiquetas = listOf("vista:${d.pageId}"))
                             ?.comoObjeto?.str("id")
                         // Desde el Calendario: ya con el día elegido.
@@ -180,7 +200,7 @@ fun Principal(destinos: Flow<Destino>) {
                 Destino.Nueva -> nuevaPagina(null)
                 is Destino.NotaRapida -> if (d.paginaDestino != null) navegador.pagina(d.paginaDestino, alFinal = true) else nuevaPagina(null)
             }
-        }
+        } }
     }
     // Avisos de fechas que vencen (como la web al abrir) y sesión caducada.
     LaunchedEffect(Unit) {
@@ -216,6 +236,8 @@ fun Principal(destinos: Flow<Destino>) {
                         composable("ajustes") { PantallaAjustes() }
                         composable("papelera") { PantallaPapelera() }
                         composable("plantillas") { PantallaPlantillas() }
+                        composable("espacio/general") { PantallaEspacioGeneral() }
+                        composable("espacio/personas") { PantallaPersonas() }
                         composable(
                             "pagina/{id}?final={final}&v={v}",
                             arguments = listOf(
@@ -245,6 +267,8 @@ private fun BarraInferior(ruta: String, n: Navegador) {
     val sinLeer = rememberConsulta("notifications.unreadCount", etiquetas = setOf("bandeja"), cadaMs = 60_000)
     val cuantas = (sinLeer.datos as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
     val sinRed by s.repo.sinConexion.collectAsState()
+    // El invitado de página no crea en la raíz ni tiene Mis tareas (como la barra de la web).
+    val puede = rememberPuede()
     Column(Modifier.fillMaxWidth().background(C.superficie).navigationBarsPadding()) {
         if (sinRed) {
             Text(
@@ -256,8 +280,8 @@ private fun BarraInferior(ruta: String, n: Navegador) {
         Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
             ElementoBarra("house", "Inicio", ruta == "inicio") { n.nav.navigate("inicio") { popUpTo("inicio") { inclusive = true } } }
             ElementoBarra("search", "Buscar", ruta == "buscar") { n.a("buscar") }
-            ElementoBarra("square-pen", "Nueva", false) { n.nuevaPagina(null) }
-            ElementoBarra("circle-check", "Tareas", ruta == "tareas") { n.a("tareas") }
+            if (!puede.invitado) ElementoBarra("square-pen", "Nueva", false) { n.nuevaPagina(null) }
+            if (puede.misTareas) ElementoBarra("circle-check", "Tareas", ruta == "tareas") { n.a("tareas") }
             ElementoBarra("inbox", "Bandeja", ruta == "bandeja", insignia = cuantas) { n.a("bandeja") }
         }
     }

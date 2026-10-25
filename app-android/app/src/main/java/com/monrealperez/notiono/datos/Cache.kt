@@ -18,7 +18,13 @@ class Cache(dir: File) {
         return File(raiz, "$h.json")
     }
 
-    fun clave(ruta: String, input: JsonElement?) = "$ruta|${input ?: ""}"
+    /**
+     * Cada espacio guarda lo suyo (el mismo `pages.tree` es otro árbol en otro espacio), así
+     * que cambiar de espacio no mezcla nada ni borra lo de los demás. Sin espacio elegido,
+     * la clave de siempre.
+     */
+    fun clave(ruta: String, input: JsonElement?, espacio: String? = null) =
+        (if (espacio != null) "$espacio|" else "") + "$ruta|${input ?: ""}"
 
     fun lee(clave: String): JsonElement? = runCatching {
         val f = fichero(clave)

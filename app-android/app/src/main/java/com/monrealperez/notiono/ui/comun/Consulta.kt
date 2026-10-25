@@ -3,6 +3,7 @@ package com.monrealperez.notiono.ui.comun
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +30,8 @@ class EstadoConsulta {
 /**
  * Consulta tRPC con caché: pinta al instante lo guardado y luego lo fresco. Se repite
  * cuando el repositorio avisa de un cambio con alguna de las `etiquetas`, cada
- * `cadaMs` si se pide, y con [EstadoConsulta.recargar].
+ * `cadaMs` si se pide, y con [EstadoConsulta.recargar]. Al cambiar de espacio vuelve a
+ * empezar con lo guardado de ese espacio: nada de un espacio se enseña en otro.
  */
 @Composable
 fun rememberConsulta(
@@ -38,12 +40,14 @@ fun rememberConsulta(
     etiquetas: Set<String> = emptySet(),
     cadaMs: Long = 0,
 ): EstadoConsulta {
-    val repo = Servicios.de(LocalContext.current).repo
-    val estado = remember(ruta, input) { EstadoConsulta().apply { datos = repo.cacheada(ruta, input) } }
-    LaunchedEffect(ruta, input, estado.vuelta) {
+    val s = Servicios.de(LocalContext.current)
+    val repo = s.repo
+    val espacio by s.sesion.espacioFlujo.collectAsState()
+    val estado = remember(ruta, input, espacio) { EstadoConsulta().apply { datos = repo.cacheada(ruta, input, espacio) } }
+    LaunchedEffect(ruta, input, espacio, estado.vuelta) {
         estado.cargando = true
         try {
-            estado.datos = repo.consulta(ruta, input)
+            estado.datos = repo.consulta(ruta, input, espacio = espacio)
             estado.error = null
         } catch (e: ErrorApi) {
             estado.error = e
@@ -52,15 +56,15 @@ fun rememberConsulta(
         }
     }
     if (etiquetas.isNotEmpty()) {
-        LaunchedEffect(ruta, input, etiquetas) {
+        LaunchedEffect(ruta, input, etiquetas, espacio) {
             repo.cambios.collect { if (it in etiquetas) estado.recargar() }
         }
     }
     if (cadaMs > 0) {
-        LaunchedEffect(ruta, input, cadaMs) {
+        LaunchedEffect(ruta, input, cadaMs, espacio) {
             while (true) {
                 delay(cadaMs)
-                runCatching { estado.datos = repo.consulta(ruta, input) }
+                runCatching { estado.datos = repo.consulta(ruta, input, espacio = espacio) }
             }
         }
     }

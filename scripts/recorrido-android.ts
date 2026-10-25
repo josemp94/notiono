@@ -3,7 +3,10 @@
  * Kotlin) contra un Notiono de verdad en local, y después la comprobación en el servidor,
  * con la sesión de la web: que lo hecho en el móvil quedó exactamente como lo dejaría la web
  * (bloques del documento compartido con su formato, celdas con el formato de cada tipo,
- * vistas, filtros, avisos, papelera, plantillas y lo compartido).
+ * vistas, filtros, avisos, papelera, plantillas y lo compartido). Y espacios y compartir
+ * (2.4.0): antes prepara a Rocío (comparte su espacio con Ana y le comparte una página de su
+ * huerto, donde Ana es invitada) y después mira el espacio nuevo, la invitación pendiente,
+ * la página compartida con Rocío y lo que Ana escribió como invitada.
  *
  *   # Notiono en local como en scripts/integracion-app.ts (server.mjs + PGlite + SSO falso)
  *   BASE_URL=http://127.0.0.1:3100 npx tsx scripts/recorrido-android.ts
@@ -13,7 +16,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { ssoFalso } from "./sso-falso";
 
@@ -24,17 +27,69 @@ type Bloque = { id: string; type: string; props?: Record<string, unknown>; conte
 type Inline = { type: string; text?: string; href?: string; styles?: Record<string, unknown>; content?: Inline[] };
 const texto = (b: Bloque) => (b.content ?? []).map((c) => c.text ?? (c.content ?? []).map((x) => x.text ?? "").join("")).join("");
 
+/** Entra en la web por el SSO (falso) con quien sea `persona` ahora mismo; devuelve la cookie de sesión. */
+async function entraWeb() {
+  const r1 = await fetch(`${BASE}/api/auth/oidc/start`, { redirect: "manual" });
+  const jar = r1.headers.getSetCookie().map((x) => x.split(";")[0]);
+  const r2 = await fetch(r1.headers.get("location")!, { redirect: "manual" });
+  const r3 = await fetch(r2.headers.get("location")!, { redirect: "manual", headers: { Cookie: jar.join("; ") } });
+  return r3.headers.getSetCookie().map((x) => x.split(";")[0]).find((x) => x.startsWith("notiono_session="))!;
+}
+
+/** tRPC como la web, con esa sesión y (si se da) ese espacio activo. */
+function cliente(sesion: string, espacio?: string) {
+  const Cookie = espacio ? `${sesion}; notiono_ws=${espacio}` : sesion;
+  const lee = async (r: Response) => {
+    const j = await r.json();
+    if (j.error) throw new Error(`${j.error.json?.data?.code}: ${j.error.json?.message}`);
+    return j.result.data.json;
+  };
+  return {
+    q: async (ruta: string, input?: unknown) =>
+      lee(await fetch(`${BASE}/api/trpc/${ruta}${input === undefined ? "" : `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`}`, { headers: { Cookie } })),
+    mut: async (ruta: string, input: unknown) =>
+      lee(await fetch(`${BASE}/api/trpc/${ruta}`, { method: "POST", headers: { Cookie, "Content-Type": "application/json" }, body: JSON.stringify({ json: input }) })),
+  };
+}
+
 async function main() {
   const pasada = Date.now();
-  const sso = await ssoFalso({ sub: `recorrido-${pasada}`, email: `ana.${pasada}@example.com`, name: "Ana" });
+  const ana = { sub: `recorrido-${pasada}`, email: `ana.${pasada}@example.com`, name: "Ana" };
+  const rocio = { sub: `rocio-${pasada}`, email: `rocio.${pasada}@example.com`, name: "Rocío" };
+  // El SSO falso contesta con quien esté en `persona` (se cambia entre entradas).
+  const persona = { ...ana };
+  const sso = await ssoFalso(persona);
   rmSync(path.join(APP, "build/recorrido"), { recursive: true, force: true });
   rmSync(path.join(APP, "build/recorrido.json"), { force: true });
   rmSync(path.join(APP, "build/recorrido-compartir.json"), { force: true });
+  rmSync(path.join(APP, "build/recorrido-espacios.json"), { force: true });
   try {
+    // 0) Rocío y Ana ya han entrado alguna vez (en la web). Rocío comparte con Ana su espacio
+    //    (aviso «te ha añadido») y, en su huerto, la página «Tomates» con edición: allí Ana es
+    //    invitada (aviso «ha compartido»). Son avisos de otros espacios para la app de Ana.
+    Object.assign(persona, rocio);
+    const sesionRocio = await entraWeb();
+    Object.assign(persona, ana);
+    await entraWeb();
+    const R = cliente(sesionRocio);
+    const suyo = (await R.q("auth.me")).workspace;
+    await R.mut("workspace.share", { email: ana.email, role: "editor" });
+    const huerto = (await R.mut("workspace.create", { name: `Huerto ${pasada}` })).id;
+    const H = cliente(sesionRocio, huerto);
+    const tomates = (await H.mut("pages.create", { title: "Tomates" })).id;
+    await H.mut("pages.updateContent", { id: tomates, content: [{ id: "t1", type: "paragraph", content: [{ type: "text", text: "Plantar en marzo. ", styles: {} }] }] });
+    assert.deepEqual(await H.mut("pages.perms.invitar", { pageId: tomates, email: ana.email, level: "edit" }), { pendiente: false, miembro: false });
+    const pendiente = `abuela${pasada}`;
+    writeFileSync(path.join(APP, "build/recorrido-espacios-entrada.json"), JSON.stringify({
+      pasada: String(pasada), rocio: rocio.email, pendiente, espacioRocio: suyo.id, espacioRocioNombre: suyo.name, huerto, tomates,
+    }));
+
     // 1) La app, como una persona.
     const gradle = spawn(
       "./gradlew",
-      [":app:testDebugUnitTest", "--tests", "com.monrealperez.notiono.RecorridoTest", "--tests", "com.monrealperez.notiono.RecorridoCompartirTest",
+      // Con la memoria contenida (PC de 16 GB en uso): un solo worker y el demonio a 2 GB.
+      ["--max-workers=1", "-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=640m -Dfile.encoding=UTF-8",
+        ":app:testDebugUnitTest", "--tests", "com.monrealperez.notiono.RecorridoTest", "--tests", "com.monrealperez.notiono.RecorridoCompartirTest",
         "--rerun", "--console=plain", "-q", `-Pnotiono.integracion=${BASE}`, "-Proborazzi.test.record=true"],
       { cwd: path.join(APP, ".."), stdio: "inherit", env: process.env },
     );
@@ -42,22 +97,11 @@ async function main() {
     if (salida !== 0) throw new Error("el recorrido de la app falló (ver app-android/app/build/reports/tests)");
     const h = JSON.parse(readFileSync(path.join(APP, "build/recorrido.json"), "utf8"));
     const c = JSON.parse(readFileSync(path.join(APP, "build/recorrido-compartir.json"), "utf8"));
+    const e = JSON.parse(readFileSync(path.join(APP, "build/recorrido-espacios.json"), "utf8"));
 
     // 2) La misma persona en la web, para mirar el resultado.
-    const r1 = await fetch(`${BASE}/api/auth/oidc/start`, { redirect: "manual" });
-    const jar = r1.headers.getSetCookie().map((x) => x.split(";")[0]);
-    const r2 = await fetch(r1.headers.get("location")!, { redirect: "manual" });
-    const r3 = await fetch(r2.headers.get("location")!, { redirect: "manual", headers: { Cookie: jar.join("; ") } });
-    const cookie = r3.headers.getSetCookie().map((x) => x.split(";")[0]).find((x) => x.startsWith("notiono_session="))!;
-    const lee = async (r: Response) => {
-      const j = await r.json();
-      if (j.error) throw new Error(`${j.error.json?.data?.code}: ${j.error.json?.message}`);
-      return j.result.data.json;
-    };
-    const q = async (ruta: string, input?: unknown) =>
-      lee(await fetch(`${BASE}/api/trpc/${ruta}${input === undefined ? "" : `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`}`, { headers: { Cookie: cookie } }));
-    const mut = async (ruta: string, input: unknown) =>
-      lee(await fetch(`${BASE}/api/trpc/${ruta}`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ json: input }) }));
+    const cookie = await entraWeb();
+    const { q, mut } = cliente(cookie);
     const yo = await q("auth.me");
 
     // --- La página: título, bloques con su tipo y formato, casillas (una, desde el widget), comentario y fuera de la papelera.
@@ -132,6 +176,22 @@ async function main() {
     assert.equal((await q("app.pagina", { id: c.pagina })).title, "Recibo del súper");
     assert.deepEqual(compartida.bloques.map(texto), ["Recibo del súper", "Pan, leche y fruta", "https://example.com/recibo"]);
     assert.equal(compartida.bloques[2].content?.[0]?.type, "link");
+
+    // --- Espacios y compartir: el espacio nuevo es suyo, con la invitación pendiente.
+    const espacios = await q("workspace.list");
+    assert.ok(espacios.some((w: { id: string; name: string; isOwner: boolean }) => w.id === e.casa && w.name === `Casa ${pasada}` && w.isOwner), "el espacio nuevo, suyo");
+    const C = cliente(cookie, e.casa);
+    assert.deepEqual((await C.q("workspace.members")).invitaciones.map((i: { destino: string; role: string }) => [i.destino, i.role]), [[pendiente, "viewer"]]);
+    // «Para Rocío», compartida con ella con edición: es invitada en Casa y le llegó el aviso.
+    const permisos = await C.q("pages.perms.get", { pageId: e.paraRocio });
+    assert.deepEqual(permisos.invitados.map((p: { email: string; level: string }) => [p.email, p.level]), [[rocio.email, "edit"]]);
+    const RC = cliente(sesionRocio, e.casa);
+    assert.equal((await RC.q("auth.me")).wsRole, "guest");
+    assert.ok((await RC.q("notifications.list")).some((n: { type: string; pageId: string }) => n.type === "share" && n.pageId === e.paraRocio));
+    assert.deepEqual((await RC.q("pages.tree")).map((p: { id: string }) => p.id), [e.paraRocio], "Rocío solo ve lo compartido");
+    // Lo que Ana escribió como invitada en «Tomates» (y los avisos, leídos al abrirlos no hace falta).
+    const t = (await H.q("app.bloques", { id: tomates })) as { bloques: Bloque[] };
+    assert.ok(t.bloques.map(texto).join(" ").includes("Riego los martes"), "lo escrito por la invitada, en el documento");
 
     console.log("OK — recorrido de la app como una persona, y el servidor lo tiene como lo dejaría la web");
   } finally {

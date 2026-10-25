@@ -238,9 +238,9 @@ object Widgets {
     var alPintar: ((Int, RemoteViews) -> Unit)? = null
 
     /** Marcar una casilla de la nota desde el widget: una operación de bloque, como la app. */
-    suspend fun marcaCasilla(ctx: Context, pagina: String, bloque: String) {
+    suspend fun marcaCasilla(ctx: Context, pagina: String, bloque: String, espacio: String? = null) {
         val s = Servicios.de(ctx)
-        val bloques = (s.repo.consulta("app.bloques", objeto("id" to pagina), cachear = false) as? kotlinx.serialization.json.JsonObject)
+        val bloques = (s.repo.consulta("app.bloques", objeto("id" to pagina), cachear = false, espacio = espacio) as? kotlinx.serialization.json.JsonObject)
             ?.get("bloques") as? kotlinx.serialization.json.JsonArray ?: return
         fun busca(bs: List<JsonElement>): kotlinx.serialization.json.JsonObject? = bs.firstNotNullOfOrNull { e ->
             val b = e as? kotlinx.serialization.json.JsonObject ?: return@firstNotNullOfOrNull null
@@ -251,14 +251,14 @@ object Widgets {
         val props = b["props"] as? kotlinx.serialization.json.JsonObject ?: kotlinx.serialization.json.JsonObject(emptyMap())
         val hecho = (props["checked"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
         val nuevo = kotlinx.serialization.json.JsonObject(b - "children" + ("props" to kotlinx.serialization.json.JsonObject(props + ("checked" to kotlinx.serialization.json.JsonPrimitive(!hecho)))))
-        s.repo.mutacion("app.aplicar", objeto("id" to pagina, "ops" to listOf(objeto("op" to "upsert", "block" to nuevo))), pagina = pagina, etiquetas = listOf("bloques:$pagina"))
+        s.repo.mutacion("app.aplicar", objeto("id" to pagina, "ops" to listOf(objeto("op" to "upsert", "block" to nuevo))), pagina = pagina, etiquetas = listOf("bloques:$pagina"), espacio = espacio)
     }
 
     /** Marcar (o desmarcar) la casilla de una fila desde la Lista de BD. */
-    suspend fun marcaFila(ctx: Context, pagina: String, fila: String, campo: String, valor: Boolean) {
+    suspend fun marcaFila(ctx: Context, pagina: String, fila: String, campo: String, valor: Boolean, espacio: String? = null) {
         Servicios.de(ctx).repo.mutacion(
             "db.updateCell", objeto("recordId" to fila, "fieldId" to campo, "value" to valor),
-            pagina = pagina, etiquetas = listOf("vista:$pagina"),
+            pagina = pagina, etiquetas = listOf("vista:$pagina"), espacio = espacio,
         )
     }
 }
@@ -281,6 +281,11 @@ data class ConfigWidget(
     val fuentes: List<FuenteCal> = emptyList(),
     val mes: String? = null,
     val dia: String? = null,
+    /**
+     * El espacio en el que se puso (desde la 2.4.0): sigue enseñando lo suyo aunque luego
+     * se cambie de espacio en la app. Los de antes lo averiguan al refrescar.
+     */
+    val espacio: String? = null,
 )
 
 object Configs {
@@ -431,8 +436,9 @@ abstract class ProveedorWidget : AppWidgetProvider() {
                     alternaLocal(ctx, id, elemento)
                     pinta(ctx, id)
                     enSegundoPlano(ctx, "marcar") {
-                        if (intent.action == Widgets.ACCION_CASILLA) Widgets.marcaCasilla(ctx, pagina, elemento)
-                        else Widgets.marcaFila(ctx, pagina, elemento, q.getQueryParameter("campo") ?: return@enSegundoPlano, q.getQueryParameter("valor") == "true")
+                        val ws = Configs.lee(ctx, id).espacio
+                        if (intent.action == Widgets.ACCION_CASILLA) Widgets.marcaCasilla(ctx, pagina, elemento, ws)
+                        else Widgets.marcaFila(ctx, pagina, elemento, q.getQueryParameter("campo") ?: return@enSegundoPlano, q.getQueryParameter("valor") == "true", ws)
                         refresca(ctx, id, "casilla")
                     }
                 }
@@ -474,6 +480,26 @@ abstract class ProveedorWidget : AppWidgetProvider() {
         enSegundoPlano(ctx, "refrescar") { ids.forEach { refresca(ctx.applicationContext, it, motivo) } }
     }
 
+    /**
+     * Un widget puesto antes de la 2.4.0 no sabe en qué espacio está su página: se pregunta
+     * (`workspace.dePagina` da el espacio si no es el activo) y se guarda. Sin página (Recientes,
+     * Acciones) sigue al espacio activo. Sin red, la próxima vez.
+     */
+    private suspend fun averiguaEspacio(ctx: Context, id: Int, c: ConfigWidget): String? {
+        val s = Servicios.de(ctx)
+        val pagina = c.pagina ?: c.fuentes.firstOrNull()?.pageId ?: return null
+        val r = try {
+            s.api.query("workspace.dePagina", com.monrealperez.notiono.red.objeto("pageId" to pagina))
+        } catch (e: ErrorApi) {
+            return null
+        }
+        val ws = (r as? kotlinx.serialization.json.JsonObject)?.let { (it["workspaceId"] as? kotlinx.serialization.json.JsonPrimitive)?.content }
+            ?: s.espacioActivo() ?: return null
+        Configs.guarda(ctx, id, c.copy(espacio = ws))
+        s.registro.anota("widget", "$tipo#$id · espacio averiguado")
+        return ws
+    }
+
     /** Lo que hay que pintar ahora mismo, sin red. */
     fun estado(ctx: Context, id: Int, c: ConfigWidget): EstadoWidget {
         val s = Servicios.de(ctx)
@@ -488,9 +514,9 @@ abstract class ProveedorWidget : AppWidgetProvider() {
     private fun deCacheVieja(ctx: Context, id: Int, c: ConfigWidget): Instantanea? {
         val s = Servicios.de(ctx)
         val q = consultas(c).ifEmpty { return null }
-        val r = q.map { s.repo.cacheada(it.ruta, it.input) ?: return null }
+        val r = q.map { s.repo.cacheada(it.ruta, it.input, c.espacio) ?: return null }
         val datos = runCatching { resume(c, r) }.getOrNull() ?: return null
-        val fecha = q.mapNotNull { s.cache.fecha(s.cache.clave(it.ruta, it.input)) }.minOrNull() ?: 0
+        val fecha = q.mapNotNull { s.cache.fecha(s.repo.clave(it.ruta, it.input, c.espacio)) }.minOrNull() ?: 0
         return Instantanea(clave(c), datos, fecha, null).also { Instantaneas.guarda(ctx, id, it) }
     }
 
@@ -539,6 +565,7 @@ abstract class ProveedorWidget : AppWidgetProvider() {
             val c = Configs.lee(ctx, id)
             val q = consultas(c)
             if (q.isEmpty() || s.sesion.token == null) return pinta(ctx, id)
+            val ws = c.espacio ?: averiguaEspacio(ctx, id, c)
             val t0 = SystemClock.elapsedRealtime()
             val antes = Instantaneas.lee(ctx, id)?.takeIf { it.clave == clave(c) }
             var intentos = 0
@@ -548,7 +575,7 @@ abstract class ProveedorWidget : AppWidgetProvider() {
                 while (r == null) {
                     intentos++
                     try {
-                        r = q.map { s.repo.fresca(it.ruta, it.input, cachear = false) }
+                        r = q.map { s.repo.fresca(it.ruta, it.input, cachear = false, espacio = ws) }
                     } catch (e: ErrorApi) {
                         if (!e.sinConexion || intentos >= 3) throw e
                         delay(if (intentos == 1) 1_500 else 4_000)
@@ -556,7 +583,7 @@ abstract class ProveedorWidget : AppWidgetProvider() {
                     }
                 }
                 val datos = withContext(Dispatchers.Default) { resume(c, r) }
-                q.zip(r).forEach { (cq, rr) -> s.cache.guarda(s.cache.clave(cq.ruta, cq.input), rr) }
+                q.zip(r).forEach { (cq, rr) -> s.cache.guarda(s.repo.clave(cq.ruta, cq.input, ws), rr) }
                 Instantaneas.guarda(ctx, id, Instantanea(clave(c), datos, System.currentTimeMillis(), null))
                 s.registro.anota("widget", "$tipo#$id · $motivo · ok · ${SystemClock.elapsedRealtime() - t0} ms" + (if (intentos > 1) " · $intentos intentos" else "") + (if (!conRed) " · sin red al empezar" else ""))
             } catch (e: CancellationException) {

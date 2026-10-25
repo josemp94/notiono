@@ -122,20 +122,33 @@ fun PantallaBandeja() {
 
 /**
  * Abre el aviso donde ocurrió: un vencimiento, en la ficha de su fila (su clave es
- * `due:<fila>:<campo>:<día>`); lo demás, en su página.
+ * `due:<fila>:<campo>:<día>`); lo demás, en su página. «Te han añadido al espacio»
+ * no tiene página: el Inicio (la bandeja solo enseña los del espacio activo).
  */
 fun abreAviso(n: Navegador, a: JsonObject) {
-    val pagina = a.obj("page")?.str("id") ?: return
+    val pagina = a.obj("page")?.str("id") ?: return if (a.str("type") == "space") n.nav.navigate("inicio") { popUpTo("inicio") { inclusive = true } } else Unit
     val fila = filaDeAviso(a)
     if (fila != null) n.fila(pagina, fila) else n.pagina(pagina)
 }
 
 private fun filaDeAviso(a: JsonObject) = a.str("recordId") ?: a.str("key")?.takeIf { a.str("type") == "due" }?.split(":")?.getOrNull(1)
 
-/** Lo mismo como enlace de la app, para la notificación del sistema. */
+/** El espacio del aviso (`app.avisos` lo trae; `notifications.list`, solo el id). */
+fun espacioDeAviso(a: JsonObject): String? = a.obj("espacio")?.str("id") ?: a.str("workspaceId")
+
+/**
+ * Lo mismo como enlace de la app, para la notificación del sistema. Lleva su espacio
+ * (`?ws=`): al tocarlo, la app pasa a él si hace falta, como el push de la web.
+ */
 fun enlaceDeAviso(a: JsonObject): String {
-    val pagina = a.obj("page")?.str("id") ?: return "notiono://bandeja"
-    return filaDeAviso(a)?.let { "notiono://fila/$pagina/$it" } ?: "notiono://pagina/$pagina"
+    val ws = espacioDeAviso(a)?.takeIf { com.monrealperez.notiono.ui.Destino.esId(it) }
+    val pagina = a.obj("page")?.str("id")
+    val base = when {
+        pagina != null -> filaDeAviso(a)?.let { "notiono://fila/$pagina/$it" } ?: "notiono://pagina/$pagina"
+        a.str("type") == "space" && ws != null -> return "notiono://espacio/$ws"
+        else -> "notiono://bandeja"
+    }
+    return if (ws != null) "$base?ws=$ws" else base
 }
 
 /** El texto de cada aviso, como en la web (Bandeja.tsx). */
@@ -151,6 +164,10 @@ fun textoAviso(a: JsonObject) = buildAnnotatedString {
         "assign" -> { negrita(actor); append(" te asignó "); negrita(titulo ?: "una tarea"); append(" en «${pagina ?: "una base borrada"}»") }
         "form" -> { append("Nueva respuesta del formulario de «${pagina ?: "una base borrada"}»"); if (titulo != null) append(": «$titulo»") }
         "follow" -> { negrita(actor); append(" editó «${pagina ?: "una página borrada"}», que sigues") }
-        else -> { negrita(actor); append(" te mencionó en «${pagina ?: "una página borrada"}»") }
+        "share" -> { negrita(actor); append(" ha compartido «${pagina ?: "una página borrada"}» contigo") }
+        "space" -> { negrita(actor); append(" te ha añadido al espacio «${titulo ?: "Sin título"}»") }
+        "mention" -> { negrita(actor); append(" te mencionó en «${pagina ?: "una página borrada"}»") }
+        // Un tipo que esta versión aún no conoce (el servidor va por delante): sin inventar qué pasó.
+        else -> { append("Novedad"); if (pagina != null) append(" en «$pagina»") else if (titulo != null) append(": «$titulo»"); a.obj("actor")?.let { append(" · "); negrita(actor) } }
     }
 }

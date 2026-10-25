@@ -449,4 +449,115 @@ class RecorridoTest {
         assertTrue(File("build/recorrido.json").exists())
         assertFalse(hechos.isEmpty())
     }
+
+    /**
+     * Espacios y compartir (2.4.0), como una persona: crea un espacio y entra, invita a
+     * alguien que aún no ha entrado nunca, comparte una página con Rocío, abre desde la
+     * notificación del sistema un aviso de otro espacio y usa la app como invitada de una
+     * página. `scripts/recorrido-android.ts` prepara a Rocío y su huerto
+     * (build/recorrido-espacios-entrada.json) y luego comprueba el servidor.
+     */
+    @Test
+    fun espacios() = runBlocking {
+        assumeTrue("sin Notiono local (scripts/recorrido-android.ts)", NotionoLocal.base.isNotEmpty())
+        val entrada = json.parseToJsonElement(File("build/recorrido-espacios-entrada.json").readText()).comoObjeto
+        fun e(k: String) = entrada.str(k)!!
+        Servicios::class.java.getDeclaredField("instancia").apply { isAccessible = true }.set(null, null)
+        Servicios.baseDePrueba = NotionoLocal.base
+        val s = Servicios.de(ctx)
+        NotionoLocal.entra(s.api, s.sesion, s.http)
+        val destinos = Channel<Destino>(Channel.BUFFERED)
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TemaNotiono(false) { Principal(destinos.receiveAsFlow()) } }
+        espera("la app abierta") { hay("Inicio") }
+        val propio = red { s.repo.consulta("auth.me") }.comoObjeto.obj("workspace")!!
+
+        // ---------- Nuevo espacio, y se entra en él ----------
+        val casa = "Casa ${e("pasada")}"
+        abrePanel()
+        pulsa(propio.str("name")!!, arriba = true)
+        pulsa("Nuevo espacio")
+        escribe(casa)
+        foto("espacios-nuevo")
+        pulsa("Crear espacio")
+        espera("estar en el espacio nuevo") { s.sesion.espacio != null && s.sesion.espacio != propio.str("id") }
+        val casaId = s.sesion.espacio!!
+        hechos["casa"] = casaId
+        abrePanel()
+        esperaTexto(casa)
+
+        // ---------- Invitar a alguien que aún no ha entrado nunca (Personas) ----------
+        pulsa(casa, arriba = true)
+        pulsa("Invitar miembros")
+        esperaTexto("Invitar al espacio")
+        escribe(e("pendiente"))
+        pulsa("Lector")
+        pulsa("Invitar")
+        esperaTexto("Invitación pendiente")
+        foto("espacios-personas")
+        pulsaDesc("Atrás")
+
+        // ---------- Una página en el espacio nuevo, compartida con Rocío ----------
+        pulsa("Nueva", arriba = false)
+        espera("la página nueva") { campos().isNotEmpty() }
+        reemplaza("Para Rocío")
+        avanza(1500)
+        pulsaDesc("Más opciones")
+        pulsa("Compartir")
+        esperaTexto("Correo o usuario del NAS")
+        escribe(e("rocio"))
+        pulsa("Editar")
+        pulsa("Invitar")
+        esperaTexto("Invitado: solo verá esta página")
+        foto("espacios-compartir")
+        cierraHoja()
+        hechos["paraRocio"] = red { s.repo.consulta("pages.search", objeto("query" to "Para Rocío"), cachear = false) }
+            .let { it as JsonArray }.first().comoObjeto.str("id")!!
+
+        // ---------- Avisos de otros espacios, como notificación del sistema ----------
+        shadowOf(ctx as android.app.Application).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        ctx.getSharedPreferences("avisos", Context.MODE_PRIVATE).edit().putStringSet("vistos", setOf("-")).commit()
+        red { com.monrealperez.notiono.avisos.Avisador.revisa(ctx) }
+        val sacadas = shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java)).allNotifications
+        fun enlace(trozo: String): android.net.Uri {
+            val n = sacadas.firstOrNull { it.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).toString().contains(trozo) }
+                ?: error("no salió el aviso «$trozo»: ${sacadas.map { it.extras.getCharSequence(android.app.Notification.EXTRA_TEXT) }}")
+            return shadowOf(n.contentIntent).savedIntent.data!!
+        }
+        // «Te ha añadido al espacio…» (el de Rocío): al tocarlo, a su Inicio.
+        destinos.send(Destino.de(enlace("te ha añadido al espacio"))!!)
+        espera("estar en el espacio de Rocío") { s.sesion.espacio == e("espacioRocio") }
+        abrePanel()
+        esperaTexto(e("espacioRocioNombre"))
+        foto("espacios-aviso-de-otro-espacio")
+        pulsa("Inicio")
+        // «Ha compartido «Tomates» contigo» (en el huerto, donde Ana es invitada): a la página.
+        destinos.send(Destino.de(enlace("ha compartido «Tomates»"))!!)
+        espera("estar en el huerto") { s.sesion.espacio == e("huerto") }
+        espera("la página compartida") { campos().isNotEmpty() && hay("Tomates") }
+
+        // ---------- Invitada de página: edita lo compartido, nada más ----------
+        val ultimo = campos().last()
+        teclea(ultimo, "Riego los martes")
+        espera("lo escrito, en el servidor", ms = 30_000) {
+            // El editor manda con un delay en el Looper principal: su reloj no avanza solo.
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+            red { s.repo.fresca("app.bloques", objeto("id" to e("tomates")), cachear = false) }.toString().contains("Riego los martes")
+        }
+        pulsaDesc("Más opciones")
+        esperaTexto("Historial de versiones")
+        for (t in listOf("Mover a…", "Duplicar", "Compartir", "Enviar a la papelera")) assertFalse("una invitada no tiene «$t»", hay(t, exacto = true))
+        foto("espacios-invitada-menu")
+        cierraHoja()
+        assertFalse("ni Mis tareas", hay("Tareas", exacto = true))
+        abrePanel()
+        esperaTexto("Compartido")
+        for (t in listOf("Nueva página", "Papelera", "Plantillas")) assertFalse("una invitada no tiene «$t»", hay(t, exacto = true))
+        foto("espacios-invitada-panel")
+        pulsa("Inicio")
+        esperaTexto("Compartido contigo")
+        foto("espacios-invitada-inicio")
+
+        File("build/recorrido-espacios.json").writeText(JsonObject(hechos.mapValues { JsonPrimitive(it.value) }).toString())
+    }
 }

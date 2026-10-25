@@ -26,6 +26,7 @@ import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.red.bool
 import com.monrealperez.notiono.red.comoLista
 import com.monrealperez.notiono.red.comoObjeto
+import com.monrealperez.notiono.red.obj
 import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.bandeja.textoAviso
 import java.util.concurrent.TimeUnit
@@ -73,7 +74,16 @@ object Avisador {
         val s = Servicios.de(ctx)
         if (s.sesion.token == null) return
         runCatching { s.api.mutation("notifications.checkDue") }
-        val lista = s.api.query("notifications.list").comoLista.map { it.comoObjeto }
+        // Los de todos mis espacios (como el push de la web), no solo los del activo: «te han
+        // añadido a un espacio» llega en ese espacio, que aún no es el activo. Con un servidor
+        // de antes de la 2.4.0, los del activo.
+        val lista = try {
+            s.api.query("app.avisos")
+        } catch (e: com.monrealperez.notiono.red.ErrorApi) {
+            if (e.sinConexion || e.tipo == com.monrealperez.notiono.red.ErrorApi.Tipo.NoAutorizado) throw e
+            s.api.query("notifications.list")
+        }.comoLista.map { it.comoObjeto }
+        val activo = s.espacioActivo()
         val prefs = ctx.getSharedPreferences("avisos", Context.MODE_PRIVATE)
         val vistos = prefs.getStringSet("vistos", null) ?: emptySet()
         val primeraVez = !prefs.contains("vistos")
@@ -96,7 +106,8 @@ object Avisador {
                 val n = NotificationCompat.Builder(ctx, CANAL)
                     .setSmallIcon(R.drawable.ic_notificacion)
                     .setColor(0xFFFF5C28.toInt())
-                    .setContentTitle("Notiono")
+                    // De otro espacio: que se sepa de cuál.
+                    .setContentTitle(a.obj("espacio")?.takeIf { it.str("id") != activo }?.str("name")?.let { "Notiono · $it" } ?: "Notiono")
                     .setContentText(textoAviso(a).text)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(textoAviso(a).text))
                     .setContentIntent(pi)

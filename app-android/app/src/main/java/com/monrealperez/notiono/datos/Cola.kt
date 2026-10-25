@@ -17,6 +17,8 @@ data class Pendiente(
     /** Página a la que afecta (para enseñar «pendiente de enviar» y no pisarlo al leer). */
     val pagina: String? = null,
     val creada: Long = System.currentTimeMillis(),
+    /** El espacio en el que se hizo: se envía a ese aunque luego se cambie de espacio. */
+    val espacio: String? = null,
 )
 
 /**

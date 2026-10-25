@@ -41,13 +41,10 @@ import androidx.compose.ui.unit.sp
 import com.monrealperez.notiono.BuildConfig
 import com.monrealperez.notiono.Servicios
 import com.monrealperez.notiono.avisos.Avisador
-import com.monrealperez.notiono.datos.Miembro
 import com.monrealperez.notiono.datos.Yo
 import com.monrealperez.notiono.red.VersionApk
-import com.monrealperez.notiono.red.comoObjeto
 import com.monrealperez.notiono.red.json
 import com.monrealperez.notiono.red.objeto
-import com.monrealperez.notiono.red.objs
 import com.monrealperez.notiono.ui.LocalNavegador
 import com.monrealperez.notiono.ui.comun.Avisos
 import com.monrealperez.notiono.ui.comun.BarraSuperior
@@ -72,9 +69,9 @@ fun PantallaAjustes() {
     val n = LocalNavegador.current
     val alcance = rememberAlcance()
     val yo = rememberConsulta("auth.me", etiquetas = setOf("perfil", "espacio")).datos?.let { runCatching { json.decodeFromJsonElement(Yo.serializer(), it) }.getOrNull() }
-    val miembros = rememberConsulta("workspace.members", etiquetas = setOf("espacio")).datos?.comoObjeto?.objs("members")
-        ?.mapNotNull { runCatching { json.decodeFromJsonElement(Miembro.serializer(), it) }.getOrNull() } ?: emptyList()
+    val puede = com.monrealperez.notiono.ui.espacios.Puede.de(yo)
     var nombre by remember { mutableStateOf(false) }
+    var novedades by remember { mutableStateOf(false) }
     var salir by remember { mutableStateOf(false) }
     var avisos by remember { mutableStateOf(Avisador.activo(ctx)) }
     var nueva by remember { mutableStateOf<VersionApk?>(null) }
@@ -87,14 +84,12 @@ fun PantallaAjustes() {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             TituloSeccion("Tu cuenta")
             FilaMenu(yo?.name ?: "Sin nombre", "user", detalle = yo?.email) { nombre = true }
-            TituloSeccion("Espacio de trabajo")
-            FilaMenu(yo?.workspace?.name ?: "—", "house", detalle = when (yo?.wsRole) {
-                "owner" -> "Eres el propietario"
-                "viewer" -> "Solo lectura"
-                else -> "Puedes editar"
-            }) {}
-            for (m in miembros) FilaMenu(m.nombre, "circle-user", detalle = m.email + " · " + rolTexto(m.role)) {}
-            FilaMenu("Miembros, API y avisos salientes", "external-link", detalle = "Se administran en la web") { web("/settings") }
+            // Como Ajustes de Notion: General y Personas del espacio activo.
+            TituloSeccion("Espacio · ${yo?.workspace?.name ?: "…"}")
+            FilaMenu("General", "settings", detalle = "Nombre, icono, " + if (yo?.wsRole == "owner") "eliminar el espacio" else "salir del espacio") { n.a("espacio/general") }
+            if (puede.personas) FilaMenu("Personas", "users", detalle = "Tu rol: " + com.monrealperez.notiono.ui.espacios.Roles.nombre(yo?.wsRole).lowercase()) { n.a("espacio/personas") }
+            else FilaMenu("Eres invitado", "users", detalle = "Solo ves las páginas que te han compartido, y lo que cuelga de ellas") {}
+            if (!puede.invitado) FilaMenu("API y avisos salientes", "external-link", detalle = "Se administran en la web") { web("/settings") }
             Separador(Modifier.padding(vertical = 8.dp))
             TituloSeccion("Apariencia")
             val modo by com.monrealperez.notiono.ui.tema.Apariencia.modo(ctx).collectAsState()
@@ -142,11 +137,18 @@ fun PantallaAjustes() {
                 }
             }
             progreso?.let { LinearProgressIndicator({ it }, Modifier.padding(horizontal = 16.dp), color = Marca) }
+            FilaMenu("Novedades", "sparkles", detalle = "Lo nuevo de la ${NOVEDADES.first().first}") { novedades = true }
             FilaMenu("Abrir Notiono en el navegador", "globe") { web("/") }
             SeccionDiagnostico()
             Separador(Modifier.padding(vertical = 8.dp))
             FilaMenu("Cerrar sesión", "log-out", color = Color(0xFFD44C47)) { salir = true }
             Text("Notiono ${BuildConfig.VERSION_NAME} · ${BuildConfig.BASE_URL.removePrefix("https://")}", color = C.apagado, fontSize = 12.sp, modifier = Modifier.padding(16.dp))
+        }
+    }
+    if (novedades) com.monrealperez.notiono.ui.comun.HojaLista({ novedades = false }, "Novedades") {
+        for ((version, cosas) in NOVEDADES) {
+            TituloSeccion("Versión $version")
+            for (c in cosas) Text("·  $c", fontSize = 14.sp, color = C.texto, modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp))
         }
     }
     if (nombre) PedirTexto("Tu nombre", yo?.name.orEmpty(), onOk = { t ->
@@ -257,8 +259,16 @@ private fun SeccionDiagnostico() {
     )
 }
 
-private fun rolTexto(r: String) = when (r) {
-    "owner" -> "propietario"
-    "viewer" -> "solo lectura"
-    else -> "editor"
-}
+/** Lo nuevo de cada versión, lo último primero (Ajustes → Novedades). */
+val NOVEDADES = listOf(
+    "2.4.0" to listOf(
+        "Varios espacios, como en Notion: el selector enseña los avisos sin leer de cada espacio y deja crear uno nuevo con su nombre e icono.",
+        "Ajustes del espacio: General (nombre, icono, salir o eliminarlo escribiendo su nombre) y Personas, con miembros, invitados, invitaciones pendientes, roles y traspasar la propiedad.",
+        "Compartir una página por correo o usuario del NAS con Ver, Comentar, Editar o Acceso total, y ver a quién está compartida.",
+        "«Mover a» otro espacio: la página se duplica allí y el original se queda.",
+        "Los avisos de otro espacio llegan al móvil y, al tocarlos, la app pasa a ese espacio.",
+        "Si te comparten una página, la app funciona como invitado: solo lo compartido contigo.",
+        "Cada espacio guarda lo suyo sin conexión, y los widgets siguen con su espacio aunque cambies de espacio en la app.",
+    ),
+    "2.3.0" to listOf("Inicio personalizable y «Abrir al iniciar», como en la web."),
+)

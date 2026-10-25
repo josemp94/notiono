@@ -17,9 +17,16 @@ class Sesion(ctx: Context, val version: String) {
     val conectada: StateFlow<Boolean> = _conectada
 
     val token: String? get() = prefs.getString("token", null)
+    private val _espacio = MutableStateFlow(prefs.getString("espacio", null))
+
+    /** El espacio activo (la cookie `notiono_ws`); las pantallas se repintan al cambiarlo. */
+    val espacioFlujo: StateFlow<String?> = _espacio
     var espacio: String?
-        get() = prefs.getString("espacio", null)
-        set(v) = prefs.edit { putString("espacio", v) }
+        get() = _espacio.value
+        set(v) {
+            prefs.edit { putString("espacio", v) }
+            _espacio.value = v
+        }
     val nombre: String? get() = prefs.getString("nombre", null)
     val email: String? get() = prefs.getString("email", null)
     val usuarioId: String? get() = prefs.getString("usuario", null)
@@ -36,6 +43,7 @@ class Sesion(ctx: Context, val version: String) {
 
     fun olvida() {
         prefs.edit { clear() }
+        _espacio.value = null
         _conectada.value = false
     }
 

@@ -122,6 +122,7 @@ fun CuerpoBD(est: EstadoBD, info: PaginaInfo?, embebida: Boolean, modifier: Modi
     val nueva: (JsonObject?) -> Unit = { celdas ->
         alcance.launch { est.nuevaFila(celdas)?.let(abrir) }
     }
+    est.invitado = com.monrealperez.notiono.ui.espacios.rememberPuede().invitado
     if (info != null) Cabecera(info, info.puedeEditar && !info.locked, compacta = true)
     if (info != null && d?.collection?.description?.isNotBlank() == true) {
         Text(d.collection.description, fontSize = 14.sp, color = C.apagado, modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
@@ -153,13 +154,14 @@ fun CuerpoBD(est: EstadoBD, info: PaginaInfo?, embebida: Boolean, modifier: Modi
             BotonIcono("search", { buscando = true })
             val nFiltros = contarFiltros(vista?.cfg()?.arr("filters"))
             Box {
-                BotonIcono("list-filter", { hoja = "filtros" }, color = if (nFiltros > 0) Marca else C.apagado)
+                BotonIcono("list-filter", { hoja = "filtros" }, color = if (nFiltros > 0) Marca else C.apagado, activo = est.gestionaVistas)
                 if (nFiltros > 0) Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(14.dp).clip(CircleShape).background(Marca), contentAlignment = Alignment.Center) {
                     Text("$nFiltros", fontSize = 9.sp, color = Color.White)
                 }
             }
-            BotonIcono("arrow-up-down", { hoja = "orden" }, color = if ((vista?.cfg()?.arr("sorts")?.size ?: 0) > 0) Marca else C.apagado)
-            BotonIcono("sliders-horizontal", { hoja = "ajustes" })
+            // Filtrar, ordenar y ajustar la vista la guardan para todos: solo quien puede.
+            BotonIcono("arrow-up-down", { hoja = "orden" }, color = if ((vista?.cfg()?.arr("sorts")?.size ?: 0) > 0) Marca else C.apagado, activo = est.gestionaVistas)
+            BotonIcono("sliders-horizontal", { hoja = "ajustes" }, activo = est.gestionaVistas)
             if (est.editable && vista?.type !in setOf("chart", "form")) {
                 Row(
                     Modifier.padding(start = 4.dp).clip(RoundedCornerShape(6.dp)).background(Marca)
@@ -261,13 +263,13 @@ private fun HojaVistas(est: EstadoBD, onCerrar: () -> Unit) {
                     derecha = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (v.id == est.vista?.id) Icono("check", color = Marca)
-                            if (est.editable) Box(Modifier.size(36.dp).clickable { opciones = v }, contentAlignment = Alignment.Center) { Icono("ellipsis", tam = 16.dp, color = C.apagado) }
+                            if (est.gestionaVistas) Box(Modifier.size(36.dp).clickable { opciones = v }, contentAlignment = Alignment.Center) { Icono("ellipsis", tam = 16.dp, color = C.apagado) }
                         }
                     },
-                    onLongClick = { if (est.editable) opciones = v },
+                    onLongClick = { if (est.gestionaVistas) opciones = v },
                 ) { est.vistaId = v.id; onCerrar() }
             }
-            if (est.editable) FilaMenu("Nueva vista", "plus") { nueva = true }
+            if (est.gestionaVistas) FilaMenu("Nueva vista", "plus") { nueva = true }
         }
     }
     renombrar?.let { v -> PedirTexto("Renombrar vista", v.name, onOk = { t -> if (t.isNotBlank()) est.renombraVista(v.id, t.trim()); renombrar = null }, onNo = { renombrar = null }) }

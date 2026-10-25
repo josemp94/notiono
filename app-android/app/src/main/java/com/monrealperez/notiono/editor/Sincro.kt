@@ -139,7 +139,7 @@ class Sincro(private val fuente: Fuente, private val estado: EstadoEditor, priva
             val remoto = (o["bloques"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: local
             base = remoto
             huella = o.str("huella")
-            repo.cache.guarda(repo.cache.clave(fuente.rutaLeer, fuente.leer(null)), JsonObject(mapOf("huella" to JsonPrimitive(huella ?: ""), "bloques" to JsonArray(remoto))))
+            repo.cache.guarda(repo.clave(fuente.rutaLeer, fuente.leer(null)), JsonObject(mapOf("huella" to JsonPrimitive(huella ?: ""), "bloques" to JsonArray(remoto))))
             error = null
             if (estado.sucios.isEmpty()) {
                 // Nada nuevo mientras viajaba: se adopta lo del servidor (trae lo de otros).
@@ -172,7 +172,7 @@ class Sincro(private val fuente: Fuente, private val estado: EstadoEditor, priva
             val bloques = (r["bloques"] as? JsonArray)?.mapNotNull { it as? JsonObject }
             huella = r.str("huella") ?: huella
             if (bloques != null) {
-                if (!primera) repo.cache.guarda(repo.cache.clave(fuente.rutaLeer, fuente.leer(null)), JsonObject(mapOf("huella" to JsonPrimitive(huella ?: ""), "bloques" to JsonArray(bloques))))
+                if (!primera) repo.cache.guarda(repo.clave(fuente.rutaLeer, fuente.leer(null)), JsonObject(mapOf("huella" to JsonPrimitive(huella ?: ""), "bloques" to JsonArray(bloques))))
                 mutex.withLock {
                     base = bloques
                     // Lo escrito antes de que llegara: se queda, y el próximo envío manda la diferencia.
