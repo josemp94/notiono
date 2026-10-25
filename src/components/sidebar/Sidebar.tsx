@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BlockNoteEditor } from "@blocknote/core";
-import { Check, ChevronDown, ChevronRight, ChevronsLeft, CircleCheck, Copy, Database, FileText, FolderInput, House, Inbox, Keyboard, Link2, Loader2, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sparkles, SquarePen, Star, Sun, Trash2, Upload, Users, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, ChevronsLeft, CircleCheck, Copy, Database, FileText, FolderInput, House, Inbox, Keyboard, Link2, Loader2, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sparkles, SquarePen, Star, Sun, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { trpc } from "@/trpc/react";
 import { arrastreDeBloques, idsArrastrados, MOVER_BLOQUES_EVENT } from "@/lib/subpaginas";
 import { IconoPagina } from "@/components/PageIcon";
@@ -17,6 +17,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openSearchPalette } from "@/components/SearchPalette";
 import { MovePageModal } from "@/components/MovePage";
+import { IconoEspacio, NuevoEspacio } from "@/components/Espacios";
 import { abrirBandeja, useNoLeidas } from "@/components/Bandeja";
 
 type Node = {
@@ -496,6 +497,7 @@ function WorkspaceMenu({ me }: { me: Me }) {
   const { data: spaces } = trpc.workspace.list.useQuery();
   const [open, setOpen] = useState(false);
   const [share, setShare] = useState(false);
+  const [nuevo, setNuevo] = useState(false);
   const theme = useTheme();
   const switchWs = trpc.workspace.switch.useMutation({
     onSuccess: () => window.location.reload(),
@@ -508,8 +510,9 @@ function WorkspaceMenu({ me }: { me: Me }) {
 
   const current = me?.workspace;
   const roleLabel =
-    me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Editor" : me?.wsRole === "viewer" ? "Solo lectura" : "";
+    me?.wsRole === "owner" ? "Propietario" : me?.wsRole === "editor" ? "Miembro" : me?.wsRole === "viewer" ? "Lector" : "";
   const nombre = current?.name ?? "Espacio";
+  const actual = spaces?.find((s) => s.id === current?.id);
 
   // Clic fuera cierra el menú, como el resto de menús del panel.
   const ref = useRef<HTMLDivElement>(null);
@@ -530,7 +533,7 @@ function WorkspaceMenu({ me }: { me: Me }) {
         className="toque-estrecho flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--hover)]"
         aria-expanded={open}
       >
-        <InicialEspacio nombre={nombre} />
+        <IconoEspacio nombre={nombre} icon={current?.icon} />
         <span className="truncate text-sm font-semibold">{nombre}</span>
         <ChevronDown size={14} className="shrink-0 text-[var(--muted)]" />
       </button>
@@ -540,10 +543,40 @@ function WorkspaceMenu({ me }: { me: Me }) {
           data-menu=""
           className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl"
         >
-          <div className="px-2 pb-1 pt-1.5 text-xs text-[var(--muted)]">
-            <div className="truncate">{me?.email}</div>
-            {roleLabel && <div>{roleLabel}</div>}
+          {/* Como Notion: arriba, el espacio activo con «Ajustes» e «Invitar miembros». */}
+          <div className="px-2 pb-2 pt-1.5">
+            <div className="flex items-center gap-2">
+              <IconoEspacio nombre={nombre} icon={current?.icon} size={32} />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{nombre}</div>
+                <div className="truncate text-xs text-[var(--muted)]">
+                  {[roleLabel, actual ? (actual.miembros === 1 ? "1 miembro" : `${actual.miembros} miembros`) : null].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              <Link
+                href="/settings#espacio"
+                onClick={() => setOpen(false)}
+                className="toque-estrecho flex items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--hover)]"
+              >
+                <Settings size={14} className="text-[var(--muted)]" /> Ajustes
+              </Link>
+              {me?.wsRole === "owner" && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    setShare(true);
+                  }}
+                  className="toque-estrecho flex items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--hover)]"
+                >
+                  <UserPlus size={14} className="text-[var(--muted)]" /> Invitar miembros
+                </button>
+              )}
+            </div>
           </div>
+          <div className="my-1 border-t border-[var(--border)]" />
+          <div className="truncate px-2 pb-1 pt-1 text-xs text-[var(--muted)]">{me?.email}</div>
           {(spaces ?? []).map((s) => (
             <button
               key={s.id}
@@ -554,24 +587,26 @@ function WorkspaceMenu({ me }: { me: Me }) {
               }}
               className={item}
             >
-              <InicialEspacio nombre={s.name} />
+              <IconoEspacio nombre={s.name} icon={s.icon} />
               <span className="min-w-0 flex-1 truncate">{s.name}</span>
-              {!s.isOwner && <span className="shrink-0 text-[10px] text-[var(--muted)]">de {s.ownerName}</span>}
+              {s.isOwner ? (
+                s.compartido && <span title="Compartido con más personas"><Users size={12} className="shrink-0 text-[var(--muted)]" /></span>
+              ) : (
+                <span className="max-w-[40%] shrink-0 truncate text-[10px] text-[var(--muted)]">de {s.ownerName}</span>
+              )}
               {s.id === current?.id && <Check size={14} className="shrink-0 text-brand" />}
             </button>
           ))}
-          {me?.wsRole === "owner" && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                setShare(true);
-              }}
-              className={item}
-            >
-              <Users size={16} className="text-[var(--muted)]" />
-              Compartir el espacio
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setOpen(false);
+              setNuevo(true);
+            }}
+            className={`${item} text-[var(--muted)]`}
+          >
+            <Plus size={16} />
+            Nuevo espacio
+          </button>
           <div className="my-1 border-t border-[var(--border)]" />
           <button
             onClick={() => {
@@ -597,16 +632,8 @@ function WorkspaceMenu({ me }: { me: Me }) {
       )}
 
       {share && <ShareDialog onClose={() => setShare(false)} onChange={() => utils.workspace.members.invalidate()} />}
+      {nuevo && <NuevoEspacio onClose={() => setNuevo(false)} />}
     </div>
-  );
-}
-
-/** El cuadradito con la inicial del espacio, como el icono de espacio de Notion. */
-function InicialEspacio({ nombre }: { nombre: string }) {
-  return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--active)] text-[11px] font-semibold text-[var(--foreground)]">
-      {nombre.trim().charAt(0).toUpperCase() || "·"}
-    </span>
   );
 }
 

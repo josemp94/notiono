@@ -2,10 +2,18 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, workspaceProcedure, authedProcedure } from "../trpc";
 import { WS_COOKIE } from "../context";
+import { creaEspacio, limpiaNombre, MAX_NOMBRE } from "../services/espacios";
 
 const accessibleBy = (userId: string) => ({
   OR: [{ ownerId: userId }, { members: { some: { userId } } }],
 });
+
+/** Fija el espacio activo en la cookie (el contexto la valida en cada petición). */
+const fijaActivo = (ctx: { resHeaders?: Headers }, id: string) =>
+  ctx.resHeaders?.append("Set-Cookie", `${WS_COOKIE}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+
+/** Icono del espacio: el mismo string que el de una página (emoji, imagen o «icono:…»). */
+const icono = z.string().max(500).nullish();
 
 export const workspaceRouter = router({
   /** Todos los espacios a los que el usuario tiene acceso (propios y compartidos). */
@@ -13,7 +21,7 @@ export const workspaceRouter = router({
     const wss = await ctx.db.workspace.findMany({
       where: accessibleBy(ctx.user.id),
       orderBy: { createdAt: "asc" },
-      include: { owner: { select: { name: true, email: true } } },
+      include: { owner: { select: { name: true, email: true } }, _count: { select: { members: true } } },
     });
     return wss.map((w) => ({
       id: w.id,
@@ -21,6 +29,9 @@ export const workspaceRouter = router({
       icon: w.icon,
       isOwner: w.ownerId === ctx.user.id,
       ownerName: w.owner.name || w.owner.email,
+      // Hay alguien más que el dueño: el selector lo marca, para saber qué ven otros.
+      compartido: w._count.members > 1,
+      miembros: w._count.members,
     }));
   }),
 
@@ -104,10 +115,34 @@ export const workspaceRouter = router({
         select: { id: true },
       });
       if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-      ctx.resHeaders?.append(
-        "Set-Cookie",
-        `${WS_COOKIE}=${w.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`,
-      );
+      fijaActivo(ctx, w.id);
+      return { ok: true };
+    }),
+
+  /**
+   * Espacio nuevo, propio, y pasa a ser el activo. authedProcedure y no
+   * workspaceProcedure: un lector del espacio activo también puede crearse uno suyo.
+   */
+  create: authedProcedure
+    .input(z.object({ name: z.string().max(MAX_NOMBRE * 2), icon: icono }))
+    .mutation(async ({ ctx, input }) => {
+      const ws = await creaEspacio(ctx.db, ctx.user.id, input);
+      fijaActivo(ctx, ws.id);
+      return { id: ws.id };
+    }),
+
+  /** Nombre e icono del espacio activo (solo el dueño). */
+  update: workspaceProcedure
+    .input(z.object({ name: z.string().max(MAX_NOMBRE * 2).optional(), icon: icono }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.role !== "owner") throw new TRPCError({ code: "FORBIDDEN", message: "Solo el propietario cambia el espacio." });
+      await ctx.db.workspace.update({
+        where: { id: ctx.workspace.id },
+        data: {
+          ...(input.name !== undefined ? { name: limpiaNombre(input.name) } : {}),
+          ...(input.icon !== undefined ? { icon: input.icon || null } : {}),
+        },
+      });
       return { ok: true };
     }),
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { AbrirAlIniciar } from "@/components/AbrirAlIniciar";
+import { AjustesEspacio } from "@/components/Espacios";
 import { trpc } from "@/trpc/react";
 import apk from "@/lib/apk.json";
 import { WEBHOOK_EVENTS } from "@/lib/webhookEvents";
@@ -75,6 +76,7 @@ export default function SettingsPage() {
         <AbrirAlIniciar />
       </section>
 
+      <AjustesEspacio />
       <BackupSection />
       <AppSection />
       <EstadoSection />
