@@ -42,6 +42,7 @@ import { confirmar } from "@/components/Confirmar";
 import { COLOR_LABELS, COLOR_NAMES, usePeople } from "./Cell";
 import { Popover } from "./Popover";
 import { RecordPanel } from "./RecordPanel";
+import { Casilla, useMarcarCasilla } from "./Casilla";
 import { ScrollHorizontal } from "./ScrollHorizontal";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
@@ -146,6 +147,7 @@ export function KanbanView({
   canReorder = false,
   sumFieldId,
   view,
+  canEdit = true,
 }: {
   pageId: string;
   collectionId: string;
@@ -162,9 +164,11 @@ export function KanbanView({
   /** Campo número cuya SUMA se enseña en la cabecera de cada columna (si no, contar). */
   sumFieldId?: string;
   view: { id: string; config: unknown };
+  canEdit?: boolean;
 }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.db.get.invalidate({ pageId });
+  const marcar = useMarcarCasilla(pageId);
   const addRecord = trpc.db.addRecord.useMutation({ onSuccess: invalidate });
   const updateField = trpc.db.updateField.useMutation({
     onSuccess: invalidate,
@@ -672,14 +676,30 @@ export function KanbanView({
   const contDe = (v: Record<string, string[]>, id: string) => Object.keys(v).find((k) => v[k].includes(id));
 
   const claseTarjeta = `rounded-md border border-[var(--border)] bg-[var(--background)] ${size.card} shadow-sm`;
+  // Las casillas visibles van en la tarjeta y se marcan ahí mismo; agrupado por
+  // una casilla, marcarla la cambia de columna (como soltarla en la otra).
+  const casillas = fields.filter((f) => f.type === "checkbox");
   const cuerpoTarjeta = (r: Rec) => {
-    const preview = previewField ? String(r.cells?.[previewField.id] ?? "") : "";
+    const preview = previewField && previewField.type !== "checkbox" ? String(r.cells?.[previewField.id] ?? "") : "";
     return (
       <>
         <RichText texto={cardTitle(r)} />
         {preview && (
           <div className="mt-1 line-clamp-3 break-words rounded bg-[var(--border)]/30 px-2 py-1 text-[0.9em] text-[var(--muted)]">
             {preview}
+          </div>
+        )}
+        {casillas.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-x-3">
+            {casillas.map((f) => (
+              <Casilla
+                key={f.id}
+                marcada={Boolean(r.cells?.[f.id])}
+                nombre={f.name}
+                conNombre
+                onCambia={canEdit ? (v) => marcar(r.id, f.id, v) : undefined}
+              />
+            ))}
           </div>
         )}
       </>

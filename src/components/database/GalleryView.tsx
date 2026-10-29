@@ -4,6 +4,7 @@ import { useState } from "react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
+import { Casilla, useMarcarCasilla } from "./Casilla";
 import { usePeople } from "./Cell";
 import { displayValue, groupBy, rowColor, type Attachment, type FieldLite } from "@/lib/cellText";
 import { colorByRules, type ColorRule, type DbField, type DbRecord } from "@/lib/viewData";
@@ -29,6 +30,7 @@ export function GalleryView({
   imageFit,
   openIn = "center",
   openFull,
+  canEdit = true,
 }: {
   pageId: string;
   collectionId: string;
@@ -44,6 +46,7 @@ export function GalleryView({
   /** Cómo abrir la ficha (lateral/centrado/página completa). */
   openIn?: "side" | "center" | "full";
   openFull?: (recId: string) => void;
+  canEdit?: boolean;
 }) {
   const utils = trpc.useUtils();
   const invalidate = () => utils.db.get.invalidate({ pageId });
@@ -51,6 +54,15 @@ export function GalleryView({
   const [openRec, setOpenRec] = useState<Rec | null>(null);
   const abrir = (r: Rec) => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r));
   const people = usePeople();
+  const marcar = useMarcarCasilla(pageId);
+  const casilla = (r: Rec, f: FieldLite) => (
+    <Casilla
+      marcada={Boolean(r.cells?.[f.id])}
+      nombre={f.name}
+      conNombre
+      onCambia={canEdit ? (v) => marcar(r.id, f.id, v) : undefined}
+    />
+  );
   const colorField = fields.find((f) => f.id === colorFieldId);
   const groupField = fields.find((f) => f.id === groupByFieldId);
   const colorOf = (r: Rec) =>
@@ -80,11 +92,20 @@ export function GalleryView({
       )}
       <div className={`grid gap-3 ${size.grid}`}>
         {g.records.map((r) => (
-          <button
+          // Un div y no un botón: dentro van las casillas, que son botones.
+          <div
             key={r.id}
+            role="button"
+            tabIndex={0}
             onClick={() => abrir(r)}
+            onKeyDown={(e) => {
+              if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                abrir(r);
+              }
+            }}
             style={{ background: colorOf(r) }}
-            className={`flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] ${size.card} text-left shadow-sm transition hover:border-brand hover:shadow-md`}
+            className={`flex cursor-pointer flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] ${size.card} text-left shadow-sm transition hover:border-brand hover:shadow-md`}
           >
             <div className={`font-display truncate font-semibold ${size.title}`}><RichText texto={recTitle(r)} /></div>
             {previewField && (() => {
@@ -104,6 +125,7 @@ export function GalleryView({
                   />
                 );
               }
+              if (previewField.type === "checkbox") return <div>{casilla(r, previewField)}</div>;
               const txt = displayValue(previewField, v, people);
               if (!txt) return null;
               return (
@@ -112,6 +134,7 @@ export function GalleryView({
             })()}
             <div className="space-y-1">
               {propFields.map((f) => {
+                if (f.type === "checkbox") return <div key={f.id} className="flex">{casilla(r, f)}</div>;
                 const txt = displayValue(f, r.cells?.[f.id], people);
                 if (!txt) return null;
                 return (
@@ -122,7 +145,7 @@ export function GalleryView({
                 );
               })}
             </div>
-          </button>
+          </div>
         ))}
 
         {/* El botón de añadir va solo en el último grupo, para no repetirlo por sección. */}

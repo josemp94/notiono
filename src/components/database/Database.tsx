@@ -419,6 +419,7 @@ export function Database({
           canReorder={!asAny(active.config)?.sorts?.length}
           sumFieldId={asAny(active.config)?.kanbanSum}
           view={active}
+          canEdit={canEdit}
         />
       ) : active?.type === "chart" ? (
         <ChartView pageId={pageId} view={active} fields={fields} />
@@ -448,6 +449,7 @@ export function Database({
           imageFit={asAny(active.config)?.imageFit}
           openIn={openIn}
           openFull={openFull}
+          canEdit={canEdit}
         />
       ) : active?.type === "list" ? (
         <ListView
@@ -458,6 +460,7 @@ export function Database({
           groupByFieldId={asAny(active.config)?.groupByFieldId}
           openIn={openIn}
           openFull={openFull}
+          canEdit={canEdit}
         />
       ) : active?.type === "form" ? (
         // key: entre dos vistas Formulario de la misma BD React reutilizaría la

@@ -34,6 +34,7 @@ import { claveCelda, claveEje, esEje, gruposEje, gruposVisibles, repartoMatriz, 
 import { COLOR_LABELS, COLOR_NAMES, usePeople } from "./Cell";
 import { Popover } from "./Popover";
 import { RecordPanel } from "./RecordPanel";
+import { Casilla, useMarcarCasilla } from "./Casilla";
 import { ScrollHorizontal } from "./ScrollHorizontal";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string };
@@ -100,6 +101,7 @@ export function MatrixView({
   const addRecord = trpc.db.addRecord.useMutation({ onSuccess: invalidate });
   const updateView = trpc.db.updateView.useMutation({ onSuccess: invalidate });
   const cambiarCelda = trpc.db.updateCell.useMutation();
+  const marcar = useMarcarCasilla(pageId);
   const people = usePeople();
   const [openRec, setOpenRec] = useState<Rec | null>(null);
   const abrir = (r: Rec) => (openIn === "full" ? openFull?.(r.id) : setOpenRec(r));
@@ -204,6 +206,20 @@ export function MatrixView({
   };
 
   const cuerpo = (r: Rec) => {
+    if (previewField?.type === "checkbox")
+      return (
+        <>
+          <RichText texto={titulo(r)} />
+          <div className="mt-1 flex">
+            <Casilla
+              marcada={Boolean(r.cells?.[previewField.id])}
+              nombre={previewField.name}
+              conNombre
+              onCambia={canEdit ? (v) => marcar(r.id, previewField.id, v) : undefined}
+            />
+          </div>
+        </>
+      );
     const preview = previewField ? displayValue(previewField, r.cells?.[previewField.id], people) : "";
     return (
       <>
