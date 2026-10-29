@@ -22,6 +22,8 @@
     <string name="widget_nueva">Nueva</string>
     <string name="widget_nueva_tarea">Nueva tarea</string>
     <string name="widget_refrescar">Refrescar</string>
+    <string name="widget_anterior">Nota anterior</string>
+    <string name="widget_siguiente">Nota siguiente</string>
     <string name="widget_favorita">Favorita</string>
     <string name="widget_nota_rapida">Nota rápida</string>
     <string name="widget_punto">•</string>

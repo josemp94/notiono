@@ -81,6 +81,8 @@ object Widgets {
     const val ACCION_FILA = "com.monrealperez.notiono.widget.FILA"
     const val ACCION_DIA = "com.monrealperez.notiono.widget.DIA"
     const val ACCION_MES = "com.monrealperez.notiono.widget.MES"
+    const val ACCION_ANTERIOR = "com.monrealperez.notiono.widget.ANTERIOR"
+    const val ACCION_SIGUIENTE = "com.monrealperez.notiono.widget.SIGUIENTE"
 
     /** Todos los receptores, en el orden en que se repintan. */
     val receptores: List<Class<out ProveedorWidget>> = listOf(
@@ -286,6 +288,11 @@ data class ConfigWidget(
      * se cambie de espacio en la app. Los de antes lo averiguan al refrescar.
      */
     val espacio: String? = null,
+    /**
+     * Nota en modo «Mis notas recientes» (2.5.0): `pagina` es la que se ve ahora y ‹ › pasan
+     * por las últimas abiertas en el móvil (hasta 20, `Recientes`).
+     */
+    val recientes: Boolean = false,
 )
 
 object Configs {

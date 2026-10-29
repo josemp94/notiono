@@ -93,6 +93,11 @@ class ConfigWidgetActivity : ComponentActivity() {
                         else -> EligePagina(
                             if (tipo == "rapida") "¿Dónde van las notas rápidas?" else "¿Qué página enseña el widget?",
                             conNueva = tipo == "rapida", listo = listo,
+                            recientes = if (tipo == "nota") ({
+                                val s = Servicios.de(this@ConfigWidgetActivity)
+                                val r = s.recientes.lista(s.espacioActivo()).firstOrNull()
+                                guarda(ConfigWidget(pagina = r?.pageId, titulo = r?.title?.ifBlank { null }, recientes = true))
+                            }) else null,
                         )
                     }
                 }
@@ -102,7 +107,7 @@ class ConfigWidgetActivity : ComponentActivity() {
 }
 
 @Composable
-private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, String?, String?) -> Unit) {
+private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, String?, String?) -> Unit, recientes: (() -> Unit)? = null) {
     val s = Servicios.de(androidx.compose.ui.platform.LocalContext.current)
     var q by remember { mutableStateOf("") }
     var paginas by remember { mutableStateOf<List<JsonObject>>(emptyList()) }
@@ -116,6 +121,14 @@ private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, Stri
     if (conNueva) Row(Modifier.fillMaxWidth().clickable { listo(null, null, null) }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Icono("file-plus", color = Marca)
         Text("Siempre una página nueva", fontSize = 16.sp, color = C.texto, modifier = Modifier.padding(start = 12.dp))
+    }
+    // El widget Nota también puede ir pasando por lo último que se abrió, con ‹ ›.
+    if (recientes != null) Row(Modifier.fillMaxWidth().clickable(onClick = recientes).padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icono("clock", color = Marca)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text("Mis notas recientes", fontSize = 16.sp, color = C.texto)
+            Text("Las últimas páginas que abriste; pasa de una a otra con ‹ ›", fontSize = 13.sp, color = C.apagado)
+        }
     }
     Campo(q, { q = it }, placeholder = "Buscar página…")
     LazyColumn(Modifier.fillMaxSize()) {

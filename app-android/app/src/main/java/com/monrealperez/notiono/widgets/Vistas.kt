@@ -193,17 +193,49 @@ class NotaReceiver : ProveedorWidget() {
     }
 
     override fun vista(ctx: Context, id: Int, c: ConfigWidget, e: EstadoWidget, opciones: Bundle?): Pintado {
-        val pagina = c.pagina ?: return Pintado(fallo(ctx, "Toca para elegir una página", Widgets.piConfigura(ctx, id)), "config")
+        val pagina = c.pagina ?: return Pintado(
+            fallo(ctx, if (c.recientes) "Abre alguna página en Notiono y saldrá aquí." else "Toca para elegir una página", if (c.recientes) null else Widgets.piConfigura(ctx, id)),
+            "config",
+        )
         if (!e.conSesion) return Pintado(fallo(ctx, "${Widgets.INICIA_SESION} para ver esta nota."), "sesion")
         val d = e.datos as? JsonObject
         val bloques = (d?.get("bloques") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
         val titulo = d?.texto("titulo")?.ifBlank { null } ?: c.titulo ?: "Nota"
-        return Pintado(nota(ctx, id, pagina, titulo, bloques, e.aviso()), e.que(bloques.size), bloques.size)
+        val rv = nota(ctx, id, pagina, titulo, bloques, e.aviso())
+        if (c.recientes) {
+            // ‹ y ›: a la anterior y a la siguiente de las últimas abiertas (pintan al momento, sin red).
+            for ((vista, accion) in listOf(R.id.widget_anterior to Widgets.ACCION_ANTERIOR, R.id.widget_siguiente to Widgets.ACCION_SIGUIENTE)) {
+                rv.setViewVisibility(vista, android.view.View.VISIBLE)
+                rv.setOnClickPendingIntent(vista, Widgets.piAccion(ctx, NotaReceiver::class.java, accion, id))
+            }
+        }
+        return Pintado(rv, e.que(bloques.size), bloques.size)
+    }
+
+    /** ‹ › de «Mis notas recientes»: cambia de página, pinta ya (lo guardado o «Cargando…») y refresca detrás. */
+    override fun accion(ctx: Context, id: Int, accion: String?, valor: String): Boolean {
+        if (accion != Widgets.ACCION_ANTERIOR && accion != Widgets.ACCION_SIGUIENTE) return false
+        val c = Configs.lee(ctx, id)
+        val s = Servicios.de(ctx)
+        val siguiente = vecina(s.recientes.lista(c.espacio ?: s.espacioActivo()).map { it.pageId to it.title }, c.pagina, if (accion == Widgets.ACCION_SIGUIENTE) 1 else -1)
+            ?: return true
+        Configs.guarda(ctx, id, c.copy(pagina = siguiente.first, titulo = siguiente.second.ifBlank { null }))
+        pinta(ctx, id)
+        refrescaDetras(ctx, intArrayOf(id), "flecha")
+        return true
     }
 
     override fun muestra(ctx: Context): RemoteViews = nota(ctx, 0, "muestra", Muestras.TITULO_NOTA, planos(Muestras.nota), null)
 
     companion object {
+        /** La página de al lado en la lista (dando la vuelta); sin la actual en la lista, la primera. */
+        fun vecina(lista: List<Pair<String, String>>, actual: String?, paso: Int): Pair<String, String>? {
+            if (lista.isEmpty()) return null
+            val i = lista.indexOfFirst { it.first == actual }
+            if (i < 0) return lista.first()
+            return lista[Math.floorMod(i + paso, lista.size)]
+        }
+
         /** Bloques con su sangría y, en las listas numeradas, su número; en el orden en que se leen. */
         fun planos(bs: List<JsonObject>, nivel: Int = 0): List<JsonObject> {
             var n = 0
