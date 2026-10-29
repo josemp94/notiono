@@ -37,9 +37,14 @@ export function aplanarParaExport(bloques: unknown): unknown {
       continue;
     }
     if (b?.type === "drawing") {
-      // El dibujo sale como su vista previa (el PNG); sin trazos, nada.
-      const url = (b.props as { imagen?: string } | undefined)?.imagen ?? "";
-      if (url) out.push({ type: "image", props: { url: absoluta(url), name: "Dibujo", caption: "" } });
+      // El dibujo sale como su vista previa (el PNG), como una imagen: con su leyenda, ancho
+      // y alineación. Sin trazos, nada.
+      const p = (b.props ?? {}) as { imagen?: string; caption?: string; previewWidth?: number; textAlignment?: string };
+      if (p.imagen)
+        out.push({
+          type: "image",
+          props: { url: absoluta(p.imagen), name: "Dibujo", caption: p.caption ?? "", textAlignment: p.textAlignment ?? "center", ...(p.previewWidth ? { previewWidth: p.previewWidth } : {}) },
+        });
       continue;
     }
     out.push(b?.children?.length ? { ...b, children: aplanarParaExport(b.children) as B[] } : b);

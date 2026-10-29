@@ -1060,12 +1060,14 @@ import { fondoDe, textoDeEscena } from "../src/lib/dibujo";
     "Compra pan",
   );
   const exp = aplanarParaExport([
-    { type: "drawing", props: { escena: "/api/asset/e", imagen: "/api/asset/p", texto: "" } },
+    { type: "drawing", props: { escena: "/api/asset/e", imagen: "/api/asset/p", texto: "", caption: "Plano", previewWidth: 320, textAlignment: "left" } },
     { type: "drawing", props: { escena: "", imagen: "", texto: "" } },
-  ]) as { type: string; props: { url: string } }[];
+  ]) as { type: string; props: { url: string; caption: string; previewWidth?: number; textAlignment: string } }[];
   assert.equal(exp.length, 1, "un dibujo vacío no exporta nada");
   assert.equal(exp[0].type, "image");
   assert.equal(exp[0].props.url, "/api/asset/p");
+  // Como una imagen: con su leyenda, su ancho y su alineación (Word, HTML y PDF la llevan).
+  assert.deepEqual([exp[0].props.caption, exp[0].props.previewWidth, exp[0].props.textAlignment], ["Plano", 320, "left"]);
 }
 
 // Exportar en HTML/PDF desde la app (app.exportarHtml): el mismo documento que la web, con
