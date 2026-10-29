@@ -13,6 +13,7 @@ import { BookmarkBlock } from "./bookmarkBlock";
 import { ColumnBlock, ColumnListBlock } from "./columnBlock";
 import { CalloutBlock } from "./calloutBlock";
 import { EquationBlock } from "./equationBlock";
+import { DrawingBlock } from "./drawingBlock";
 import { DatabaseBlock, PublicBaseContext } from "./databaseBlock";
 import { TocBlock } from "./tocBlock";
 import { configMencion, configMencionFecha, configMencionPersona } from "./esquemaBloques";
@@ -161,6 +162,7 @@ export const editorSchema = BlockNoteSchema.create({
     bookmark: BookmarkBlock(),
     columnList: ColumnListBlock(),
     column: ColumnBlock(),
+    drawing: DrawingBlock(),
   },
   inlineContentSpecs: { ...defaultInlineContentSpecs, mention: Mention, personMention: PersonMention, dateMention: DateMention },
 });

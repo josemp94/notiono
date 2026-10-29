@@ -608,3 +608,8 @@ td input[type="tel"] {
 .ProseMirror table.tabla-bd.tabla-bd :is(td, th).sticky {
   position: sticky;
 }
+
+/* Dibujo: la vista previa es un PNG claro; en oscuro se invierte como hace Excalidraw con su lienzo. */
+[data-theme="dark"] .dibujo-vista { filter: invert(93%) hue-rotate(180deg); }
+/* Lienzo de dibujo: sin la biblioteca de Excalidraw (no se usa) ni su pista de arriba. */
+.lienzo-dibujo .default-sidebar-trigger, .lienzo-dibujo .sidebar-trigger, .lienzo-dibujo .HintViewer { display: none !important; }

@@ -31,7 +31,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "./mention";
-import { itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
+import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
 import { trpc } from "@/trpc/react";
 import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
@@ -504,6 +504,7 @@ export function Editor({
                   },
                 },
                 itemEcuacion(editor),
+                itemDibujo(editor),
                 itemIndice(editor),
                 {
                   title: "Base de datos",

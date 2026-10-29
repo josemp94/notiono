@@ -91,3 +91,14 @@ export const configMencionFecha = {
 
 /** Lenguaje por defecto del bloque de código (el de `@blocknote/code-block`; lo comprueba `npm run check`). */
 export const LENGUAJE_CODIGO = "javascript";
+
+/**
+ * Dibujo a mano (Excalidraw): `escena` es la URL del Asset con los trazos (JSON,
+ * editable en la web y en la app), `imagen` la de su vista previa en PNG (lo que se
+ * ve) y `texto` lo escrito dentro (para el buscador). Ver `src/lib/dibujo.ts`.
+ */
+export const configDibujo = {
+  type: "drawing" as const,
+  propSchema: { escena: { default: "" }, imagen: { default: "" }, texto: { default: "" } },
+  content: "none" as const,
+};

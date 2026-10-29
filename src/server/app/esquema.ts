@@ -12,6 +12,7 @@
 import type { BlockNoteEditor } from "@blocknote/core";
 import {
   configBaseDatos,
+  configDibujo,
   configColumna,
   configEcuacion,
   configIndice,
@@ -56,6 +57,7 @@ export function editorServidor(): Promise<BlockNoteEditor> {
         bookmark: core.createBlockSpec(configMarcador, { render: sinDibujo })(),
         columnList: core.createBlockSpec(configListaColumnas, { render: sinDibujo })(),
         column: core.createBlockSpec(configColumna, { render: sinDibujo })(),
+        drawing: core.createBlockSpec(configDibujo, { render: sinDibujo })(),
       },
       inlineContentSpecs: {
         ...core.defaultInlineContentSpecs,

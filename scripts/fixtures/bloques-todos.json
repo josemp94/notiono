@@ -53,6 +53,7 @@
   ] }, "children": [] },
   { "id": "b-bm", "type": "bookmark", "props": { "url": "https://www.youtube.com/watch?v=abc", "title": "Vídeo", "description": "Desc", "image": "https://img/x.jpg", "siteName": "YouTube" }, "children": [] },
   { "id": "b-eq", "type": "equation", "props": { "tex": "c = \\sqrt{a^2 + b^2}" }, "children": [] },
+  { "id": "b-dib", "type": "drawing", "props": { "escena": "/api/asset/esc1", "imagen": "/api/asset/png1", "texto": "lista de la compra" }, "children": [] },
   { "id": "b-toc", "type": "toc", "props": {}, "children": [] },
   { "id": "b-cols", "type": "columnList", "props": {}, "children": [
     { "id": "b-col1", "type": "column", "props": { "ancho": 1.5 }, "children": [

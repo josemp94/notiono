@@ -1,6 +1,7 @@
 "use client";
 
-import { Columns2, Columns3, Lightbulb, Link as LinkIcon, ListTree, Sigma } from "lucide-react";
+import { Columns2, Columns3, Lightbulb, Link as LinkIcon, ListTree, PenLine, Sigma } from "lucide-react";
+import { abrirAlMontar } from "./drawingBlock";
 import { insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { emptyColumn } from "./columnBlock";
@@ -81,4 +82,16 @@ export const itemIndice = (editor: NotionoEditor): DefaultReactSuggestionItem =>
   group: "Bloques básicos",
   icon: <ListTree size={18} />,
   onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "toc" }),
+});
+
+export const itemDibujo = (editor: NotionoEditor): DefaultReactSuggestionItem => ({
+  title: "Dibujo",
+  subtext: "Dibuja a mano: bolígrafo, subrayador, formas y texto",
+  aliases: ["dibujo", "dibujar", "drawing", "draw", "boceto", "pizarra", "mano", "lapiz", "lápiz", "sketch"],
+  group: "Bloques básicos",
+  icon: <PenLine size={18} />,
+  onItemClick: () => {
+    // React monta el bloque después de insertarlo: para entonces ya está apuntado.
+    abrirAlMontar.add(insertOrUpdateBlockForSlashMenu(editor, { type: "drawing" }).id);
+  },
 });

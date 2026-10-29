@@ -1030,6 +1030,30 @@ import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, tareas
   assert.equal(proximasFechas(tareas, [], hoy, 1).map((x) => x.titulo).join(","), "manana");
 }
 
+// Dibujo: fondo guardado, texto para el buscador y la vista previa al exportar.
+import { fondoDe, textoDeEscena } from "../src/lib/dibujo";
+{
+  assert.equal(fondoDe({ notiono: { fondo: "puntos" } }), "puntos");
+  assert.equal(fondoDe({ notiono: { fondo: "raro" } }), "liso");
+  assert.equal(fondoDe(null), "liso");
+  assert.equal(
+    textoDeEscena([
+      { type: "text", text: " Compra " },
+      { type: "freedraw" },
+      { type: "text", text: "borrado", isDeleted: true },
+      { type: "text", text: "pan" },
+    ]),
+    "Compra pan",
+  );
+  const exp = aplanarParaExport([
+    { type: "drawing", props: { escena: "/api/asset/e", imagen: "/api/asset/p", texto: "" } },
+    { type: "drawing", props: { escena: "", imagen: "", texto: "" } },
+  ]) as { type: string; props: { url: string } }[];
+  assert.equal(exp.length, 1, "un dibujo vacío no exporta nada");
+  assert.equal(exp[0].type, "image");
+  assert.equal(exp[0].props.url, "/api/asset/p");
+}
+
 compruebaColaboracion()
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
