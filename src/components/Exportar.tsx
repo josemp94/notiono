@@ -89,7 +89,7 @@ export function DialogoExportar({
         {o.formato === "markdown" && conSubpaginas && (
           <label className={fila}>
             Incluir subpáginas
-            <input type="checkbox" checked={o.subpaginas} onChange={(e) => pon({ subpaginas: e.target.checked })} className="size-4 accent-[var(--brand)]" />
+            <input type="checkbox" checked={o.subpaginas} onChange={(e) => pon({ subpaginas: e.target.checked })} className="size-4 accent-[var(--color-brand)]" />
           </label>
         )}
       </div>

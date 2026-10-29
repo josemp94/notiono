@@ -39,7 +39,11 @@ export function ListView({
   const marcar = useMarcarCasilla(pageId);
 
   const titleField = fields.find((f) => f.type === "text") ?? fields[0];
-  const propFields = fields.filter((f) => f.id !== titleField?.id).slice(0, 3);
+  // Hasta 3 propiedades de texto a la derecha (no caben más), y las casillas siempre, en su
+  // orden: son un control que se marca ahí mismo.
+  const propFields = fields
+    .filter((f) => f.id !== titleField?.id)
+    .filter((f, i, todas) => f.type === "checkbox" || todas.slice(0, i).filter((x) => x.type !== "checkbox").length < 3);
 
   const recTitle = (r: Rec) => {
     const t = titleField ? r.cells?.[titleField.id] : "";

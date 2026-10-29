@@ -82,6 +82,9 @@ object AtajosRecordar {
 
     fun textoAntelacion(id: String, conHora: Boolean): String? = antelaciones(conHora).firstOrNull { it.first == id }?.second
 
+    /** «Recordar en 1 hora», «Recordar esta tarde (19:00)»…: el atajo en el menú @ y en el de la fecha (como `tituloAtajo`). */
+    fun titulo(texto: String) = "Recordar " + texto.replaceFirstChar { it.lowercase() }
+
     private val DIAS = listOf("lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo")
 
     /**
@@ -93,9 +96,7 @@ object AtajosRecordar {
         val m = Regex("^(recordar|recuerdame|remind)(?: (.*))?$").find(q)
         val prefijo = q.length >= 3 && ("recordar".startsWith(q) || "remind".startsWith(q))
         if (m == null && !prefijo) return null
-        val atajos = ATAJOS.mapNotNull { (clave, _, _) ->
-            atajo(clave, ahora)?.let { f -> (if (clave == "1h") "Recordar en 1 hora" else "Recordar ${cuando(f, ahora)}") to f }
-        }
+        val atajos = ATAJOS.mapNotNull { (clave, texto, _) -> atajo(clave, ahora)?.let { f -> titulo(texto) to f } }
         val resto = m?.groupValues?.get(2)?.trim().orEmpty()
         if (resto.isEmpty()) return atajos
         val hoy = ahora.atZone(MADRID).toLocalDate()
@@ -169,7 +170,7 @@ fun HojaFecha(props: JsonObject, onCambia: (JsonObject) -> Unit, onCerrar: () ->
     HojaLista(onCerrar, com.monrealperez.notiono.editor.Inline.etiquetaFecha(fecha).let { if (aviso.isNotEmpty()) "$it · con recordatorio" else it }) {
         for ((clave, texto, icono) in AtajosRecordar.ATAJOS) {
             val f = AtajosRecordar.atajo(clave) ?: continue
-            FilaMenu("Recordar " + texto.replaceFirstChar { it.lowercase() }, icono) { pon(f, "0"); onCerrar() }
+            FilaMenu(AtajosRecordar.titulo(texto), icono) { pon(f, "0"); onCerrar() }
         }
         Separador(Modifier.padding(vertical = 4.dp))
         FilaMenu("Elegir fecha y hora", "calendar-clock", detalle = fecha.replace('T', ' ')) { eligeDia = true }

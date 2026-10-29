@@ -101,6 +101,9 @@ export const ATAJOS: [Atajo, string][] = [
   ["manana", "Mañana a las 9:00"],
 ];
 
+/** «Recordar en 1 hora», «Recordar esta tarde (19:00)»…: el atajo en el menú @ y en el de la fecha. */
+export const tituloAtajo = (texto: string) => `Recordar ${texto.charAt(0).toLowerCase()}${texto.slice(1)}`;
+
 /**
  * Cuándo es un atajo, como fecha de Madrid "YYYY-MM-DDTHH:mm". «Esta tarde» ya pasada
  * (después de las 19:00) no existe: null. «En 1 hora» se redondea al minuto de arriba.
@@ -207,9 +210,9 @@ export function sugerenciasRecordar(consulta: string, ahora = new Date()): { tit
   const m = /^(recordar|recuerdame|remind)(?: (.*))?$/.exec(q);
   const prefijo = q.length >= 3 && ("recordar".startsWith(q) || "remind".startsWith(q));
   if (!m && !prefijo) return null;
-  const atajos = ATAJOS.flatMap(([a]) => {
+  const atajos = ATAJOS.flatMap(([a, texto]) => {
     const fecha = atajoRecordatorio(a, ahora);
-    return fecha ? [{ titulo: a === "1h" ? "Recordar en 1 hora" : `Recordar ${cuandoEvento(fecha, ahora)}`, fecha }] : [];
+    return fecha ? [{ titulo: tituloAtajo(texto), fecha }] : [];
   });
   const resto = m?.[2]?.trim();
   if (!resto) return atajos;

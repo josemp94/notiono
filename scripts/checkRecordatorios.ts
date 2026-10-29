@@ -36,7 +36,7 @@ export async function compruebaRecordatorios() {
   const fechas = (q: string) => sugerenciasRecordar(q, jueves)?.map((x) => x.fecha);
   assert.equal(sugerenciasRecordar("ma", jueves), null, "lo que no va de recordar no sugiere nada");
   assert.deepEqual(fechas("rec"), ["2026-10-29T11:00", "2026-10-29T19:00", "2026-10-30T09:00"], "los atajos");
-  assert.deepEqual(sugerenciasRecordar("recordar", jueves)?.map((x) => x.titulo), ["Recordar en 1 hora", "Recordar hoy a las 19:00", "Recordar mañana a las 09:00"]);
+  assert.deepEqual(sugerenciasRecordar("recordar", jueves)?.map((x) => x.titulo), ["Recordar en 1 hora", "Recordar esta tarde (19:00)", "Recordar mañana a las 9:00"]);
   assert.deepEqual(fechas("recordar mañana"), ["2026-10-30T09:00"]);
   assert.deepEqual(fechas("Recordar a las 19:00"), ["2026-10-29T19:00"]);
   assert.deepEqual(fechas("recordar a las 8"), ["2026-10-30T08:00"], "una hora ya pasada es mañana");

@@ -7,7 +7,7 @@ import { createReactInlineContentSpec, SuggestionMenuController } from "@blockno
 import { trpc } from "@/trpc/react";
 import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { atajoRecordatorio, ATAJOS, HORA_AVISO, opcionesRecordatorio, sugerenciasRecordar, textoRecordatorio } from "@/lib/recordatorios";
+import { atajoRecordatorio, ATAJOS, HORA_AVISO, tituloAtajo, opcionesRecordatorio, sugerenciasRecordar, textoRecordatorio } from "@/lib/recordatorios";
 import { IconoPagina } from "@/components/PageIcon";
 import { abrirEnPanel } from "@/lib/vistazo";
 import { BookmarkBlock } from "./bookmarkBlock";
@@ -189,7 +189,7 @@ function MenuFecha({ ancla, props, cambia, cerrar }: { ancla: HTMLElement; props
         const fecha = atajoRecordatorio(a);
         return fecha ? (
           <button key={a} onClick={() => (pon({ fecha, recordatorio: "0" }), cerrar())} className={item}>
-            <AlarmClock size={15} className="text-[var(--muted)]" /> Recordar {texto.charAt(0).toLowerCase() + texto.slice(1)}
+            <AlarmClock size={15} className="text-[var(--muted)]" /> {tituloAtajo(texto)}
           </button>
         ) : null;
       })}
@@ -208,7 +208,7 @@ function MenuFecha({ ancla, props, cambia, cerrar }: { ancla: HTMLElement; props
             type="checkbox"
             checked={conHora}
             onChange={(e) => pon({ fecha: e.target.checked ? `${props.fecha.slice(0, 10)}T${String(HORA_AVISO).padStart(2, "0")}:00` : props.fecha.slice(0, 10) })}
-            className="accent-[var(--brand)]"
+            className="accent-[var(--color-brand)]"
           />
         </label>
         <label className="flex items-center justify-between gap-2">
@@ -217,7 +217,7 @@ function MenuFecha({ ancla, props, cambia, cerrar }: { ancla: HTMLElement; props
             value={textoRecordatorio(props.recordatorio, conHora) ? props.recordatorio : ""}
             onChange={(e) => pon({ recordatorio: e.target.value })}
             aria-label="Recordar"
-            className="max-w-36 rounded-md border border-[var(--border)] bg-[var(--background)] px-1 py-0.5 text-sm"
+            className="w-40 rounded-md border border-[var(--border)] bg-[var(--background)] px-1 py-0.5 text-sm"
           >
             <option value="">Ninguno</option>
             {opcionesRecordatorio(conHora).map(([id, texto]) => (
@@ -275,9 +275,10 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
       triggerCharacter="@"
       getItems={async (query) => {
         const q = query.trim().toLowerCase();
-        const [pages, ws] = await Promise.all([
+        const [pages, ws, yo] = await Promise.all([
           q ? utils.pages.search.fetch({ query }) : utils.pages.tree.fetch().then((t) => t.slice(0, 10)),
           utils.workspace.members.fetch(),
+          utils.auth.me.fetch(),
         ]);
         const people = ws.members.filter(
           (m) => !q || (m.name ?? "").toLowerCase().includes(q) || m.email.toLowerCase().includes(q),
@@ -303,9 +304,9 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
         }
         // «@recordar…» como en Notion: mención de fecha con aviso a su hora, de quien la pone.
         const recordar = sugerenciasRecordar(query) ?? (!q ? [] : null);
-        const poner = async (fecha: string, abrir = false) => {
-          const por = (await utils.auth.me.fetch())?.id ?? "";
-          const props = { fecha, recordatorio: "0", por };
+        // Sin esperas al elegir: entre el clic y una espera, el cursor ya no está donde se escribió.
+        const poner = (fecha: string, abrir = false) => {
+          const props = { fecha, recordatorio: "0", por: yo?.id ?? "" };
           if (abrir) abrirAlPoner = props;
           editor.insertInlineContent([{ type: "dateMention", props }, " "]);
         };
@@ -324,7 +325,7 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
             subtext: r.fecha.replace("T", " "),
             group: "Fecha o recordatorio",
             icon: <AlarmClock size={16} />,
-            onItemClick: () => void poner(r.fecha),
+            onItemClick: () => poner(r.fecha),
           })),
           // «Recordar…»: mañana a las 9:00 y su menú abierto para elegir otro día u hora.
           ...(recordar && (!q || q.length <= "recordar".length)
@@ -333,7 +334,7 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
                 subtext: "Elige el día y la hora",
                 group: "Fecha o recordatorio",
                 icon: <AlarmClock size={16} />,
-                onItemClick: () => void poner(atajoRecordatorio("manana")!, true),
+                onItemClick: () => poner(atajoRecordatorio("manana")!, true),
               }]
             : []),
           ...people.map((m) => ({

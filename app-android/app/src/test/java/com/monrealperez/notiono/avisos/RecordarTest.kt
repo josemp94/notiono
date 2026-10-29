@@ -107,7 +107,7 @@ class RecordarTest {
         fun fechas(q: String) = AtajosRecordar.sugerencias(q, jueves)?.map { it.second }
         assertNull(AtajosRecordar.sugerencias("ma", jueves))
         assertEquals(listOf("2026-10-29T11:00", "2026-10-29T19:00", "2026-10-30T09:00"), fechas("rec"))
-        assertEquals(listOf("Recordar en 1 hora", "Recordar hoy a las 19:00", "Recordar mañana a las 9:00"), AtajosRecordar.sugerencias("recordar", jueves)!!.map { it.first })
+        assertEquals(listOf("Recordar en 1 hora", "Recordar esta tarde (19:00)", "Recordar mañana a las 9:00"), AtajosRecordar.sugerencias("recordar", jueves)!!.map { it.first })
         assertEquals(listOf("2026-10-30T09:00"), fechas("recordar mañana"))
         assertEquals(listOf("2026-10-29T19:00"), fechas("Recordar a las 19:00"))
         assertEquals(listOf("2026-10-30T08:00"), fechas("recordar a las 8"))
