@@ -21,6 +21,7 @@ model User {
   ownedSpaces  Workspace[]  @relation("owner")
   comments     Comment[]
   notifications     Notification[] @relation("recipient")
+  pospuestos        Pospuesto[]
   sentNotifications Notification[] @relation("actor")
   favorites    Favorite[]
   pushSubscriptions PushSubscription[]
@@ -107,6 +108,7 @@ model Workspace {
   apiTokens ApiToken[]
   webhooks  Webhook[]
   notifications Notification[]
+  pospuestos    Pospuesto[]
   invitaciones  Invitacion[]
 }
 
@@ -187,6 +189,7 @@ model Page {
   versions    Version[]
   comments    Comment[]
   notifications Notification[]
+  pospuestos    Pospuesto[]
   favorites   Favorite[]
   permissions PagePermission[]
   followers   PageFollow[]
@@ -332,6 +335,24 @@ model Notification {
 
   @@unique([userId, key])
   @@index([userId, workspaceId, read])
+}
+
+// «Posponer 1 h» de un recordatorio: un aviso más para esa persona, a su hora (lo
+// recoge src/server/recordatorios.ts con la key `pos:<id>`, igual que los demás).
+model Pospuesto {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pageId      String
+  page        Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  recordId    String? // la fila que abre; sin FK, como en Notification
+  titulo      String
+  cuando      DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([cuando])
 }
 
 // Ajuste global de la instalación (hoy solo el par de claves VAPID de los avisos push).

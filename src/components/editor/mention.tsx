@@ -68,8 +68,14 @@ const PersonMention = createReactInlineContentSpec(
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-/** "Hoy"/"Mañana"/"Ayer" si toca; si no, "25 dic" (con año solo si no es el actual). */
-function etiquetaFecha(fecha: string): string {
+/** "Hoy"/"Mañana"/"Ayer" si toca; si no, "25 dic" (con año solo si no es el actual). Con hora: "Mañana 9:00". */
+function etiquetaFecha(fechaHora: string): string {
+  const [fecha, hora] = fechaHora.split("T");
+  const dia = etiquetaDia(fecha);
+  return hora ? `${dia} ${hora.replace(/^0(\d)/, "$1")}` : dia;
+}
+
+function etiquetaDia(fecha: string): string {
   const hoy = new Date();
   const cerca = (dias: number) => {
     const d = new Date(hoy);

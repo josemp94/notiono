@@ -71,6 +71,7 @@ export async function compruebaRecordatorios() {
         return { count: nuevos.length };
       },
     },
+    pospuesto: { findMany: async () => [] },
   };
   try {
     const { disparaRecordatorios, recordatoriosEntre } = await import("../src/server/recordatorios");
@@ -106,6 +107,69 @@ export async function compruebaRecordatorios() {
     // Lo que baja la app: los próximos de una persona, en orden.
     const deU2 = await recordatoriosEntre(db, new Date("2026-10-24T00:00:00Z"), new Date("2026-10-26T00:00:00Z"), { userId: "u2" });
     assert.deepEqual(deU2.map((r) => r.recordId ?? r.pageId), ["pg", "r1"]);
+
+    // «Recordarme…» en una fila (la mención va en su cuerpo), «Posponer 1 h» y «Hecho».
+    const { accionRecordatorio } = await import("../src/server/recordatorios");
+    const { bloqueRecordatorio } = await import("../src/lib/recordatorios");
+    const avisos2: Aviso[] = [];
+    const pospuestos: { id: string; userId: string; cuando: Date; [k: string]: unknown }[] = [];
+    const leidos: string[] = [];
+    let escrito: unknown = null;
+    const camposTareas = [{ id: "t", type: "text", config: null }, { id: "e", type: "status", config: { options: [{ id: "a", group: "todo" }, { id: "z", group: "done" }] } }];
+    g.prisma = {
+      $queryRaw: async (sql: TemplateStringsArray) => (sql.join("").includes("content::text") && sql.join("").includes('"Record"') ? [{ id: "r9" }] : []),
+      $executeRaw: async (_sql: TemplateStringsArray, json: unknown) => ((escrito = json), 1),
+      record: {
+        findMany: async () => [{ id: "r9", cells: { t: "Comprar regalo" }, content: [bloqueRecordatorio("b", "2026-10-24T18:00", "u2")], collection: { pageId: "bd", page: { workspaceId: "w1" }, fields: camposTareas } }],
+        findFirst: async () => ({ id: "r9", collection: { fields: camposTareas } }),
+      },
+      page: {
+        findMany: async () => [],
+        findUnique: async () => ({ parentId: null, restricted: false }),
+        findFirst: async () => ({ id: "bd", workspaceId: "w1", title: "Tareas", workspace: { ownerId: "u1" } }),
+      },
+      workspace: { findUnique: async () => ({ ownerId: "u1" }) },
+      member: { findUnique: async ({ where }: { where: { workspaceId_userId: { userId: string } } }) => (where.workspaceId_userId.userId === "u2" ? { role: "editor" } : null) },
+      notification: {
+        findMany: async ({ where }: { where: { OR: { userId: string; key: string }[] } }) => avisos2.filter((a) => where.OR.some((o) => o.userId === a.userId && o.key === a.key)),
+        createMany: async ({ data }: { data: Aviso[] }) => {
+          const nuevos = data.filter((d) => !avisos2.some((a) => a.userId === d.userId && a.key === d.key));
+          avisos2.push(...nuevos);
+          return { count: nuevos.length };
+        },
+        updateMany: async ({ where }: { where: { key: string } }) => (leidos.push(where.key), { count: 1 }),
+      },
+      pospuesto: {
+        findMany: async ({ where }: { where: { cuando: { gte: Date; lte: Date } } }) => pospuestos.filter((p) => p.cuando >= where.cuando.gte && p.cuando <= where.cuando.lte),
+        create: async ({ data }: { data: { userId: string; cuando: Date } }) => {
+          const p = { id: `p${pospuestos.length}`, ...data };
+          pospuestos.push(p);
+          return p;
+        },
+        deleteMany: async () => ({ count: 0 }),
+      },
+    };
+    const db2 = g.prisma as Parameters<typeof disparaRecordatorios>[0];
+    const pushes2: Parameters<Parameters<typeof disparaRecordatorios>[2] & object>[1][] = [];
+    const dispara2 = (ahora: Date) => disparaRecordatorios(db2, ahora, (_u, p) => pushes2.push(p));
+    // 18:00 de Madrid del sábado 24 (verano) = 16:00 UTC, a quien lo puso, abriendo la fila.
+    assert.equal(await dispara2(new Date("2026-10-24T15:59:00Z")), 0);
+    assert.equal(await dispara2(new Date("2026-10-24T16:00:10Z")), 1);
+    const rec = pushes2[0].recordatorio!;
+    assert.deepEqual([avisos2[0].userId, rec.pageId, rec.recordId, rec.titulo], ["u2", "bd", "r9", "Comprar regalo"]);
+    // Posponer 1 h: el aviso queda leído y vuelve a saltar una hora después (y solo entonces).
+    const r = await accionRecordatorio(db2, "u2", "posponer", rec, new Date("2026-10-24T16:00:20Z"));
+    assert.equal(r.pospuesto?.cuando, "2026-10-24T17:00:20.000Z");
+    assert.deepEqual(leidos, [rec.key]);
+    assert.equal(await dispara2(new Date("2026-10-24T17:00:00Z")), 0);
+    assert.equal(await dispara2(new Date("2026-10-24T17:00:30Z")), 1);
+    assert.equal(avisos2[1].key, r.pospuesto?.key);
+    assert.equal(pushes2[1].body, "Comprar regalo · hoy a las 19:00");
+    // Hecho: la fila con Estado pasa a la opción del grupo «Hecho».
+    assert.deepEqual(await accionRecordatorio(db2, "u2", "hecho", pushes2[1].recordatorio!), { hecha: true });
+    assert.equal(escrito, JSON.stringify({ e: "z" }));
+    // Sin acceso a la página, ni posponer ni marcar.
+    await assert.rejects(accionRecordatorio(db2, "u9", "hecho", rec), /acceso/);
   } finally {
     g.prisma = anterior;
   }

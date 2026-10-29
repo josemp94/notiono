@@ -15,7 +15,9 @@
  */
 import { db as dbReal } from "@/lib/db";
 import { dateValue } from "@/lib/cellText";
-import { cuandoEvento, momentoRecordatorio } from "@/lib/recordatorios";
+import { cuandoEvento, enMadrid, momentoRecordatorio } from "@/lib/recordatorios";
+import { valorHecho } from "@/lib/tareas";
+import { nivelDePagina, alcanza } from "./services/perms";
 import { filtraQuienesVen } from "./services/perms";
 import { sendPush } from "./push";
 
@@ -128,6 +130,46 @@ export async function recordatoriosEntre(db: Db, desde: Date, hasta: Date, filtr
     }
   }
 
+  // Menciones con aviso en el cuerpo de una fila (el recordatorio rápido de una fila, «Recordarme…»).
+  const idsCuerpos = await db.$queryRaw<{ id: string }[]>`SELECT id FROM "Record" WHERE "archivedAt" IS NULL AND content::text LIKE '%"recordatorio": "_%'`;
+  if (idsCuerpos.length) {
+    const filas = await db.record.findMany({
+      where: {
+        id: { in: idsCuerpos.map((r) => r.id) },
+        archivedAt: null,
+        collection: { page: { archivedAt: null, ...(filtro.workspaceId ? { workspaceId: filtro.workspaceId } : {}) } },
+      },
+      select: {
+        id: true, cells: true, content: true,
+        collection: { select: { pageId: true, page: { select: { workspaceId: true } }, fields: { select: { id: true, type: true }, orderBy: { order: "asc" } } } },
+      },
+    });
+    for (const r of filas) {
+      const tit = r.collection.fields.find((f) => f.type === "text");
+      const cells = (r.cells ?? {}) as Record<string, unknown>;
+      const titulo = (tit && typeof cells[tit.id] === "string" ? (cells[tit.id] as string) : "").trim() || "Sin título";
+      for (const m of mencionesConAviso(r.content)) {
+        const cuando = momentoRecordatorio(m.fecha, m.antes);
+        if (!dentro(cuando)) continue;
+        out.push({
+          key: `rem:${r.id}:${cuando.toISOString()}:${m.por}`, cuando, inicio: m.fecha, titulo,
+          workspaceId: r.collection.page.workspaceId, pageId: r.collection.pageId, recordId: r.id, userIds: [m.por],
+        });
+      }
+    }
+  }
+
+  // Los pospuestos («Posponer 1 h» de la notificación): uno por persona.
+  const pospuestos = await db.pospuesto.findMany({
+    where: { cuando: { gte: desde, lte: hasta }, page: { archivedAt: null }, ...(filtro.workspaceId ? { workspaceId: filtro.workspaceId } : {}), ...(filtro.userId ? { userId: filtro.userId } : {}) },
+  });
+  for (const p of pospuestos) {
+    out.push({
+      key: `pos:${p.id}`, cuando: p.cuando, inicio: enMadrid(p.cuando), titulo: p.titulo,
+      workspaceId: p.workspaceId, pageId: p.pageId, recordId: p.recordId, userIds: [p.userId],
+    });
+  }
+
   for (const r of out) {
     r.userIds = await filtraQuienesVen(db, r.workspaceId, r.pageId, filtro.userId ? r.userIds.filter((u) => u === filtro.userId) : r.userIds);
   }
@@ -166,9 +208,65 @@ export async function disparaRecordatorios(db: Db, ahora = new Date(), avisa: ty
       title: "Recordatorio",
       body: textoAviso(r, ahora),
       url: r.recordId ? `/p/${r.pageId}?r=${r.recordId}` : `/p/${r.pageId}`,
+      // Con esto el service worker pone los botones «Hecho» y «Posponer 1 h».
+      recordatorio: { key: r.key, pageId: r.pageId, recordId: r.recordId, titulo: r.titulo },
     });
   }
   return creados;
+}
+
+/** Lo que sabe un botón de la notificación sobre su recordatorio. */
+export type AvisoRecordatorio = { key: string; pageId: string; recordId?: string | null; titulo?: string };
+
+/**
+ * Los botones de la notificación (push de la web y alarma de la app), con la sesión de
+ * quien la recibe (sea cual sea su espacio activo):
+ * - «Hecho»: en una fila con casilla o estado, la marca hecha; en lo demás, descarta.
+ * - «Posponer 1 h»: un aviso más dentro de una hora (`Pospuesto`).
+ * En los dos, el aviso de la bandeja queda leído. Lanza un Error con el porqué si no puede.
+ */
+export async function accionRecordatorio(
+  db: Db,
+  userId: string,
+  accion: "hecho" | "posponer",
+  a: AvisoRecordatorio,
+  ahora = new Date(),
+): Promise<{ hecha?: boolean; pospuesto?: { key: string; cuando: string } }> {
+  const page = await db.page.findFirst({ where: { id: a.pageId, archivedAt: null }, select: { id: true, workspaceId: true, title: true, workspace: { select: { ownerId: true } } } });
+  if (!page) throw new Error("La página ya no existe.");
+  const rol =
+    page.workspace.ownerId === userId
+      ? "owner"
+      : (await db.member.findUnique({ where: { workspaceId_userId: { workspaceId: page.workspaceId, userId } }, select: { role: true } }))?.role;
+  if (!rol) throw new Error("No tienes acceso a esa página.");
+  const nivel = await nivelDePagina(db, page.id, userId, rol);
+  if (!alcanza(nivel, "view")) throw new Error("No tienes acceso a esa página.");
+  await db.notification.updateMany({ where: { userId, key: a.key }, data: { read: true } });
+
+  if (accion === "posponer") {
+    const p = await db.pospuesto.create({
+      data: {
+        userId, workspaceId: page.workspaceId, pageId: page.id, recordId: a.recordId ?? null,
+        titulo: (a.titulo ?? "").slice(0, 200) || page.title || "Sin título",
+        cuando: new Date(ahora.getTime() + 3600_000),
+      },
+    });
+    // Los ya disparados de hace días no sirven: se limpian aquí, sin otra vuelta.
+    await db.pospuesto.deleteMany({ where: { cuando: { lt: new Date(ahora.getTime() - 2 * 864e5) } } });
+    return { pospuesto: { key: `pos:${p.id}`, cuando: p.cuando.toISOString() } };
+  }
+
+  if (!a.recordId) return {};
+  if (!alcanza(nivel, "edit") || rol === "viewer") throw new Error("Solo lectura: no puedes marcarla.");
+  const fila = await db.record.findFirst({
+    where: { id: a.recordId, archivedAt: null, collection: { pageId: page.id } },
+    select: { id: true, collection: { select: { fields: { select: { id: true, type: true, config: true }, orderBy: { order: "asc" } } } } },
+  });
+  const v = fila && valorHecho(fila.collection.fields);
+  if (!v) return {};
+  // El mismo merge en Postgres que db.updateCell (solo esa clave).
+  await db.$executeRaw`UPDATE "Record" SET cells = cells || ${JSON.stringify({ [v.fieldId]: v.value })}::jsonb, "updatedById" = ${userId}, "updatedAt" = now() WHERE id = ${fila!.id}`;
+  return { hecha: true };
 }
 
 /** Arranca la vuelta de cada minuto (una sola por proceso). */

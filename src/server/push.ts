@@ -1,6 +1,9 @@
 import webpush from "web-push";
 import { db } from "@/lib/db";
 
+/** Lo que lleva un push. `recordatorio`: pone los botones «Hecho» y «Posponer 1 h» (public/sw.js). */
+export type Aviso = { title: string; body: string; url?: string; recordatorio?: { key: string; pageId: string; recordId: string | null; titulo: string } };
+
 /**
  * Par de claves VAPID de la instalación. Se genera solo la primera vez y se guarda
  * en la base de datos: así el despliegue no necesita configurar nada a mano, y las
@@ -41,7 +44,7 @@ export async function publicVapidKey(): Promise<string> {
  * para los usuarios de OPENCLAW_NOTIF_USERS. Fire-and-forget: nunca espera ni rompe.
  * Si faltan las envs o el usuario no está en la lista, no hace nada.
  */
-function forwardToOpenclaw(userId: string, payload: { title: string; body: string; url?: string }): void {
+function forwardToOpenclaw(userId: string, payload: Aviso): void {
   const base = process.env.OPENCLAW_NOTIF_BASE;
   const token = process.env.OPENCLAW_HOOK_TOKEN;
   let routes: Record<string, string> = {};
@@ -55,7 +58,7 @@ function forwardToOpenclaw(userId: string, payload: { title: string; body: strin
   }).catch(() => {});
 }
 
-export function sendPush(userId: string, payload: { title: string; body: string; url?: string }): void {
+export function sendPush(userId: string, payload: Aviso): void {
   forwardToOpenclaw(userId, payload);
   void (async () => {
     try {

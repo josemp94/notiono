@@ -82,3 +82,68 @@ export function cuandoEvento(inicio: string, ahora = new Date()): string {
     : new Intl.DateTimeFormat("es-ES", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${dia}T12:00:00Z`));
   return hora ? `${nombre} a las ${hora}` : nombre;
 }
+
+/** "YYYY-MM-DDTHH:mm" de un instante en hora de Madrid (el formato de las fechas de Notiono). */
+export function enMadrid(d: Date): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: ZONA, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+/** Atajos de «Recordarme…» (los de las apps de notas): en 1 hora, esta tarde, mañana. */
+export type Atajo = "1h" | "tarde" | "manana";
+export const ATAJOS: [Atajo, string][] = [
+  ["1h", "En 1 hora"],
+  ["tarde", "Esta tarde (19:00)"],
+  ["manana", "Mañana a las 9:00"],
+];
+
+/**
+ * Cuándo es un atajo, como fecha de Madrid "YYYY-MM-DDTHH:mm". «Esta tarde» ya pasada
+ * (después de las 19:00) no existe: null. «En 1 hora» se redondea al minuto de arriba.
+ */
+export function atajoRecordatorio(atajo: Atajo, ahora = new Date()): string | null {
+  if (atajo === "1h") return enMadrid(new Date(Math.ceil((ahora.getTime() + 3600_000) / 60_000) * 60_000));
+  const hoy = enMadrid(ahora).slice(0, 10);
+  if (atajo === "tarde") return horaMadrid(hoy, 19, 0) > ahora ? `${hoy}T19:00` : null;
+  return `${sumaDias(hoy, 1)}T${String(HORA_AVISO).padStart(2, "0")}:00`;
+}
+
+/**
+ * El recordatorio rápido de una página es un párrafo arriba del todo con «Recordatorio:» y
+ * una mención de fecha con aviso a la hora (como el «Remind me» de Notion): se ve en la
+ * página, se puede borrar a mano y el servidor lo avisa como cualquier mención.
+ */
+export const ROTULO_RAPIDO = "Recordatorio:";
+type BloqueR = { id?: string; type?: string; content?: unknown };
+type InlineR = { type?: string; text?: string; props?: { fecha?: unknown; recordatorio?: unknown; por?: unknown } };
+
+export function bloqueRecordatorio(id: string, fecha: string, por: string) {
+  return {
+    id,
+    type: "paragraph",
+    props: {},
+    content: [
+      { type: "text", text: `${ROTULO_RAPIDO} `, styles: { bold: true } },
+      { type: "dateMention", props: { fecha, recordatorio: "0", por } },
+    ],
+    children: [],
+  };
+}
+
+/** El recordatorio rápido de esa persona en la página (de primer nivel), si lo hay. */
+export function recordatorioRapido(bloques: unknown, por: string): { id: string; fecha: string } | null {
+  if (!Array.isArray(bloques)) return null;
+  for (const b of bloques as BloqueR[]) {
+    if (b?.type !== "paragraph" || !Array.isArray(b.content) || !b.id) continue;
+    const c = (b.content as InlineR[]).filter((x) => !(x?.type === "text" && !x.text?.trim()));
+    if (c.length !== 2 || c[0]?.type !== "text" || c[0].text?.trim() !== ROTULO_RAPIDO) continue;
+    const m = c[1];
+    if (m?.type === "dateMention" && m.props?.por === por && typeof m.props.fecha === "string" && m.props.recordatorio)
+      return { id: b.id, fecha: m.props.fecha };
+  }
+  return null;
+}

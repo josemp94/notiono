@@ -24,6 +24,8 @@ import { sinEnlaceDoble } from "../subpaginas";
 import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
 import { TEMPLATES } from "@/lib/templates";
 import { nombreSeguro } from "@/lib/exportZip";
+import { bloqueRecordatorio, recordatorioRapido } from "@/lib/recordatorios";
+import { randomUUID } from "node:crypto";
 import { generaDocx, leeAsset } from "../docx";
 import { calculaCalendario } from "../app/calendario";
 import { recordatoriosEntre, textoAviso } from "../recordatorios";
@@ -175,6 +177,48 @@ export const appNativaRouter = router({
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
       const { title } = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } });
       return { titulo: title, markdown: await bloquesAMarkdown(await leerBloquesPagina(page)) };
+    }),
+
+  /** Mi recordatorio rápido de una página o de una fila (el «Recordatorio: …» de arriba), si lo hay. */
+  recordatorio: workspaceProcedure
+    .input(z.object({ id: z.string(), recordId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const bloques = input.recordId ? (await filaDelEspacio(ctx, input.recordId)).content : await leerBloquesPagina(page);
+      return recordatorioRapido(bloques, ctx.user.id);
+    }),
+
+  /**
+   * «Recordarme…» de una página o una fila: pone arriba «Recordatorio: <fecha>» (una mención
+   * de fecha con aviso a la hora, como Notion) o lo cambia; `fecha: null` lo quita. El aviso
+   * lo da el servidor como cualquier recordatorio (push y alarma de la app).
+   */
+  recordar: workspaceProcedure
+    .input(z.object({ id: z.string(), recordId: z.string().optional(), fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "edit");
+      const ops = (bloques: unknown): OpBloque[] => {
+        const ya = recordatorioRapido(bloques, ctx.user.id);
+        const out: OpBloque[] = ya ? [{ op: "delete", id: ya.id }] : [];
+        if (input.fecha) out.push({ op: "upsert", block: bloqueRecordatorio(randomUUID(), input.fecha, ctx.user.id) as BloqueBN, parentId: null, afterId: null });
+        return out;
+      };
+      if (input.recordId) {
+        const rec = await filaDelEspacio(ctx, input.recordId);
+        if (rec.collection.pageId !== page.id) throw new TRPCError({ code: "NOT_FOUND" });
+        await ctx.db.$transaction(async (tx) => {
+          const [fila] = await tx.$queryRaw<{ content: unknown }[]>`SELECT content FROM "Record" WHERE id = ${rec.id} FOR UPDATE`;
+          const actuales = Array.isArray(fila?.content) ? (fila.content as BloqueBN[]) : [];
+          await tx.record.update({ where: { id: rec.id }, data: { content: jsonLimpio(aplicarOpsJson(actuales, ops(actuales))), updatedById: ctx.user.id } });
+        });
+      } else {
+        if (page.type !== "doc") throw new TRPCError({ code: "BAD_REQUEST", message: "Solo las páginas de documento tienen bloques." });
+        const bloques = await aplicarOpsPagina(ctx.db, page.id, ops(await leerBloquesPagina(page)));
+        await guardaContenidoPagina(ctx.db, { workspaceId: ctx.workspace.id, user: ctx.user }, page, bloques);
+      }
+      return { fecha: input.fecha };
     }),
 
   /**

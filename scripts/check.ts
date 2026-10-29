@@ -1107,6 +1107,50 @@ async function compruebaWord() {
   assert.equal(new Set([...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1])).size, 2);
 }
 
+// Recordatorio rápido: los atajos en hora de Madrid, también los días del cambio de hora,
+// y el párrafo «Recordatorio: <fecha>» que lo lleva en la página.
+import { atajoRecordatorio, bloqueRecordatorio, enMadrid, momentoRecordatorio, recordatorioRapido } from "../src/lib/recordatorios";
+{
+  const t = (iso: string) => new Date(iso);
+  // Un jueves normal de otoño (UTC+2 hasta el domingo): 10:14:30 en Madrid.
+  const jueves = t("2026-10-22T08:14:30Z");
+  assert.equal(enMadrid(jueves), "2026-10-22T10:14");
+  assert.equal(atajoRecordatorio("1h", jueves), "2026-10-22T11:15");
+  assert.equal(atajoRecordatorio("tarde", jueves), "2026-10-22T19:00");
+  assert.equal(atajoRecordatorio("manana", jueves), "2026-10-23T09:00");
+  assert.equal(atajoRecordatorio("tarde", t("2026-10-22T17:30:00Z")), null, "a las 19:30 ya no hay «esta tarde»");
+  // Y el aviso salta cuando dice: 19:00 de Madrid son las 17:00 UTC en verano…
+  assert.equal(momentoRecordatorio(atajoRecordatorio("tarde", jueves)!, "0")!.toISOString(), "2026-10-22T17:00:00.000Z");
+  // …y «mañana a las 9:00» del sábado 24 cae el domingo 25 ya en invierno (UTC+1): 08:00 UTC.
+  assert.equal(momentoRecordatorio(atajoRecordatorio("manana", t("2026-10-24T20:00:00Z"))!, "0")!.toISOString(), "2026-10-25T08:00:00.000Z");
+  // «En 1 hora» justo antes del cambio de hora de primavera (29-mar, 2:00 → 3:00): 01:30 CET + 1 h = 03:30 CEST.
+  const primavera = t("2026-03-29T00:30:00Z");
+  assert.equal(atajoRecordatorio("1h", primavera), "2026-03-29T03:30");
+  assert.equal(momentoRecordatorio(atajoRecordatorio("1h", primavera)!, "0")!.toISOString(), "2026-03-29T01:30:00.000Z");
+  // «En 1 hora» en un día normal de invierno salta una hora después.
+  const enero = t("2026-01-15T12:00:00Z");
+  assert.equal(momentoRecordatorio(atajoRecordatorio("1h", enero)!, "0")!.getTime() - enero.getTime(), 3600_000);
+  const b = bloqueRecordatorio("rr", "2026-10-23T09:00", "u1");
+  assert.deepEqual(recordatorioRapido([{ id: "x", type: "paragraph", content: [] }, b], "u1"), { id: "rr", fecha: "2026-10-23T09:00" });
+  assert.equal(recordatorioRapido([b], "otra"), null, "el de otra persona no es el mío");
+  assert.equal(recordatorioRapido([{ ...b, content: [...b.content, { type: "text", text: " y más" }] }], "u1"), null, "con más texto ya no es el rápido");
+}
+
+// Tarea hecha: la casilla manda; si no hay, el Estado (grupo «Hecho»).
+import { estaHecha, valorHecho } from "../src/lib/tareas";
+{
+  const est = { id: "e", type: "status", config: { options: [{ id: "a", group: "todo" }, { id: "b", group: "doing" }, { id: "z", group: "done" }] } };
+  assert.equal(estaHecha([est], { e: "z" }), true);
+  assert.equal(estaHecha([est], { e: "b" }), false);
+  assert.deepEqual(valorHecho([est]), { fieldId: "e", value: "z" });
+  assert.deepEqual(valorHecho([est], false), { fieldId: "e", value: "a" });
+  const casilla = { id: "c", type: "checkbox" };
+  assert.equal(estaHecha([est, casilla], { e: "z" }), false, "la casilla manda sobre el estado");
+  assert.deepEqual(valorHecho([est, casilla]), { fieldId: "c", value: true });
+  assert.equal(estaHecha([{ id: "t", type: "text" }], {}), null, "sin casilla ni estado no se sabe");
+  assert.equal(valorHecho([{ id: "s", type: "status", config: { options: [{ id: "x" }] } }]), null);
+}
+
 compruebaColaboracion()
   .then(compruebaWord)
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))

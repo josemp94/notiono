@@ -71,7 +71,8 @@ self.addEventListener("fetch", (e) => {
 
 
 // --- Avisos push ---
-// El servidor manda { title, body, url }. Si el JSON viniera mal, se avisa igual.
+// El servidor manda { title, body, url } y, si es un recordatorio, `recordatorio` (sus
+// botones «Hecho» y «Posponer 1 h»). Si el JSON viniera mal, se avisa igual.
 self.addEventListener("push", (e) => {
   let data = { title: "Notiono", body: "Tienes algo nuevo", url: "/" };
   try {
@@ -84,8 +85,14 @@ self.addEventListener("push", (e) => {
       body: data.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: data.url || "/" },
+      data: { url: data.url || "/", recordatorio: data.recordatorio || null },
       tag: data.url || "notiono",
+      actions: data.recordatorio
+        ? [
+            { action: "hecho", title: "Hecho" },
+            { action: "posponer", title: "Posponer 1 h" },
+          ]
+        : [],
     }),
   );
 });
@@ -93,6 +100,19 @@ self.addEventListener("push", (e) => {
 // Al pulsar el aviso: reutiliza la pestaña abierta si la hay, en vez de abrir otra.
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const rec = e.notification.data && e.notification.data.recordatorio;
+  // Un botón de recordatorio: se hace sin abrir nada (con la cookie de la sesión).
+  if (rec && (e.action === "hecho" || e.action === "posponer")) {
+    e.waitUntil(
+      fetch("/api/recordatorio", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: e.action, ...rec }),
+      }).catch(() => {}),
+    );
+    return;
+  }
   const url = (e.notification.data && e.notification.data.url) || "/";
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
