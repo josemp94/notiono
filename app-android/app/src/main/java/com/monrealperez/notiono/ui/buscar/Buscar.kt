@@ -71,8 +71,9 @@ fun PantallaBuscar() {
         }
         delay(250)
         try {
-            val input = objeto("query" to q, "inContent" to true, "tipo" to tipo).let { if (dias != null) JsonObject(it + ("editadoDias" to kotlinx.serialization.json.JsonPrimitive(dias))) else it }
-            resultados = s.repo.consulta("pages.search", input, cachear = false).comoLista.map { it.comoObjeto }.distinctBy { it.str("id") }
+            // `filas`: también las filas de BD (las notas de una BD «Notas»), como el buscador de Notion.
+            val input = objeto("query" to q, "inContent" to true, "tipo" to tipo, "filas" to true).let { if (dias != null) JsonObject(it + ("editadoDias" to kotlinx.serialization.json.JsonPrimitive(dias))) else it }
+            resultados = s.repo.consulta("pages.search", input, cachear = false).comoLista.map { it.comoObjeto }.distinctBy { it.str("recordId") ?: it.str("id") }
             error = null
         } catch (e: ErrorApi) {
             error = if (e.sinConexion) "Sin conexión: buscando solo en títulos guardados" else e.message
@@ -107,11 +108,20 @@ fun PantallaBuscar() {
             Vacio("Nada coincide con «$q».", icono = "search")
         } else {
             LazyColumn {
-                items(lista, key = { it.str("id") ?: "" }) { r ->
+                items(lista, key = { it.str("recordId") ?: it.str("id") ?: "" }) { r ->
+                    val fila = r.str("recordId")
                     val enContenido = !(r.bool("inTitle") || r["inTitle"] == null)
-                    Resultado(r.str("title").orEmpty(), r.str("icon"), if (enContenido) "Coincide en el contenido" else null, colores[r.str("id")],
-                        porDefecto = if (r.str("type") == "database") "database" else "file-text") {
-                        n.pagina(r.str("id")!!)
+                    if (fila != null) {
+                        // Una fila de BD: su título y el nombre de su base de datos; se abre como página.
+                        Resultado(
+                            r.str("title").orEmpty(), null, (r.str("dbTitle")?.ifBlank { null } ?: "Base de datos") + if (enContenido) " · coincide en el contenido" else "",
+                            r.str("color"), porDefecto = "file-text",
+                        ) { n.fila(r.str("id")!!, fila) }
+                    } else {
+                        Resultado(r.str("title").orEmpty(), r.str("icon"), if (enContenido) "Coincide en el contenido" else null, colores[r.str("id")],
+                            porDefecto = if (r.str("type") == "database") "database" else "file-text") {
+                            n.pagina(r.str("id")!!)
+                        }
                     }
                 }
             }
