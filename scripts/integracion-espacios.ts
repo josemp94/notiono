@@ -237,7 +237,7 @@ const FUERA_DEL_ESPACIO = new Set([
   "auth.me", "auth.logout",
   "workspace.list", "workspace.switch", "workspace.create", "workspace.leave", "workspace.dePagina",
   "notifications.markRead", "notifications.markAllRead", "notifications.checkDue",
-  "inicio.guardar",
+  "inicio.guardar", "inicio.guardarBloc", // mi propio Inicio (como markRead), no el espacio
   "push.publicKey", "push.subscribe", "push.unsubscribe", "push.isSubscribed",
 ]);
 
