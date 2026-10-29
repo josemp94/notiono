@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookmarkPlus, ChevronDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react";
+import { BookmarkPlus, ChevronDown, FileDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react";
 import { es } from "@blocknote/core/locales";
 import { filterSuggestionItems } from "@blocknote/core";
 import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
@@ -12,6 +12,7 @@ import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } fro
 import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "@/components/editor/menuBarra";
 import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
+import { downloadBase64, MIME_WORD } from "@/lib/download";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
 import { Cell } from "./Cell";
@@ -371,6 +372,12 @@ export function RecordPanel({
               navigator.clipboard.writeText(`${location.origin}/p/${pageId}?r=${record.id}`);
               toast("Enlace copiado");
             }}
+            onWord={() =>
+              utils.app.exportarWord
+                .fetch({ id: pageId, recordId: record.id }, { staleTime: 0 })
+                .then((w) => downloadBase64(w.nombre, w.base64, MIME_WORD))
+                .catch((e) => toast(e instanceof Error ? e.message : "No se pudo exportar"))
+            }
             onBorrar={
               collectionId
                 ? () => {
@@ -392,7 +399,7 @@ export function RecordPanel({
 }
 
 /** El «⋯» de la ficha: guardar como plantilla, copiar el enlace y borrar la fila. */
-function MenuFicha({ onPlantilla, onEnlace, onBorrar }: { onPlantilla?: () => void; onEnlace: () => void; onBorrar?: () => void }) {
+function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar }: { onPlantilla?: () => void; onEnlace: () => void; onWord: () => void; onBorrar?: () => void }) {
   const [open, setOpen] = useState(false);
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   const hacer = (f: () => void) => () => {
@@ -413,6 +420,9 @@ function MenuFicha({ onPlantilla, onEnlace, onBorrar }: { onPlantilla?: () => vo
         <Popover onClose={() => setOpen(false)} className="right-0 w-60 p-1">
           <button onClick={hacer(onEnlace)} className={item}>
             <LinkIcon size={15} /> Copiar enlace
+          </button>
+          <button onClick={hacer(onWord)} className={item}>
+            <FileDown size={15} /> Exportar a Word
           </button>
           {onPlantilla && (
             <button onClick={hacer(onPlantilla)} className={item} title="Las filas nuevas podrán empezar con estos valores">

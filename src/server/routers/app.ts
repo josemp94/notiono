@@ -23,6 +23,8 @@ import { calculaVista } from "../app/vista";
 import { sinEnlaceDoble } from "../subpaginas";
 import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
 import { TEMPLATES } from "@/lib/templates";
+import { nombreSeguro } from "@/lib/exportZip";
+import { generaDocx, leeAsset } from "../docx";
 import { calculaCalendario } from "../app/calendario";
 import { recordatoriosEntre, textoAviso } from "../recordatorios";
 
@@ -173,6 +175,37 @@ export const appNativaRouter = router({
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
       const { title } = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } });
       return { titulo: title, markdown: await bloquesAMarkdown(await leerBloquesPagina(page)) };
+    }),
+
+  /**
+   * Exportar a Word (.docx) una página o, con `recordId`, una fila de la BD `id` con sus
+   * propiedades arriba (el texto que se ve en cada celda). Lo usan la web y la app.
+   */
+  exportarWord: workspaceProcedure
+    .input(z.object({ id: z.string(), recordId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      let titulo = "";
+      let propiedades: [string, string][] | undefined;
+      let bloques: unknown;
+      if (input.recordId) {
+        const v = await calculaVista(ctx.db, { workspaceId: ctx.workspace.id, userId: ctx.user.id, role: ctx.role ?? "member" }, page.id, null, null, input.recordId);
+        const fila = v?.filas.find((f) => f.id === input.recordId);
+        if (!v || !fila) throw new TRPCError({ code: "NOT_FOUND", message: "Esta fila ya no existe (¿la borraron?)." });
+        const campoTitulo = v.fields.find((f) => f.type === "text");
+        titulo = campoTitulo ? fila.textos[campoTitulo.id] ?? "" : "";
+        const fecha = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "medium", timeStyle: "short" });
+        propiedades = v.fields
+          .filter((f) => f.id !== campoTitulo?.id)
+          .map((f) => [f.name, f.type === "created_time" ? fecha(fila.createdAt) : f.type === "last_edited_time" ? fecha(fila.updatedAt) : fila.textos[f.id] ?? ""]);
+        bloques = (await ctx.db.record.findUniqueOrThrow({ where: { id: fila.id }, select: { content: true } })).content;
+      } else {
+        titulo = (await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } })).title;
+        bloques = await leerBloquesPagina(page);
+      }
+      const docx = await generaDocx({ titulo, propiedades, bloques, leeImagen: (url) => leeAsset(ctx.db, url) });
+      return { nombre: `${nombreSeguro(titulo || "Sin titulo")}.docx`, base64: docx.toString("base64") };
     }),
 
   /** La galería de plantillas (las crea `pages.createFromTemplate`, como en la web). */

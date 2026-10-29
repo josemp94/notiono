@@ -1054,12 +1054,66 @@ import { fondoDe, textoDeEscena } from "../src/lib/dibujo";
   assert.equal(exp[0].props.url, "/api/asset/p");
 }
 
+// Word: el .docx se abre (es un ZIP con word/document.xml) y lleva el texto, la casilla
+// hecha tachada y en gris, las imágenes (también la del dibujo), el adjunto y las propiedades.
+import { generaDocx, medidasImagen } from "../src/server/docx";
+import { unzipSync, strFromU8 } from "fflate";
+async function compruebaWord() {
+  const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const PNG2 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
+  assert.deepEqual(medidasImagen(PNG), { tipo: "png", ancho: 1, alto: 1 });
+  assert.equal(medidasImagen(Buffer.from("no es una imagen")), null);
+  const t = (text: string, styles = {}) => ({ type: "text", text, styles });
+  const pedidas: string[] = [];
+  const docx = await generaDocx({
+    titulo: "Compra del sábado",
+    propiedades: [["Importe", "42,50 €"], ["Vacía", ""]],
+    // Dos PNG distintos: docx guarda una sola vez las imágenes iguales.
+    leeImagen: async (url) => (pedidas.push(url), url === "/api/asset/foto" ? PNG : url.startsWith("/api/asset/") ? PNG2 : null),
+    bloques: [
+      { type: "heading", props: { level: 2 }, content: [t("Lista")] },
+      { type: "paragraph", content: [t("negrita", { bold: true }), t(" y "), t("roja", { textColor: "red" }), t(" resaltada", { backgroundColor: "yellow" })] },
+      { type: "checkListItem", props: { checked: true }, content: [t("Leche")] },
+      { type: "checkListItem", props: { checked: false }, content: [t("Pan")] },
+      { type: "numberedListItem", content: [t("uno")] },
+      { type: "numberedListItem", content: [t("dos")] },
+      { type: "paragraph", content: [t("corte")] },
+      { type: "numberedListItem", content: [t("otra lista")] },
+      { type: "table", content: { type: "tableContent", rows: [{ cells: [[t("celda A")], { type: "tableCell", content: [t("celda B")] }] }] } },
+      { type: "quote", content: [t("una cita")] },
+      { type: "callout", props: { emoji: "💡", color: "amarillo" }, content: [t("ojo")] },
+      { type: "image", props: { url: "/api/asset/foto", caption: "Foto" } },
+      { type: "image", props: { url: "https://fuera.example/x.png", name: "x.png" } },
+      { type: "drawing", props: { escena: "/api/asset/esc", imagen: "/api/asset/dib", texto: "" } },
+      { type: "file", props: { url: "/api/asset/f", name: "factura.pdf" } },
+    ],
+  });
+  const zip = unzipSync(new Uint8Array(docx));
+  const xml = strFromU8(zip["word/document.xml"]);
+  const run = (texto: string) => xml.match(new RegExp(`<w:r>(?:(?!</w:r>).)*>${texto}</w:t>(?:(?!</w:r>).)*</w:r>`))?.[0] ?? "";
+  for (const texto of ["Compra del sábado", "Importe", "42,50 €", "negrita", "Leche", "Pan", "celda B", "una cita", "ojo", "factura.pdf", "Foto"])
+    assert.ok(xml.includes(texto), `el Word lleva «${texto}»`);
+  assert.ok(!xml.includes("Vacía"), "las propiedades vacías no salen");
+  assert.match(run("Leche"), /<w:strike\/>/, "la casilla hecha va tachada");
+  assert.match(run("Leche"), /<w:color w:val="9B9A97"\/>/, "…y en gris");
+  assert.doesNotMatch(run("Pan"), /<w:strike/, "la que no está hecha, no");
+  assert.match(run("negrita"), /<w:b\/>/);
+  assert.match(run("roja"), /E03E3E/);
+  assert.match(run(" resaltada"), /FBF3DB/);
+  assert.equal(Object.keys(zip).filter((k) => k.startsWith("word/media/")).length, 2, "la foto y el dibujo, incrustados");
+  assert.deepEqual(pedidas, ["/api/asset/foto", "https://fuera.example/x.png", "/api/asset/dib"]);
+  assert.ok(xml.includes("https://fuera.example/x.png") || strFromU8(zip["word/_rels/document.xml.rels"]).includes("fuera.example"), "la de fuera, como enlace");
+  // Dos listas numeradas separadas: dos instancias (la segunda vuelve a empezar en 1).
+  assert.equal(new Set([...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1])).size, 2);
+}
+
 compruebaColaboracion()
+  .then(compruebaWord)
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
   .then(() => import("./checkRecordatorios").then((m) => m.compruebaRecordatorios()))
   .then(() => {
-    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz, subpáginas (borrar y reparar) y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico), recordatorios e Inicio personalizable");
+    console.log("OK — filtros, orden, celdas, agrupación, formatos, fechas, colores, enlaces, reglas, cálculos, colaboración, columnas, import de Notion, matriz, subpáginas (borrar y reparar) y app nativa (sesión, bloques ↔ Yjs, registro de diagnóstico), recordatorios, Inicio personalizable, dibujo y Word");
     process.exit(0);
   })
   .catch((e) => {

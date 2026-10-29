@@ -76,6 +76,7 @@ export const PERMITIDO_INVITADO = new Set([
   "app.bloquesFila",
   "app.aplicarFila",
   "app.exportarMarkdown",
+  "app.exportarWord",
   "app.recordatorios",
   "app.avisos",
 ]);

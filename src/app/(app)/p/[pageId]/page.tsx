@@ -21,7 +21,7 @@ import { exportaZipConEditor } from "@/components/editor/exportarZip";
 import { exportaHtml } from "@/components/editor/exportarHtml";
 import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
 import { editorParaExport } from "@/components/editor/bloquesExport";
-import { downloadText } from "@/lib/download";
+import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
 function haceCuanto(d: Date | string): string {
@@ -263,6 +263,16 @@ function PageMenu({
     downloadText(`${nombreSeguro(page.title || "Sin titulo")}.md`, ed.blocksToMarkdownLossy(ed.document), "text/markdown");
   }
 
+  async function exportarWord() {
+    setOpen(false);
+    try {
+      const w = await utils.app.exportarWord.fetch({ id: page.id }, { staleTime: 0 });
+      downloadBase64(w.nombre, w.base64, MIME_WORD);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo exportar");
+    }
+  }
+
   async function exportarZip() {
     setOpen(false);
     setExportando(true);
@@ -408,6 +418,12 @@ function PageMenu({
             <button onClick={exportarMarkdown} className={itemMenu}>
               <FileDown size={16} />
               Exportar Markdown
+            </button>
+          )}
+          {page.type !== "database" && (
+            <button onClick={exportarWord} className={itemMenu}>
+              <FileText size={16} />
+              Exportar a Word
             </button>
           )}
           {page.type !== "database" && (
