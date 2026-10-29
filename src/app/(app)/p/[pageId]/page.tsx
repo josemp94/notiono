@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Check, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Bell, Check, ChevronLeft, ChevronRight, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star, Type } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -24,6 +24,8 @@ import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
 import { editorParaExport } from "@/components/editor/bloquesExport";
 import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
 import { InfoPagina } from "@/components/InfoPagina";
+import { SelectorColorPagina } from "@/components/ColorPagina";
+import { colorPagina } from "@/lib/colorPagina";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
 function haceCuanto(d: Date | string): string {
@@ -81,7 +83,7 @@ export default function PageView() {
   }
 
   return (
-    <div className="relative flex h-full">
+    <div className="relative flex h-full" data-color-pagina={colorPagina(page.color) ?? undefined}>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="no-imprimir flex h-11 shrink-0 items-center gap-1 px-3">
           <BotonPanel />
@@ -118,7 +120,9 @@ export default function PageView() {
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1 overflow-y-auto" data-font={page.type === "database" ? undefined : (page.font ?? "sans")}>
+        <div className="min-w-0 flex-1 overflow-y-auto" data-font={page.type === "database" ? undefined : (page.font ?? "sans")}
+          data-texto-pequeno={page.type !== "database" && page.smallText ? "" : undefined}
+        >
           {page.type === "database" ? (
             <Database
               key={page.id}
@@ -234,7 +238,7 @@ function PageMenu({
   onComments,
   onHistory,
 }: {
-  page: { id: string; title: string; type: string; fullWidth: boolean; locked: boolean; font?: string; icon?: string | null; content?: unknown; siguiendo?: boolean };
+  page: { id: string; title: string; type: string; fullWidth: boolean; smallText?: boolean; color?: string | null; locked: boolean; font?: string; icon?: string | null; content?: unknown; siguiendo?: boolean };
   canEdit: boolean;
   /** Invitado de página: sin «Mover a» ni exportar con subpáginas (son del espacio). */
   invitado: boolean;
@@ -243,6 +247,8 @@ function PageMenu({
 }) {
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
+  // «Apariencia y diseño» se abre dentro del mismo menú (como el submenú de Notion).
+  const [apariencia, setApariencia] = useState(false);
   const [moving, setMoving] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [exportar, setExportar] = useState(false);
@@ -250,6 +256,11 @@ function PageMenu({
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
   const setLocked = trpc.pages.setLocked.useMutation();
   const setFont = trpc.pages.setFont.useMutation();
+  const setSmallText = trpc.pages.setSmallText.useMutation();
+  const setColor = trpc.pages.setColor.useMutation({
+    // El color sale también en el árbol (barrita en Inicio y resultados).
+    onSuccess: () => utils.pages.tree.invalidate(),
+  });
   const people = usePeople();
   const { data: favs } = trpc.favorites.list.useQuery();
   const esFavorita = (favs ?? []).some((f) => f.id === page.id);
@@ -311,13 +322,79 @@ function PageMenu({
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o);
+          setApariencia(false);
+        }}
         className="toque inline-flex items-center justify-center rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)]"
         title="Opciones de página"
       >
         <MoreHorizontal size={16} />
       </button>
-      {open && (
+      {open && apariencia && (
+        <div data-menu="" className="absolute right-0 top-full z-30 mt-1 max-h-[calc(100dvh-4rem)] w-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+          {/* ⋯ → Apariencia y diseño, como en Notion (estilo, texto pequeño y ancho
+              completo) y, de Notiono, el color de página. */}
+          <button onClick={() => setApariencia(false)} className={`${itemMenu} font-medium`}>
+            <ChevronLeft size={16} />
+            Apariencia y diseño
+          </button>
+          <div className="my-1 border-t border-[var(--border)]" />
+          {page.type !== "database" && (
+            <>
+              <div className="px-3 py-1.5">
+                <div className="mb-1 text-xs text-[var(--muted)]">Estilo</div>
+                <div className="flex gap-1">
+                  {([["sans", "Predeterminado"], ["serif", "Serif"], ["mono", "Mono"]] as const).map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => {
+                        utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, font: v } : p));
+                        setFont.mutate({ id: page.id, font: v });
+                      }}
+                      className={`min-w-0 flex-1 rounded-md border px-1 py-1 text-center ${
+                        (page.font ?? "sans") === v
+                          ? "border-brand text-brand"
+                          : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      <span className={`block text-base leading-none ${v === "serif" ? "font-serif" : v === "mono" ? "font-mono" : ""}`}>Ag</span>
+                      <span className="block truncate text-[10px]">{l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const value = !page.smallText;
+                  utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, smallText: value } : p));
+                  setSmallText.mutate({ id: page.id, value });
+                }}
+                className={itemMenu}
+              >
+                <Type size={14} />
+                Texto pequeño
+                {page.smallText && <Check size={14} className="ml-auto text-brand" />}
+              </button>
+              <button onClick={toggleFullWidth} className={itemMenu}>
+                <MoveHorizontal size={16} />
+                Ancho completo
+                {page.fullWidth && <Check size={14} className="ml-auto text-brand" />}
+              </button>
+              <div className="my-1 border-t border-[var(--border)]" />
+            </>
+          )}
+          <SelectorColorPagina
+            valor={page.color}
+            onElegir={(c) => {
+              const color = colorPagina(c);
+              utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, color } : p));
+              setColor.mutate({ id: page.id, color: c });
+            }}
+          />
+        </div>
+      )}
+      {open && !apariencia && (
         <div data-menu="" className="absolute right-0 top-full z-30 mt-1 max-h-[calc(100dvh-4rem)] w-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
           <div className="md:hidden">
             <button onClick={() => { setOpen(false); onComments(); }} className={itemMenu}>
@@ -368,41 +445,11 @@ function PageMenu({
             {page.type === "database" ? "Bloquear base de datos" : "Bloquear página"}
             {page.locked && <Check size={14} className="ml-auto text-brand" />}
           </button>
-          {page.type !== "database" && (
-            <button
-              onClick={toggleFullWidth}
-              className={itemMenu}
-            >
-              <MoveHorizontal size={16} />
-              Ancho completo
-              {page.fullWidth && <Check size={14} className="ml-auto text-brand" />}
-            </button>
-          )}
-          {/* Estilo (el «Style» de Notion): tipografía del cuerpo y los títulos. */}
-          {page.type !== "database" && (
-            <div className="px-3 py-1.5">
-              <div className="mb-1 text-xs text-[var(--muted)]">Estilo</div>
-              <div className="flex gap-1">
-                {([["sans", "Normal"], ["serif", "Serif"], ["mono", "Mono"]] as const).map(([v, l]) => (
-                  <button
-                    key={v}
-                    onClick={() => {
-                      utils.pages.get.setData({ id: page.id }, (p) => (p ? { ...p, font: v } : p));
-                      setFont.mutate({ id: page.id, font: v });
-                    }}
-                    className={`flex-1 rounded-md border px-1 py-1 text-center ${
-                      (page.font ?? "sans") === v
-                        ? "border-brand text-brand"
-                        : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    <span className={`block text-base leading-none ${v === "serif" ? "font-serif" : v === "mono" ? "font-mono" : ""}`}>Ag</span>
-                    <span className="text-[10px]">{l}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <button onClick={() => setApariencia(true)} className={itemMenu}>
+            <Type size={16} />
+            Apariencia y diseño
+            <ChevronRight size={14} className="ml-auto text-[var(--muted)]" />
+          </button>
           </>
           )}
           <div className="my-1 border-t border-[var(--border)]" />

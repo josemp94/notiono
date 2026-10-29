@@ -36,6 +36,8 @@ export const PERMITIDO_INVITADO = new Set([
   "pages.setCover",
   "pages.setFullWidth",
   "pages.setFont",
+  "pages.setSmallText",
+  "pages.setColor",
   "pages.setLocked",
   "pages.toggleFollow",
   "pages.toggleFavorite",
@@ -64,6 +66,7 @@ export const PERMITIDO_INVITADO = new Set([
   "db.deleteRecord",
   "db.restoreRecord",
   "db.updateRecordContent",
+  "db.setRecordColor",
   "inicio.get",
   // La app nativa: cada uno mira el nivel de su página o fila (exigeNivel) y app.vista
   // solo le pone nombre a la propia persona; avisos y recordatorios son solo suyos.

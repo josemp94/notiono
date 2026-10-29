@@ -21,6 +21,8 @@ export default async function PublicShare({ params }: { params: Promise<{ token:
       dbTables={dbTables}
       token={token}
       font={page.type === "database" ? null : page.font}
+      smallText={page.type !== "database" && page.smallText}
+      color={page.color}
     />
   );
 }

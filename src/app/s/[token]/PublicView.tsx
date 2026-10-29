@@ -11,6 +11,7 @@ import { PublicBaseContext, PublicDbContext, StaticDbTable, type PublicDbTable }
 import { coverStyle } from "@/components/PageCover";
 import { IconoPagina } from "@/components/PageIcon";
 import { useTheme } from "@/lib/theme";
+import { colorPagina } from "@/lib/colorPagina";
 
 /** Render público de solo lectura: portada, icono, título y contenido (doc o tabla). */
 export function PublicView({
@@ -22,6 +23,8 @@ export function PublicView({
   dbTables,
   token,
   font,
+  smallText,
+  color,
   back,
 }: {
   title: string;
@@ -34,11 +37,19 @@ export function PublicView({
   token: string;
   /** Estilo tipográfico de la página (Page.font); null en BD. */
   font?: string | null;
+  /** «Texto pequeño» y color de página (Apariencia y diseño). */
+  smallText?: boolean;
+  color?: string | null;
   /** En una subpágina, el enlace de vuelta a la raíz publicada. */
   back?: { href: string; title: string };
 }) {
   return (
-    <div className="min-h-dvh" data-font={font ?? undefined}>
+    <div
+      className="min-h-dvh"
+      data-font={font ?? undefined}
+      data-texto-pequeno={smallText ? "" : undefined}
+      data-color-pagina={colorPagina(color) ?? undefined}
+    >
       {cover && <div className="h-40 w-full" style={coverStyle(cover)} />}
       <div className={`mx-auto max-w-3xl px-4 pb-10 md:px-12 ${cover ? "pt-3" : "pt-10 md:pt-16"}`}>
         {back && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { BarraColor } from "@/components/ColorPagina";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -168,13 +169,14 @@ function InicioMiembro() {
   const hoy = diaLocal();
   const tareas: Tarea[] = tasks ?? [];
   const portadas = Object.fromEntries((tree ?? []).map((p) => [p.id, p.cover]));
+  const colores = Object.fromEntries((tree ?? []).map((p) => [p.id, p.color]));
 
   const contenido = (id: BloqueInicio): ReactNode => {
     switch (id) {
       case "recientes":
-        return recientes.length ? <Tarjetas paginas={recientes.slice(0, 8).map((r) => ({ id: r.pageId, title: r.title, icon: r.icon }))} portadas={portadas} /> : null;
+        return recientes.length ? <Tarjetas paginas={recientes.slice(0, 8).map((r) => ({ id: r.pageId, title: r.title, icon: r.icon }))} portadas={portadas} colores={colores} /> : null;
       case "favoritos":
-        return favoritos?.length ? <Tarjetas paginas={favoritos} portadas={portadas} /> : null;
+        return favoritos?.length ? <Tarjetas paginas={favoritos} portadas={portadas} colores={colores} /> : null;
       case "tareas":
         return tareas.length ? (
           <>
@@ -473,7 +475,16 @@ function BotonIcono({
  * Las tarjetas de «Visitado recientemente» (y Favoritos), como las del Home de Notion: la
  * portada arriba (o una franja gris), el icono montado encima y el título debajo.
  */
-function Tarjetas({ paginas, portadas = {} }: { paginas: { id: string; title: string; icon: string | null }[]; portadas?: Record<string, string | null> }) {
+function Tarjetas({
+  paginas,
+  portadas = {},
+  colores = {},
+}: {
+  paginas: { id: string; title: string; icon: string | null }[];
+  portadas?: Record<string, string | null>;
+  /** Color de página: su barrita junto al título. */
+  colores?: Record<string, string | null>;
+}) {
   return (
     <div className="barra-scroll -mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
       {paginas.map((p) => {
@@ -488,7 +499,10 @@ function Tarjetas({ paginas, portadas = {} }: { paginas: { id: string; title: st
             <div className="-mt-4 px-3">
               <IconoPagina icon={p.icon} size={26} fallback={<FileText size={26} strokeWidth={1.5} className="text-[var(--muted)]" />} />
             </div>
-            <div className="mt-1.5 line-clamp-3 px-3 text-sm font-semibold leading-snug">{p.title || "Sin título"}</div>
+            <div className="mt-1.5 flex gap-1.5 px-3">
+              <BarraColor color={colores[p.id]} />
+              <span className="line-clamp-3 text-sm font-semibold leading-snug">{p.title || "Sin título"}</span>
+            </div>
           </Link>
         );
       })}

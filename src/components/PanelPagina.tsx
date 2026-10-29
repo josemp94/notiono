@@ -9,6 +9,7 @@
  * Vive en la URL (`?vistazo=<id>`): así el botón Atrás del navegador (o el gesto del
  * móvil) lo cierra, y un enlace con el panel abierto lo vuelve a abrir.
  */
+import { colorPagina } from "@/lib/colorPagina";
 import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -142,7 +143,12 @@ function Panel({ pageId, onClose }: { pageId: string; onClose: () => void }) {
         )}
         <div id="barra-panel" className="ml-auto flex shrink-0 items-center gap-2 text-xs text-[var(--muted)]" />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto" data-font={page && page.type !== "database" ? (page.font ?? "sans") : undefined}>
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        data-font={page && page.type !== "database" ? (page.font ?? "sans") : undefined}
+        data-texto-pequeno={page && page.type !== "database" && page.smallText ? "" : undefined}
+        data-color-pagina={colorPagina(page?.color) ?? undefined}
+      >
         {error ? (
           <div className="px-8 py-16 text-[var(--muted)]">Página no encontrada.</div>
         ) : !page ? (

@@ -1242,6 +1242,26 @@ import { cuandoInfo, infoPagina, pieInfo } from "../src/lib/infoPagina";
   });
 }
 
+// Color de página: solo los de la paleta de Notion; «Predeterminado» o uno raro = sin color.
+import { colorPagina, COLORES_PAGINA } from "../src/lib/colorPagina";
+{
+  assert.equal(colorPagina("yellow"), "yellow");
+  assert.equal(colorPagina("default"), null);
+  assert.equal(colorPagina("chartreuse"), null);
+  assert.equal(colorPagina(undefined), null);
+  assert.deepEqual(
+    COLORES_PAGINA.map((c) => c.nombre),
+    ["Predeterminado", "Gris", "Marrón", "Naranja", "Amarillo", "Verde", "Azul", "Morado", "Rosa", "Rojo"],
+  );
+  // Cada color tiene su fondo (claro y oscuro) y su barrita en la hoja de estilos.
+  const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+  for (const { id } of COLORES_PAGINA.slice(1)) {
+    assert.equal(css.match(new RegExp(`--pag-${id}:`, "g"))?.length, 2, `fondo claro y oscuro de ${id}`);
+    assert.match(css, new RegExp(`\\[data-color-pagina="${id}"\\]`));
+    assert.match(css, new RegExp(`\\[data-barra="${id}"\\]`));
+  }
+}
+
 compruebaColaboracion()
   .then(compruebaWord)
   .then(compruebaHtml)

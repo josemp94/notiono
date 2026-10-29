@@ -9,6 +9,7 @@
  *
  * Arrastrar es como en el Kanban: ratón al mover 5 px, táctil con pulsación larga.
  */
+import { BarraColor } from "@/components/ColorPagina";
 import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -37,7 +38,7 @@ import { RecordPanel } from "./RecordPanel";
 import { Casilla, useMarcarCasilla } from "./Casilla";
 import { ScrollHorizontal } from "./ScrollHorizontal";
 
-type Rec = { id: string; cells: Record<string, unknown>; order: string };
+type Rec = { id: string; cells: Record<string, unknown>; order: string; color?: string | null };
 type Config = {
   ejeX?: string;
   ejeY?: string;
@@ -209,7 +210,10 @@ export function MatrixView({
     if (previewField?.type === "checkbox")
       return (
         <>
-          <RichText texto={titulo(r)} />
+          <div className="flex gap-1.5">
+            <BarraColor color={r.color} />
+            <span className="min-w-0"><RichText texto={titulo(r)} /></span>
+          </div>
           <div className="mt-1 flex">
             <Casilla
               marcada={Boolean(r.cells?.[previewField.id])}
@@ -223,7 +227,10 @@ export function MatrixView({
     const preview = previewField ? displayValue(previewField, r.cells?.[previewField.id], people) : "";
     return (
       <>
-        <RichText texto={titulo(r)} />
+        <div className="flex gap-1.5">
+          <BarraColor color={r.color} />
+          <span className="min-w-0"><RichText texto={titulo(r)} /></span>
+        </div>
         {preview && <div className="mt-1 line-clamp-2 break-words text-xs text-[var(--muted)]">{preview}</div>}
       </>
     );

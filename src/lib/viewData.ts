@@ -12,6 +12,8 @@ export type DbRecord = {
   updatedAt?: unknown;
   createdById?: string | null;
   updatedById?: string | null;
+  /** Color de la fila como página (src/lib/colorPagina.ts). */
+  color?: string | null;
 };
 export type Filter = { fieldId: string; op: string; value: any };
 /** Grupo anidado estilo Notion: sus hijos se combinan con su propio op. */

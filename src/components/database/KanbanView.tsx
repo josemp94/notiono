@@ -1,5 +1,6 @@
 "use client";
 
+import { BarraColor } from "@/components/ColorPagina";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -45,7 +46,7 @@ import { RecordPanel } from "./RecordPanel";
 import { Casilla, useMarcarCasilla } from "./Casilla";
 import { ScrollHorizontal } from "./ScrollHorizontal";
 
-type Rec = { id: string; cells: Record<string, unknown>; order: string };
+type Rec = { id: string; cells: Record<string, unknown>; order: string; color?: string | null };
 
 const SIZES: Record<string, { col: string; card: string }> = {
   small: { col: "w-52", card: "px-2 py-1.5 text-xs" },
@@ -683,7 +684,10 @@ export function KanbanView({
     const preview = previewField && previewField.type !== "checkbox" ? String(r.cells?.[previewField.id] ?? "") : "";
     return (
       <>
-        <RichText texto={cardTitle(r)} />
+        <div className="flex gap-1.5">
+          <BarraColor color={r.color} />
+          <span className="min-w-0"><RichText texto={cardTitle(r)} /></span>
+        </div>
         {preview && (
           <div className="mt-1 line-clamp-3 break-words rounded bg-[var(--border)]/30 px-2 py-1 text-[0.9em] text-[var(--muted)]">
             {preview}

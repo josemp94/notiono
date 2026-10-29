@@ -1,5 +1,6 @@
 "use client";
 
+import { BarraColor } from "@/components/ColorPagina";
 import { useState } from "react";
 import { FileText } from "lucide-react";
 import { trpc } from "@/trpc/react";
@@ -9,7 +10,7 @@ import { Casilla, useMarcarCasilla } from "./Casilla";
 import { usePeople } from "./Cell";
 import { displayValue, groupBy, type FieldLite } from "@/lib/cellText";
 
-type Rec = { id: string; cells: Record<string, unknown>; order: string };
+type Rec = { id: string; cells: Record<string, unknown>; order: string; color?: string | null };
 
 export function ListView({
   pageId,
@@ -71,6 +72,7 @@ export function ListView({
           // casilla entre ellas se marca ahí mismo (sin abrir la ficha ni tachar nada).
           <li key={r.id} className="flex items-center hover:bg-[var(--border)]/30">
             <button onClick={() => abrir(r)} className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-3 text-left">
+              <BarraColor color={r.color} className="-ml-1.5" />
               <FileText size={14} className="shrink-0 text-[var(--muted)]" />
               <span className="min-w-0 flex-1 truncate font-medium"><RichText texto={recTitle(r)} /></span>
             </button>

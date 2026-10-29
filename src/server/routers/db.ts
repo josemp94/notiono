@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { colorPagina, IDS_COLOR_PAGINA } from "@/lib/colorPagina";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { router, workspaceProcedure } from "../trpc";
@@ -779,6 +780,23 @@ export const dbRouter = router({
       }
       await ctx.db.record.update({ where: { id: input.id }, data: { archivedAt: null } });
       return { ok: true };
+    }),
+
+  /** Color de la fila como página (el mismo de ⋯ → Apariencia y diseño de una página). */
+  setRecordColor: workspaceProcedure
+    .input(z.object({ id: z.string(), color: z.enum(IDS_COLOR_PAGINA) }))
+    .mutation(async ({ ctx, input }) => {
+      const rec = await ctx.db.record.findFirst({
+        where: { id: input.id, collection: { page: { workspaceId: ctx.workspace.id } } },
+        select: { id: true },
+      });
+      if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
+      await exigeRegistro(ctx, input.id);
+      return ctx.db.record.update({
+        where: { id: input.id },
+        data: { color: colorPagina(input.color), updatedById: ctx.user.id },
+        select: { id: true, color: true },
+      });
     }),
 
   /** Cuerpo de bloques de una fila (cada fila es una página, como en Notion). */

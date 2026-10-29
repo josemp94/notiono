@@ -171,6 +171,8 @@ model Page {
   fullWidth   Boolean   @default(false) // el contenido usa todo el ancho (toggle "Ancho completo")
   locked      Boolean   @default(false) // candado anti-ediciones accidentales (cualquiera con edición lo quita, como en Notion)
   font        String    @default("sans") // tipografía de la página: sans | serif | mono (el «Style» de Notion)
+  smallText   Boolean   @default(false) // «Texto pequeño» de Apariencia y diseño, como en Notion
+  color       String?   // color de página (src/lib/colorPagina.ts); null = predeterminado. Notion no lo tiene
   content     Json?     // documento de bloques (BlockNote) si type=doc
   ydoc        Bytes? // estado Yjs para la edición simultánea (el contenido legible sigue en content)
   publicToken String?   @unique // si no es null, la página está publicada en la web (/s/<token>)
@@ -277,6 +279,7 @@ model Record {
   updatedById  String? // quién la editó por última vez (campo "Editado por")
   content      Json?      // cuerpo de bloques (BlockNote) de la fila (fila = página)
   seq          Int?       // ID incremental por colección (tipo de campo "id")
+  color        String?    // color de la fila como página (src/lib/colorPagina.ts); null = predeterminado
   archivedAt   DateTime? // borrado reversible: la fila desaparece de las vistas pero se puede deshacer
   order        String
   comments     Comment[]

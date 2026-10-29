@@ -1,5 +1,6 @@
 "use client";
 
+import { colorPagina } from "@/lib/colorPagina";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlignLeft, ArrowLeft, Check, ChevronDown, Maximize2, Search, X } from "lucide-react";
@@ -168,6 +169,7 @@ export function Database({
   const fullRec = !embedded ? rawRecords.find((r) => asAny(r).id === searchParams.get("r")) : undefined;
   if (fullRec) {
     return (
+      <div className="min-h-full" data-color-pagina={colorPagina(asAny(fullRec).color) ?? undefined}>
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
         <button
           onClick={() => router.replace(`/p/${pageId}`)}
@@ -182,6 +184,7 @@ export function Database({
           fields={asAny(fields)}
           onDeleted={() => router.replace(`/p/${pageId}`)}
         />
+      </div>
       </div>
     );
   }

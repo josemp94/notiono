@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookmarkPlus, ChevronDown, FileDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, X } from "lucide-react";
+import { BookmarkPlus, ChevronDown, ChevronLeft, ChevronRight, FileDown, ChevronsRight, ChevronUp, Link as LinkIcon, Maximize2, MessageSquare, MoreHorizontal, Trash2, Type, X } from "lucide-react";
+import { SelectorColorPagina } from "@/components/ColorPagina";
+import { colorPagina, type ColorPagina } from "@/lib/colorPagina";
 import { es } from "@blocknote/core/locales";
 import { filterSuggestionItems } from "@blocknote/core";
 import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
@@ -37,6 +39,7 @@ type Rec = {
   updatedAt?: string | Date;
   createdById?: string | null;
   updatedById?: string | null;
+  color?: string | null;
   seq?: number;
 };
 
@@ -258,6 +261,7 @@ export function RecordPanel({
     },
   });
   const restoreRecord = trpc.db.restoreRecord.useMutation({ onSuccess: () => utils.db.get.invalidate({ pageId }) });
+  const setColor = trpc.db.setRecordColor.useMutation({ onSuccess: () => utils.db.get.invalidate({ pageId }) });
 
   // Escape cierra el panel (en window: un menú abierto dentro lo consume antes
   // con stopPropagation, y el editor puede marcarlo con defaultPrevented).
@@ -310,6 +314,7 @@ export function RecordPanel({
             : "h-dvh border-l border-[var(--border)]"
         }`}
         style={centro ? undefined : { width: ancho, maxWidth: "100vw" }}
+        data-color-pagina={colorPagina(record.color) ?? undefined}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Tirador de ancho: cosa de ratón, escondido en táctil a propósito. */}
@@ -379,6 +384,7 @@ export function RecordPanel({
               toast("Enlace copiado");
             }}
             recordar={collectionId ? { id: pageId, recordId: record.id } : undefined}
+            color={collectionId ? { valor: record.color, elegir: (c) => setColor.mutate({ id: record.id, color: c }) } : undefined}
             onExportar={() => setExportar(true)}
             onBorrar={
               collectionId
@@ -423,8 +429,24 @@ export function RecordPanel({
 }
 
 /** El «⋯» de la ficha: guardar como plantilla, copiar el enlace y borrar la fila. */
-function MenuFicha({ onPlantilla, onEnlace, onExportar, onBorrar, recordar }: { onPlantilla?: () => void; onEnlace: () => void; onExportar: () => void; onBorrar?: () => void; recordar?: { id: string; recordId: string } }) {
+function MenuFicha({
+  onPlantilla,
+  onEnlace,
+  onExportar,
+  onBorrar,
+  recordar,
+  color,
+}: {
+  onPlantilla?: () => void;
+  onEnlace: () => void;
+  onExportar: () => void;
+  onBorrar?: () => void;
+  recordar?: { id: string; recordId: string };
+  /** Apariencia y diseño de la fila como página: su color (sin permiso de edición, nada). */
+  color?: { valor?: string | null; elegir: (c: ColorPagina) => void };
+}) {
   const [open, setOpen] = useState(false);
+  const [apariencia, setApariencia] = useState(false);
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   const hacer = (f: () => void) => () => {
     setOpen(false);
@@ -433,14 +455,26 @@ function MenuFicha({ onPlantilla, onEnlace, onExportar, onBorrar, recordar }: { 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o);
+          setApariencia(false);
+        }}
         className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         title="Más acciones"
         aria-label="Más acciones"
       >
         <MoreHorizontal size={18} />
       </button>
-      {open && (
+      {open && apariencia && color && (
+        <Popover onClose={() => setOpen(false)} className="right-0 w-60 p-1">
+          <button onClick={() => setApariencia(false)} className={`${item} font-medium`}>
+            <ChevronLeft size={15} /> Apariencia y diseño
+          </button>
+          <div className="my-1 border-t border-[var(--border)]" />
+          <SelectorColorPagina valor={color.valor} onElegir={color.elegir} />
+        </Popover>
+      )}
+      {open && !apariencia && (
         <Popover onClose={() => setOpen(false)} className="right-0 w-60 p-1">
           <button onClick={hacer(onEnlace)} className={item}>
             <LinkIcon size={15} /> Copiar enlace
@@ -451,6 +485,12 @@ function MenuFicha({ onPlantilla, onEnlace, onExportar, onBorrar, recordar }: { 
           {onPlantilla && (
             <button onClick={hacer(onPlantilla)} className={item} title="Las filas nuevas podrán empezar con estos valores">
               <BookmarkPlus size={15} /> Guardar como plantilla
+            </button>
+          )}
+          {color && (
+            <button onClick={() => setApariencia(true)} className={item}>
+              <Type size={15} /> Apariencia y diseño
+              <ChevronRight size={14} className="ml-auto text-[var(--muted)]" />
             </button>
           )}
           {onBorrar && (

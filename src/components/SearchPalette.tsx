@@ -1,5 +1,6 @@
 "use client";
 
+import { BarraColor } from "@/components/ColorPagina";
 import { useEffect, useRef, useState } from "react";
 import { Clock, Database, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -176,6 +177,8 @@ export function SearchPalette() {
                 i === selIdx ? "bg-[var(--active)] font-medium" : ""
               }`}
             >
+              {/* El color de página (del árbol, que siempre está fresco). */}
+              <BarraColor color={byId.get(p.id)?.color} className="-ml-1.5 h-4 self-center" />
               <span className="flex shrink-0 items-center text-[var(--muted)]">
                 {p.icon ? <IconoPagina icon={p.icon} size={16} /> : p.type === "database" ? <Database size={16} /> : <FileText size={16} />}
               </span>

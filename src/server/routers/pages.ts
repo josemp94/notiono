@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { colorPagina, IDS_COLOR_PAGINA } from "@/lib/colorPagina";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -32,6 +33,8 @@ type TreeNode = {
   type: string;
   /** La portada (para las tarjetas de «Visitado recientemente» del Inicio). */
   cover: string | null;
+  /** El color de página (src/lib/colorPagina.ts), para su barrita en Inicio y resultados. */
+  color: string | null;
   hasChildren: boolean;
 };
 
@@ -40,7 +43,7 @@ export const pagesRouter = router({
   tree: workspaceProcedure.query(async ({ ctx }): Promise<TreeNode[]> => {
     const todas = await ctx.db.page.findMany({
       where: { workspaceId: ctx.workspace.id, archivedAt: null, embedded: false },
-      select: { id: true, title: true, icon: true, parentId: true, order: true, type: true, cover: true },
+      select: { id: true, title: true, icon: true, parentId: true, order: true, type: true, cover: true, color: true },
       orderBy: { order: "asc" },
     });
     // Una página restringida no existe para quien no está invitado: ni en el árbol.
@@ -425,6 +428,22 @@ export const pagesRouter = router({
         data: { font: input.font },
         select: { id: true, font: true },
       });
+    }),
+
+  /** «Texto pequeño» (Apariencia y diseño, como en Notion). */
+  setSmallText: workspaceProcedure
+    .input(z.object({ id: z.string(), value: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id);
+      return ctx.db.page.update({ where: { id: input.id }, data: { smallText: input.value }, select: { id: true, smallText: true } });
+    }),
+
+  /** Color de página (src/lib/colorPagina.ts): «default» lo quita. */
+  setColor: workspaceProcedure
+    .input(z.object({ id: z.string(), color: z.enum(IDS_COLOR_PAGINA) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwned(ctx, input.id);
+      return ctx.db.page.update({ where: { id: input.id }, data: { color: colorPagina(input.color) }, select: { id: true, color: true } });
     }),
 
   /** Seguir/dejar de seguir una página: el que sigue recibe aviso cuando otro la edita. */

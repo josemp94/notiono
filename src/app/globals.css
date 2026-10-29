@@ -95,6 +95,63 @@
   --ico-red: #df5452;
 }
 
+/* Color de página (⋯ → Apariencia y diseño; src/lib/colorPagina.ts): los fondos de
+   bloque de Notion (paleta de 2021), y la barrita de donde se lista la página va en el
+   tono de texto (--ico-*). En oscuro, los fondos oscuros de Notion: tiñen sin apagar. */
+:root {
+  --pag-gray: #f1f1ef;
+  --pag-brown: #f3eeee;
+  --pag-orange: #f8ecdf;
+  --pag-yellow: #faf3dd;
+  --pag-green: #eef3ed;
+  --pag-blue: #e9f3f7;
+  --pag-purple: #f6f3f8;
+  --pag-pink: #f9f2f5;
+  --pag-red: #faecec;
+}
+
+:root[data-theme="dark"] {
+  --pag-gray: #252525;
+  --pag-brown: #2e2724;
+  --pag-orange: #36291f;
+  --pag-yellow: #372e20;
+  --pag-green: #242b26;
+  --pag-blue: #1f282d;
+  --pag-purple: #2a2430;
+  --pag-pink: #2e2328;
+  --pag-red: #332523;
+}
+
+/* El fondo de la página entera. Lo que va encima con --background (barra fija del
+   título de la BD, cabeceras pegadas de la tabla…) toma el mismo tinte. */
+[data-color-pagina] { background: var(--fondo-pagina); --background: var(--fondo-pagina); }
+[data-color-pagina="gray"] { --fondo-pagina: var(--pag-gray); }
+[data-color-pagina="brown"] { --fondo-pagina: var(--pag-brown); }
+[data-color-pagina="orange"] { --fondo-pagina: var(--pag-orange); }
+[data-color-pagina="yellow"] { --fondo-pagina: var(--pag-yellow); }
+[data-color-pagina="green"] { --fondo-pagina: var(--pag-green); }
+[data-color-pagina="blue"] { --fondo-pagina: var(--pag-blue); }
+[data-color-pagina="purple"] { --fondo-pagina: var(--pag-purple); }
+[data-color-pagina="pink"] { --fondo-pagina: var(--pag-pink); }
+[data-color-pagina="red"] { --fondo-pagina: var(--pag-red); }
+/* BlockNote pinta su propio fondo blanco/negro: que deje ver el tinte. */
+[data-color-pagina] .bn-container, [data-color-pagina] .bn-editor { background: transparent; }
+
+/* La barrita del color de página donde se lista (filas, tarjetas, Inicio, resultados). */
+.barra-color { display: inline-block; width: 3px; flex-shrink: 0; align-self: stretch; border-radius: 2px; background: var(--color-barra); }
+[data-barra="gray"] { --color-barra: var(--ico-gray); }
+[data-barra="brown"] { --color-barra: var(--ico-brown); }
+[data-barra="orange"] { --color-barra: var(--ico-orange); }
+[data-barra="yellow"] { --color-barra: var(--ico-yellow); }
+[data-barra="green"] { --color-barra: var(--ico-green); }
+[data-barra="blue"] { --color-barra: var(--ico-blue); }
+[data-barra="purple"] { --color-barra: var(--ico-purple); }
+[data-barra="pink"] { --color-barra: var(--ico-pink); }
+[data-barra="red"] { --color-barra: var(--ico-red); }
+
+/* «Texto pequeño» (Apariencia y diseño, como en Notion): el cuerpo a 14 px. */
+[data-texto-pequeno] .bn-editor { font-size: 14px; }
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -106,6 +106,8 @@ export async function calculaVista(
       ),
       relaciones: computados.relationLabels[r.id] ?? {},
       color: colorDeFila(r, fields, cfg, quien.userId),
+      // El color de la fila como página (⋯ → Apariencia y diseño): su barrita en la lista.
+      colorPagina: rec.color,
       seq: rec.seq,
       createdAt: rec.createdAt,
       updatedAt: rec.updatedAt,

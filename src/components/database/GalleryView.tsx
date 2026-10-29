@@ -1,5 +1,6 @@
 "use client";
 
+import { BarraColor } from "@/components/ColorPagina";
 import { useState } from "react";
 import { trpc } from "@/trpc/react";
 import { RichText } from "@/lib/mdInline";
@@ -9,7 +10,7 @@ import { usePeople } from "./Cell";
 import { displayValue, groupBy, rowColor, type Attachment, type FieldLite } from "@/lib/cellText";
 import { colorByRules, type ColorRule, type DbField, type DbRecord } from "@/lib/viewData";
 
-type Rec = { id: string; cells: Record<string, unknown>; order: string };
+type Rec = { id: string; cells: Record<string, unknown>; order: string; color?: string | null };
 
 const SIZES: Record<string, { grid: string; card: string; title: string; img: string }> = {
   small: { grid: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6", card: "p-3 text-xs", title: "text-sm", img: "h-24" },
@@ -107,7 +108,10 @@ export function GalleryView({
             style={{ background: colorOf(r) }}
             className={`flex cursor-pointer flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] ${size.card} text-left shadow-sm transition hover:border-brand hover:shadow-md`}
           >
-            <div className={`font-display truncate font-semibold ${size.title}`}><RichText texto={recTitle(r)} /></div>
+            <div className={`font-display flex min-w-0 gap-1.5 font-semibold ${size.title}`}>
+              <BarraColor color={r.color} />
+              <span className="truncate"><RichText texto={recTitle(r)} /></span>
+            </div>
             {previewField && (() => {
               const v = r.cells?.[previewField.id];
               // Un campo de Archivos con imagen se enseña como imagen, no como su nombre.

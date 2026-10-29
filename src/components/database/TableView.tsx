@@ -1,5 +1,6 @@
 "use client";
 
+import { sombraColor } from "@/components/ColorPagina";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ChevronDown, ChevronRight, Copy, EyeOff, Filter as FilterIcon, GripVertical, Info, Maximize2, Plus, Star, Trash2, X } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
@@ -28,6 +29,7 @@ type Rec = {
   createdById?: string | null;
   updatedById?: string | null;
   seq?: number;
+  color?: string | null;
 };
 
 /** ¿Pantalla táctil? (el mismo criterio que .al-pasar en el CSS). */
@@ -436,7 +438,8 @@ export function TableView({
             }}
             onMouseDown={() => setSel({ recId: r.id, fieldId: f.id })}
             className={`px-2 py-1.5 align-top ${lineaV} ${envolver ? "" : "overflow-hidden"} ${left === null ? "" : "sticky z-10"} ${esSel ? "ring-2 ring-inset ring-brand" : ""}`}
-            style={style}
+            // El color de la fila como página: su barrita a la izquierda del título.
+            style={esSel ? style : { ...style, ...sombraColor(r.color) }}
           >
             <div className="relative flex items-center" style={{ paddingLeft: depth * 20 }}>
               {hasChildren ? (

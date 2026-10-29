@@ -99,7 +99,7 @@ export const appNativaRouter = router({
         where: { id: input.id, workspaceId: ctx.workspace.id },
         select: {
           id: true, parentId: true, title: true, icon: true, cover: true, type: true, embedded: true,
-          fullWidth: true, locked: true, font: true, publicToken: true, publicExpiresAt: true,
+          fullWidth: true, smallText: true, color: true, locked: true, font: true, publicToken: true, publicExpiresAt: true,
           publicPassword: true, restricted: true, archivedAt: true, createdAt: true, updatedAt: true,
         },
       });
