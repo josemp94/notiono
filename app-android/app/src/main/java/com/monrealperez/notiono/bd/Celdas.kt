@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -22,6 +25,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,14 +120,7 @@ fun ValorCelda(
                 }
             }
         }
-        "checkbox" -> {
-            val si = (v as? JsonPrimitive)?.content == "true"
-            Box(
-                modifier.size(20.dp).clip(RoundedCornerShape(4.dp)).background(if (si) Marca else Color.Transparent)
-                    .let { if (!si) it.border(1.5.dp, C.apagado, RoundedCornerShape(4.dp)) else it },
-                contentAlignment = Alignment.Center,
-            ) { if (si) Icono("check", tam = 14.dp, color = Color.White, trazo = 3f) }
-        }
+        "checkbox" -> CajaCasilla((v as? JsonPrimitive)?.content == "true", modifier)
         "files" -> {
             val adj = lista(v).mapNotNull { it as? JsonObject }
             if (adj.isEmpty()) vacio()
@@ -178,6 +177,34 @@ fun ValorCelda(
             texto, fontSize = 14.sp, color = if (campo.type in setOf("formula", "rollup", "id")) C.apagado else C.texto,
             maxLines = if (unaLinea) 1 else 50, overflow = TextOverflow.Ellipsis, modifier = modifier,
         )
+    }
+}
+
+@Composable
+fun CajaCasilla(si: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(20.dp).clip(RoundedCornerShape(4.dp)).background(if (si) Marca else Color.Transparent)
+            .let { if (!si) it.border(1.5.dp, C.apagado, RoundedCornerShape(4.dp)) else it },
+        contentAlignment = Alignment.Center,
+    ) { if (si) Icono("check", tam = 14.dp, color = Color.White, trazo = 3f) }
+}
+
+/**
+ * Casilla de listas y tarjetas: tocarla la marca al momento (con su cola sin red)
+ * y no abre la ficha. En solo lectura se ve pero no se toca.
+ */
+@Composable
+fun CasillaTocable(est: EstadoBD, fila: Fila, campo: Campo, conNombre: Boolean = false) {
+    val si = (est.celdas(fila)[campo.id] as? JsonPrimitive)?.content == "true"
+    Row(
+        Modifier.heightIn(min = 40.dp).widthIn(min = 40.dp).clip(RoundedCornerShape(6.dp))
+            .let { if (est.editable) it.toggleable(si, role = Role.Checkbox) { v -> est.ponCelda(fila.id, campo.id, JsonPrimitive(v)) } else it }
+            .semantics { contentDescription = campo.name },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        CajaCasilla(si)
+        if (conNombre && campo.name.isNotBlank()) Text(campo.name, fontSize = 13.sp, color = C.apagado, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp, end = 4.dp))
     }
 }
 

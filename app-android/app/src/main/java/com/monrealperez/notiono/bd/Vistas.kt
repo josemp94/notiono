@@ -126,7 +126,8 @@ fun Tarjeta(est: EstadoBD, f: Fila, modifier: Modifier = Modifier, conPortada: B
             for (c in visibles) {
                 val tiene = (f.textos[c.id]?.isNotBlank() == true) || (est.celdas(f)[c.id].let { it != null && it !is JsonNull && !(it is JsonArray && it.isEmpty()) }) ||
                     (c.type == "relation" && f.relaciones[c.id]?.isNotEmpty() == true)
-                if (tiene && c.type !in setOf("created_time", "last_edited_time", "button")) ValorCelda(est, f, c)
+                if (c.type == "checkbox") CasillaTocable(est, f, c, conNombre = true)
+                else if (tiene && c.type !in setOf("created_time", "last_edited_time", "button")) ValorCelda(est, f, c)
             }
         }
     }
@@ -266,17 +267,28 @@ fun VistaLista(est: EstadoBD, abrir: (String) -> Unit) {
     val d = est.datos ?: return
     val porId = d.filas.associateBy { it.id }
     val visibles = est.visibles().filter { it.id != est.titulo?.id }
+    // La primera casilla visible va delante del título, como en las apps de tareas.
+    val hecha = visibles.firstOrNull { it.type == "checkbox" }
+    val resto = visibles.filter { it.id != hecha?.id }
     val fila: @Composable (Fila) -> Unit = { f ->
-        Column(Modifier.fillMaxWidth().background(fondoFila(f.color) ?: C.fondo).clickable { abrir(f.id) }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        val marcada = hecha != null && (est.celdas(f)[hecha.id] as? JsonPrimitive)?.content == "true"
+        // Con casilla, sus 40 dp de toque ya hacen de margen: el dibujo queda donde iba el icono.
+        Column(Modifier.fillMaxWidth().background(fondoFila(f.color) ?: C.fondo).clickable { abrir(f.id) }
+            .padding(start = if (hecha != null) 6.dp else 16.dp, end = 16.dp, top = if (hecha != null) 2.dp else 10.dp, bottom = if (hecha != null) 4.dp else 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icono("file-text", tam = 16.dp, color = C.apagado)
-                Text(est.tituloDe(f), fontSize = 15.sp, fontWeight = FontWeight.Medium, color = C.texto, modifier = Modifier.padding(start = 8.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (hecha != null) CasillaTocable(est, f, hecha) else Icono("file-text", tam = 16.dp, color = C.apagado)
+                Text(
+                    est.tituloDe(f), fontSize = 15.sp, fontWeight = FontWeight.Medium, color = if (marcada) C.apagado else C.texto,
+                    textDecoration = if (marcada) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                    modifier = Modifier.padding(start = if (hecha != null) 4.dp else 8.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
             }
-            FlowRow(Modifier.padding(start = 24.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                for (c in visibles) {
+            FlowRow(Modifier.padding(start = if (hecha != null) 44.dp else 24.dp, top = if (hecha != null) 0.dp else 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                for (c in resto) {
                     val v = est.celdas(f)[c.id]
                     val tiene = f.textos[c.id]?.isNotBlank() == true || (v != null && v !is JsonNull && !(v is JsonArray && v.isEmpty())) || f.relaciones[c.id]?.isNotEmpty() == true
-                    if (tiene && c.type !in setOf("created_time", "last_edited_time", "button")) ValorCelda(est, f, c)
+                    if (c.type == "checkbox") CasillaTocable(est, f, c, conNombre = true)
+                    else if (tiene && c.type !in setOf("created_time", "last_edited_time", "button")) ValorCelda(est, f, c)
                 }
             }
         }
