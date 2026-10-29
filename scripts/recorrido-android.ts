@@ -11,6 +11,12 @@
  *   # Notiono en local como en scripts/integracion-app.ts (server.mjs + PGlite + SSO falso)
  *   BASE_URL=http://127.0.0.1:3100 npx tsx scripts/recorrido-android.ts
  *
+ * Y lo de la 2.5.0 (RecorridoPabloTest): dibujar y guardar, reabrir el dibujo y seguir,
+ * exportar a Word, «Recordarme…», el bloc de notas del Inicio y añadir rápido en Mis tareas.
+ *
+ * Con poca memoria, por tandas: `RECORRIDO=base` (RecorridoTest y RecorridoCompartirTest) o
+ * `RECORRIDO=pablo` (RecorridoPabloTest); sin la variable, todo de una vez.
+ *
  * Una persona nueva por pasada (espacio limpio). Las capturas del recorrido salen en
  * app-android/app/build/recorrido/ (y «fallo.png» si algo no apareció a tiempo).
  */
@@ -21,6 +27,9 @@ import path from "node:path";
 import { ssoFalso } from "./sso-falso";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3100";
+const TANDA = process.env.RECORRIDO ?? "todo";
+const conBase = TANDA !== "pablo";
+const conPablo = TANDA !== "base";
 const APP = path.join(__dirname, "../app-android/app");
 
 type Bloque = { id: string; type: string; props?: Record<string, unknown>; content?: Inline[]; children?: Bloque[] };
@@ -63,6 +72,7 @@ async function main() {
   rmSync(path.join(APP, "build/recorrido.json"), { force: true });
   rmSync(path.join(APP, "build/recorrido-compartir.json"), { force: true });
   rmSync(path.join(APP, "build/recorrido-espacios.json"), { force: true });
+  rmSync(path.join(APP, "build/recorrido-pablo.json"), { force: true });
   try {
     // 0) Rocío y Ana ya han entrado alguna vez (en la web). Rocío comparte con Ana su espacio
     //    (aviso «te ha añadido») y, en su huerto, la página «Tomates» con edición: allí Ana es
@@ -89,20 +99,29 @@ async function main() {
       "./gradlew",
       // Con la memoria contenida (PC de 16 GB en uso): un solo worker y el demonio a 2 GB.
       ["--max-workers=1", "-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=640m -Dfile.encoding=UTF-8",
-        ":app:testDebugUnitTest", "--tests", "com.monrealperez.notiono.RecorridoTest", "--tests", "com.monrealperez.notiono.RecorridoCompartirTest",
+        ":app:testDebugUnitTest",
+        ...(conBase ? ["--tests", "com.monrealperez.notiono.RecorridoTest", "--tests", "com.monrealperez.notiono.RecorridoCompartirTest"] : []),
+        ...(conPablo ? ["--tests", "com.monrealperez.notiono.RecorridoPabloTest"] : []),
         "--rerun", "--console=plain", "-q", `-Pnotiono.integracion=${BASE}`, "-Proborazzi.test.record=true"],
       { cwd: path.join(APP, ".."), stdio: "inherit", env: process.env },
     );
     const salida = await new Promise<number | null>((ok) => gradle.on("exit", ok));
     if (salida !== 0) throw new Error("el recorrido de la app falló (ver app-android/app/build/reports/tests)");
-    const h = JSON.parse(readFileSync(path.join(APP, "build/recorrido.json"), "utf8"));
-    const c = JSON.parse(readFileSync(path.join(APP, "build/recorrido-compartir.json"), "utf8"));
-    const e = JSON.parse(readFileSync(path.join(APP, "build/recorrido-espacios.json"), "utf8"));
+    const lee = (f: string, si: boolean) => (si ? JSON.parse(readFileSync(path.join(APP, "build", f), "utf8")) : null);
+    const h = lee("recorrido.json", conBase);
+    const c = lee("recorrido-compartir.json", conBase);
+    const e = lee("recorrido-espacios.json", conBase);
+    const pb = lee("recorrido-pablo.json", conPablo);
 
     // 2) La misma persona en la web, para mirar el resultado.
     const cookie = await entraWeb();
     const { q, mut } = cliente(cookie);
     const yo = await q("auth.me");
+    if (conBase) await compruebaBase();
+    if (conPablo) await compruebaPablo();
+    console.log(`OK (${TANDA}) — recorrido de la app como una persona, y el servidor lo tiene como lo dejaría la web`);
+
+    async function compruebaBase() {
 
     // --- La página: título, bloques con su tipo y formato, casillas (una, desde el widget), comentario y fuera de la papelera.
     const info = await q("app.pagina", { id: h.pagina });
@@ -193,7 +212,43 @@ async function main() {
     const t = (await H.q("app.bloques", { id: tomates })) as { bloques: Bloque[] };
     assert.ok(t.bloques.map(texto).join(" ").includes("Riego los martes"), "lo escrito por la invitada, en el documento");
 
-    console.log("OK — recorrido de la app como una persona, y el servidor lo tiene como lo dejaría la web");
+    }
+
+    async function compruebaPablo() {
+    // --- Lo de la 2.5.0 (RecorridoPabloTest), visto desde la web.
+    // El dibujo: un bloque «drawing» con la escena seguida (dos trazos, sobre la primera) y su PNG.
+    const apuntes = (await q("app.bloques", { id: pb.pagina })) as { bloques: Bloque[] };
+    const dibujo = apuntes.bloques.find((b) => b.type === "drawing");
+    assert.equal(dibujo?.props?.escena, pb.escena, "el bloque lleva la escena del segundo guardado");
+    assert.equal(dibujo?.props?.imagen, pb.imagen);
+    const escena = await (await fetch(`${BASE}${pb.escena}`)).json();
+    assert.equal(escena.type, "excalidraw");
+    assert.equal(escena.elements.length, 2, "reabierto y seguido: dos trazos");
+    assert.equal((await fetch(`${BASE}${pb.imagen}`)).headers.get("content-type"), "image/png", "la vista previa es un PNG");
+    // El Word que se exportó, también desde la web: con el título y el dibujo.
+    const word = await q("app.exportarWord", { id: pb.pagina });
+    assert.equal(word.nombre, "Apuntes_de_Pablo.docx");
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const zip = unzipSync(Buffer.from(word.base64, "base64"));
+    assert.ok(strFromU8(zip["word/document.xml"]).includes("Apuntes de Pablo"));
+    assert.ok(Object.keys(zip).some((k) => k.startsWith("word/media/")), "con el dibujo como imagen");
+    // «Recordarme…» mañana a las 9:00: arriba de la página, y en los recordatorios de la persona.
+    const manana = new Date(Date.now() + 864e5);
+    const ymdManana = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(manana);
+    assert.deepEqual((await q("app.recordatorio", { id: pb.pagina }))?.fecha, `${ymdManana}T09:00`);
+    assert.equal(apuntes.bloques[0].content?.[0]?.text?.trim(), "Recordatorio:", "el recordatorio va arriba de la página");
+    assert.ok((await q("app.recordatorios")).some((r: { pageId: string }) => r.pageId === pb.pagina), "la app lo programará con su alarma");
+    // El bloc del Inicio: convertido en página (con su casilla) y vacío otra vez.
+    const blocPagina = (await q("app.bloques", { id: pb.bloc })) as { bloques: Bloque[] };
+    assert.equal((await q("app.pagina", { id: pb.bloc })).title, "Ideas de Pablo");
+    assert.ok(blocPagina.bloques.some((b) => b.type === "checkListItem" && texto(b) === "Comprar pilas"), "«- [ ]» es una casilla");
+    assert.equal((await q("inicio.get")).config.bloc, "", "el bloc se vacía al convertirlo");
+    // Mis tareas: la tarea rápida, en la BD elegida, asignada… y hecha con el círculo.
+    const mis = await q("db.myTasks", { conHechas: true });
+    const pan = mis.find((x: { title: string }) => x.title === "Comprar pan para Pablo");
+    assert.equal(pan?.pageId, pb.tareasBd, "en la BD de tareas elegida");
+    assert.equal(pan?.hecha, true, "marcada hecha con el círculo");
+    }
   } finally {
     sso.close();
   }

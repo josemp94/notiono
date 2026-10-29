@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -413,6 +414,12 @@ class RecorridoTest {
         destinos.trySend(Destino.Pagina(pagina))
         espera("la página") { campos().any { it.text.toString() == "Lista de la compra" } }
         pulsaDesc("Más opciones")
+        // El menú (con «Recordarme…» y la información al pie, 2.5.0) ya no cabe en la hoja a medio
+        // abrir: se sube con el dedo, como lo haría una persona.
+        val lista = compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsActions.ScrollBy)).fetchSemanticsNodes().last()
+        compose.onNode(SemanticsMatcher("lista del menú") { it.id == lista.id })
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 3000f) }
+        avanza(800)
         pulsa("Enviar a la papelera")
         pulsa("Enviar")
         avanza(1_000)
