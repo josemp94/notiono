@@ -315,6 +315,19 @@ Si tu servicio no responde o falla por su lado (5xx), Notiono reintenta **tres v
 (1 s, 5 s y 25 s). Si el destino rechaza la petición (4xx) no insiste, porque reintentarlo
 daría el mismo resultado. En Ajustes se ve el código del último intento (`0` = no respondió).
 
+## Botones de un recordatorio (sin token de API)
+
+`POST /api/recordatorio` (con la **sesión** de la web o de la app, no con token): lo pulsan el
+service worker (push de la web) y la notificación de la app. Cuerpo
+`{ "accion": "hecho" | "posponer", "key": "…", "pageId": "…", "recordId"?: "…", "titulo"?: "…" }`.
+«hecho» marca la fila hecha (su primera Casilla o la opción «Hecho» de su Estado) y deja leído el
+aviso; «posponer» crea otro aviso dentro de una hora y devuelve `{ "pospuesto": { "key", "cuando" } }`.
+No mira el espacio activo: comprueba que esa persona ve la página (y, para «hecho», que la edita).
+
+El lienzo del bloque «Dibujo» para la app es la página `/dibujo?escena=<url>&tema=dark` (sesión
+por cookie): al pulsar Hecho sube escena y PNG a `/api/upload` y llama a
+`window.NotionoApp.guardado(json)` con `{ escena, imagen, texto }`.
+
 ## Formulario público (sin token de API)
 
 `POST /api/form/<token>` recibe los envíos del formulario público (`/f/<token>`; el
