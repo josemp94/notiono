@@ -102,6 +102,7 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         "publicar" -> { HojaPublicar(id) { hoja = null; onCerrar() }; return }
         "compartir" -> { HojaCompartir(id, info.publicToken != null, onPublicar = { hoja = "publicar" }) { hoja = null; onCerrar() }; return }
         "mover" -> { HojaMover(id) { hoja = null; onCerrar() }; return }
+        "exportar" -> { HojaExportar(id, null, info.esBd) { hoja = null; onCerrar() }; return }
         "tipografia" -> {
             Hoja({ hoja = null; onCerrar() }, "Tipografía") {
                 for ((f, t) in listOf("sans" to "Predeterminada", "serif" to "Serif", "mono" to "Monoespaciada")) {
@@ -158,21 +159,11 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         if (!info.esBd) FilaMenu("Historial de versiones", "history") { hoja = "historial" }
         FilaMenu("Enlaces entrantes", "corner-down-right") { hoja = "entrantes" }
         Separador(Modifier.padding(vertical = 4.dp))
-        if (info.esBd) {
-            // Exportar e importar CSV miran la base entera por su colección: no para invitados.
-            if (puede.organizar) FilaMenu("Exportar a CSV", "file-down") {
-                alcance.launch { Archivos.exportaCsv(ctx, id) }; onCerrar()
-            }
-            if (info.puedeEditar && puede.organizar) FilaMenu("Importar CSV en esta base de datos", "file-up") {
-                importarCsv.launch(arrayOf("text/*", "text/csv", "application/octet-stream"))
-            }
-        } else {
-            FilaMenu("Exportar a Markdown", "file-down") {
-                alcance.launch { Archivos.exportaMarkdown(ctx, id) }; onCerrar()
-            }
-            FilaMenu("Exportar a Word", "file-text") {
-                alcance.launch { Archivos.exportaWord(ctx, id) }; onCerrar()
-            }
+        // Como Notion: «Exportar» abre el formato (PDF, HTML, Markdown y CSV; y Word). El CSV
+        // de una base de datos mira la base entera por su colección: no para invitados.
+        if (!info.esBd || puede.organizar) FilaMenu("Exportar", "file-down") { hoja = "exportar" }
+        if (info.esBd && info.puedeEditar && puede.organizar) FilaMenu("Importar CSV en esta base de datos", "file-up") {
+            importarCsv.launch(arrayOf("text/*", "text/csv", "application/octet-stream"))
         }
         FilaMenu("Abrir en el navegador", "external-link") {
             com.monrealperez.notiono.util.Enlaces.abre(ctx, "${BuildConfig.BASE_URL}/p/$id"); onCerrar()

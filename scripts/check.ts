@@ -1068,6 +1068,23 @@ import { fondoDe, textoDeEscena } from "../src/lib/dibujo";
   assert.equal(exp[0].props.url, "/api/asset/p");
 }
 
+// Exportar en HTML/PDF desde la app (app.exportarHtml): el mismo documento que la web, con
+// el dibujo como imagen, y el PDF con su tamaño de página y escala (saneados).
+import { documentoHtml } from "../src/lib/htmlExport";
+async function compruebaHtml() {
+  const { bloquesAHtml } = await import("../src/server/app/markdown");
+  const cuerpo = await bloquesAHtml([
+    { id: "a", type: "paragraph", content: [{ type: "text", text: "Hola <mundo>", styles: {} }], children: [] },
+    { id: "b", type: "drawing", props: { escena: "/api/asset/e", imagen: "/api/asset/dib", texto: "" }, children: [] },
+  ] as never);
+  assert.ok(cuerpo.includes("Hola &lt;mundo&gt;"), cuerpo);
+  assert.ok(cuerpo.includes('src="/api/asset/dib"'), "el dibujo sale como imagen");
+  const pdf = documentoHtml({ titulo: "Té & <pan>", cuerpo, pdf: { formato: "A3; } body { x", escala: 900 } });
+  assert.ok(pdf.includes("<title>Té &amp; &lt;pan&gt;</title>"));
+  assert.ok(pdf.includes("@page { size: A4;") && pdf.includes("zoom: 2;"), "papel desconocido → A4, escala como mucho 200 %");
+  assert.ok(!documentoHtml({ titulo: "x", cuerpo: "" }).includes("@page"), "el .html no lleva lo de imprimir");
+}
+
 // Word: el .docx se abre (es un ZIP con word/document.xml) y lleva el texto, la casilla
 // hecha tachada y en gris, las imágenes (también la del dibujo), el adjunto y las propiedades.
 import { generaDocx, medidasImagen } from "../src/server/docx";
@@ -1203,6 +1220,7 @@ import { infoPagina } from "../src/lib/infoPagina";
 
 compruebaColaboracion()
   .then(compruebaWord)
+  .then(compruebaHtml)
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))
   .then(() => import("./checkRegistro").then((m) => m.compruebaRegistro()))
   .then(() => import("./checkRecordatorios").then((m) => m.compruebaRecordatorios()))

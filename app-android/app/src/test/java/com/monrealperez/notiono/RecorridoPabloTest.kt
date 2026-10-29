@@ -246,9 +246,11 @@ class RecorridoPabloTest {
             red { s.repo.fresca("app.bloques", objeto("id" to pagina), cachear = false) }.toString().contains(escena2)
         }
 
-        // ---------- Exportar a Word: el .docx que se comparte ----------
+        // ---------- Exportar (como Notion) en Word: el .docx que se comparte ----------
         pulsaDesc("Más opciones")
-        pulsa("Exportar a Word")
+        pulsa("Exportar")
+        pulsa("Word (.docx)")
+        pulsa("Exportar")
         var docx: File? = null
         espera("el Word, listo para compartir", ms = 30_000) {
             docx = File(ctx.cacheDir, "export").listFiles()?.firstOrNull { it.name.endsWith(".docx") }

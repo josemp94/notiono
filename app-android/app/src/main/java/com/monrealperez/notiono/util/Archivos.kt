@@ -31,9 +31,10 @@ object Archivos {
         Enlaces.lanza(ctx, Intent.createChooser(envio, "Exportar $nombre").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    suspend fun exportaMarkdown(ctx: Context, pageId: String) {
+    suspend fun exportaMarkdown(ctx: Context, pageId: String, recordId: String? = null) {
         try {
-            val r = Servicios.de(ctx).repo.consulta("app.exportarMarkdown", objeto("id" to pageId), cachear = false).comoObjeto
+            val input = if (recordId != null) objeto("id" to pageId, "recordId" to recordId) else objeto("id" to pageId)
+            val r = Servicios.de(ctx).repo.consulta("app.exportarMarkdown", input, cachear = false).comoObjeto
             comparte(ctx, nombreSeguro(r.str("titulo").orEmpty()) + ".md", r.str("markdown").orEmpty(), "text/markdown")
         } catch (e: ErrorApi) {
             Avisos.di(e.message ?: "No se pudo exportar")
@@ -50,6 +51,58 @@ object Archivos {
         } catch (e: ErrorApi) {
             Avisos.di(if (e.sinConexion) "Sin conexión: el Word lo genera el servidor" else e.message ?: "No se pudo exportar")
         }
+    }
+
+    /** HTML: el mismo documento que descarga la web (`app.exportarHtml`); de una fila, su cuerpo. */
+    suspend fun exportaHtml(ctx: Context, pageId: String, recordId: String? = null) {
+        try {
+            val r = html(ctx, pageId, recordId, pdf = false)
+            comparte(ctx, nombreSeguro(r.first.removeSuffix(".html")) + ".html", r.second, "text/html")
+        } catch (e: ErrorApi) {
+            Avisos.di(if (e.sinConexion) "Sin conexión: el HTML lo genera el servidor" else e.message ?: "No se pudo exportar")
+        }
+    }
+
+    private suspend fun html(ctx: Context, pageId: String, recordId: String?, pdf: Boolean): Pair<String, String> {
+        val input = buildMap {
+            put("id", kotlinx.serialization.json.JsonPrimitive(pageId))
+            recordId?.let { put("recordId", kotlinx.serialization.json.JsonPrimitive(it)) }
+            if (pdf) put("pdf", objeto("formato" to "A4", "escala" to 100))
+        }
+        val r = Servicios.de(ctx).repo.consulta("app.exportarHtml", kotlinx.serialization.json.JsonObject(input), cachear = false).comoObjeto
+        return r.str("nombre").orEmpty() to r.str("html").orEmpty()
+    }
+
+    /** El WebView que se imprime vive hasta que acaba la impresión (si no, el sistema lo pierde). */
+    private var imprimiendo: android.webkit.WebView? = null
+
+    /**
+     * PDF: ese HTML impreso con el servicio de impresión de Android, que ofrece «Guardar
+     * como PDF» (como el PDF de la web, que es imprimir). Las imágenes llevan la cookie de la sesión.
+     */
+    suspend fun exportaPdf(ctx: Context, pageId: String, recordId: String? = null) {
+        val (nombre, documento) = try {
+            html(ctx, pageId, recordId, pdf = true)
+        } catch (e: ErrorApi) {
+            Avisos.di(if (e.sinConexion) "Sin conexión: el PDF lo genera el servidor" else e.message ?: "No se pudo exportar")
+            return
+        }
+        val s = Servicios.de(ctx)
+        android.webkit.CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            s.sesion.token?.let { setCookie(s.api.base, "notiono_session=$it; path=/") }
+            s.sesion.espacio?.let { setCookie(s.api.base, "notiono_ws=$it; path=/") }
+        }
+        val titulo = nombre.removeSuffix(".html").ifBlank { "Notiono" }
+        val w = android.webkit.WebView(ctx)
+        imprimiendo = w
+        w.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView, url: String?) {
+                val pm = ctx.getSystemService(android.print.PrintManager::class.java) ?: return
+                pm.print(titulo, view.createPrintDocumentAdapter(titulo), android.print.PrintAttributes.Builder().setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4).build())
+            }
+        }
+        w.loadDataWithBaseURL(s.api.base + "/", documento, "text/html", "utf-8", null)
     }
 
     const val MIME_WORD = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

@@ -21,7 +21,8 @@ import { aplicarOpsJson, type BloqueBN, type OpBloque } from "../app/bloquesYjs"
 import { aplicarOpsPagina, huella, leerBloquesPagina } from "../app/documento";
 import { calculaVista } from "../app/vista";
 import { sinEnlaceDoble } from "../subpaginas";
-import { bloquesAMarkdown, markdownABloques } from "../app/markdown";
+import { bloquesAHtml, bloquesAMarkdown, markdownABloques } from "../app/markdown";
+import { documentoHtml } from "@/lib/htmlExport";
 import { TEMPLATES } from "@/lib/templates";
 import { nombreSeguro } from "@/lib/exportZip";
 import { bloqueRecordatorio, recordatorioRapido } from "@/lib/recordatorios";
@@ -70,6 +71,19 @@ async function filaDelEspacio(ctx: Ctx, id: string) {
   });
   if (!rec) throw new TRPCError({ code: "NOT_FOUND" });
   return rec;
+}
+
+/** El título y el cuerpo de una fila de la BD `pageId` (para exportarla). */
+async function cuerpoDeFila(ctx: Ctx, pageId: string, recordId: string): Promise<{ titulo: string; bloques: BloqueBN[] }> {
+  const rec = await filaDelEspacio(ctx, recordId);
+  if (rec.collection.pageId !== pageId) throw new TRPCError({ code: "NOT_FOUND" });
+  const fila = await ctx.db.record.findUniqueOrThrow({
+    where: { id: rec.id },
+    select: { cells: true, content: true, collection: { select: { fields: { select: { id: true, type: true }, orderBy: { order: "asc" } } } } },
+  });
+  const t = fila.collection.fields.find((f) => f.type === "text");
+  const v = t ? (fila.cells as Record<string, unknown> | null)?.[t.id] : null;
+  return { titulo: typeof v === "string" ? v.trim() : "", bloques: Array.isArray(fila.content) ? (fila.content as unknown as BloqueBN[]) : [] };
 }
 
 export const appNativaRouter = router({
@@ -172,10 +186,15 @@ export const appNativaRouter = router({
 
   /** Exportar una página a Markdown, como «Exportar → Markdown» de la web. */
   exportarMarkdown: workspaceProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string(), recordId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       const page = await paginaDelEspacio(ctx, input.id);
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      // De una fila (el «Exportar» de su ficha), su cuerpo.
+      if (input.recordId) {
+        const { titulo, bloques } = await cuerpoDeFila(ctx, page.id, input.recordId);
+        return { titulo, markdown: await bloquesAMarkdown(bloques) };
+      }
       const { title } = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } });
       return { titulo: title, markdown: await bloquesAMarkdown(await leerBloquesPagina(page)) };
     }),
@@ -279,6 +298,27 @@ export const appNativaRouter = router({
       }
       const docx = await generaDocx({ titulo, propiedades, bloques, leeImagen: (url) => leeAsset(ctx.db, url) });
       return { nombre: `${nombreSeguro(titulo || "Sin titulo")}.docx`, base64: docx.toString("base64") };
+    }),
+
+  /**
+   * Exportar en HTML (y PDF, que la app imprime de este mismo HTML) una página o, con
+   * `recordId`, el cuerpo de una fila: el mismo documento que descarga la web.
+   */
+  exportarHtml: workspaceProcedure
+    .input(z.object({ id: z.string(), recordId: z.string().optional(), pdf: z.object({ formato: z.string().max(20), escala: z.number() }).optional() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      let titulo: string;
+      let bloques: BloqueBN[];
+      if (input.recordId) {
+        ({ titulo, bloques } = await cuerpoDeFila(ctx, page.id, input.recordId));
+      } else {
+        titulo = (await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } })).title;
+        bloques = await leerBloquesPagina(page);
+      }
+      titulo = titulo || "Sin título";
+      return { nombre: `${nombreSeguro(titulo)}.html`, html: documentoHtml({ titulo, cuerpo: await bloquesAHtml(bloques), pdf: input.pdf }) };
     }),
 
   /** La galería de plantillas (las crea `pages.createFromTemplate`, como en la web). */

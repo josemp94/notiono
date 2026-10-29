@@ -12,7 +12,11 @@ import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } fro
 import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "@/components/editor/menuBarra";
 import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
-import { downloadBase64, MIME_WORD } from "@/lib/download";
+import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
+import { DialogoExportar } from "@/components/Exportar";
+import { exportaHtml, imprimePdf } from "@/components/editor/exportarHtml";
+import { editorParaExport } from "@/components/editor/bloquesExport";
+import { nombreSeguro } from "@/lib/exportZip";
 import { InfoPagina } from "@/components/InfoPagina";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
@@ -274,6 +278,7 @@ export function RecordPanel({
   // del sidebar); persiste en local: es ergonomía del dispositivo, no
   // configuración compartida de la vista.
   const [ancho, setAncho] = useState(576);
+  const [exportar, setExportar] = useState(false);
   useEffect(() => {
     const v = Number(localStorage.getItem("notiono.peek-width"));
     if (v >= 360 && v <= 900) setAncho(v);
@@ -374,12 +379,7 @@ export function RecordPanel({
               toast("Enlace copiado");
             }}
             recordar={collectionId ? { id: pageId, recordId: record.id } : undefined}
-            onWord={() =>
-              utils.app.exportarWord
-                .fetch({ id: pageId, recordId: record.id }, { staleTime: 0 })
-                .then((w) => downloadBase64(w.nombre, w.base64, MIME_WORD))
-                .catch((e) => toast(e instanceof Error ? e.message : "No se pudo exportar"))
-            }
+            onExportar={() => setExportar(true)}
             onBorrar={
               collectionId
                 ? () => {
@@ -391,6 +391,28 @@ export function RecordPanel({
           />
         </div>
 
+          {exportar && (
+            <DialogoExportar
+              formatos={["pdf", "html", "markdown", "word"]}
+              onClose={() => setExportar(false)}
+              onExportar={async (o) => {
+                const titulo = tituloDe(record, fields) || "Sin título";
+                if (o.formato === "word")
+                  return utils.app.exportarWord
+                    .fetch({ id: pageId, recordId: record.id }, { staleTime: 0 })
+                    .then((w) => downloadBase64(w.nombre, w.base64, MIME_WORD))
+                    .catch((e) => toast(e instanceof Error ? e.message : "No se pudo exportar"));
+                const pagina = { titulo, content: record.content ?? [] };
+                if (o.formato === "html") exportaHtml(pagina);
+                else if (o.formato === "pdf") imprimePdf(pagina, { formato: o.papel, escala: o.escala });
+                else {
+                  const ed = editorParaExport(pagina.content);
+                  downloadText(`${nombreSeguro(titulo)}.md`, ed.blocksToMarkdownLossy(ed.document), "text/markdown");
+                }
+              }}
+            />
+          )}
+
           <div className="px-4 pb-10 pt-2 md:px-8">
             <RecordCard pageId={pageId} collectionId={collectionId} record={record} fields={fields} onDeleted={onClose} borrarAlPie={false} />
           </div>
@@ -401,7 +423,7 @@ export function RecordPanel({
 }
 
 /** El «⋯» de la ficha: guardar como plantilla, copiar el enlace y borrar la fila. */
-function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPlantilla?: () => void; onEnlace: () => void; onWord: () => void; onBorrar?: () => void; recordar?: { id: string; recordId: string } }) {
+function MenuFicha({ onPlantilla, onEnlace, onExportar, onBorrar, recordar }: { onPlantilla?: () => void; onEnlace: () => void; onExportar: () => void; onBorrar?: () => void; recordar?: { id: string; recordId: string } }) {
   const [open, setOpen] = useState(false);
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   const hacer = (f: () => void) => () => {
@@ -423,8 +445,8 @@ function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPl
           <button onClick={hacer(onEnlace)} className={item}>
             <LinkIcon size={15} /> Copiar enlace
           </button>
-          <button onClick={hacer(onWord)} className={item}>
-            <FileDown size={15} /> Exportar a Word
+          <button onClick={hacer(onExportar)} className={item}>
+            <FileDown size={15} /> Exportar
           </button>
           {onPlantilla && (
             <button onClick={hacer(onPlantilla)} className={item} title="Las filas nuevas podrán empezar con estos valores">

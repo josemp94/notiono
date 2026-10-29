@@ -39,3 +39,10 @@ export async function bloquesAMarkdown(bloques: BloqueBN[]): Promise<string> {
   const llanos = aplanarParaExport(bloques) as never;
   return conDom((document) => blocksToMarkdown(llanos, editor.pmSchema, editor, { document }));
 }
+
+/** HTML de los bloques (lo que va dentro del .html exportado o impreso a PDF desde la app). */
+export async function bloquesAHtml(bloques: BloqueBN[]): Promise<string> {
+  const editor = await editorServidor();
+  const llanos = aplanarParaExport(bloques) as never;
+  return conDom(() => editor.blocksToHTMLLossy(llanos));
+}

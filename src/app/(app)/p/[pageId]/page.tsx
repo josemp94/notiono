@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Check, FileArchive, FileCode, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
+import { Bell, Check, FileDown, FileText, FolderInput, History, Link as LinkIcon, Lock, MessageSquare, MoreHorizontal, MoveHorizontal, Star } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { trpc } from "@/trpc/react";
@@ -18,7 +18,8 @@ import { BotonPanel } from "@/components/AppShell";
 import { usePeople } from "@/components/database/Cell";
 import { IconoPagina } from "@/components/PageIcon";
 import { exportaZipConEditor } from "@/components/editor/exportarZip";
-import { exportaHtml } from "@/components/editor/exportarHtml";
+import { exportaHtml, imprimePdf } from "@/components/editor/exportarHtml";
+import { DialogoExportar } from "@/components/Exportar";
 import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
 import { editorParaExport } from "@/components/editor/bloquesExport";
 import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
@@ -244,6 +245,7 @@ function PageMenu({
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [exportar, setExportar] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
   const setLocked = trpc.pages.setLocked.useMutation();
@@ -404,40 +406,18 @@ function PageMenu({
           </>
           )}
           <div className="my-1 border-t border-[var(--border)]" />
-          {!invitado && (
-            <button
-              onClick={exportarZip}
-              disabled={exportando}
-              className={`${itemMenu} disabled:opacity-60`}
-            >
-              <FileArchive size={16} />
-              {exportando ? "Exportando…" : "Exportar con subpáginas (ZIP)"}
-            </button>
-          )}
-          {/* Solo docs: una BD ya exporta a CSV desde su barra. */}
-          {page.type !== "database" && (
-            <button onClick={exportarMarkdown} className={itemMenu}>
-              <FileDown size={16} />
-              Exportar Markdown
-            </button>
-          )}
-          {page.type !== "database" && (
-            <button onClick={exportarWord} className={itemMenu}>
-              <FileText size={16} />
-              Exportar a Word
-            </button>
-          )}
-          {page.type !== "database" && (
+          {/* Como Notion: ⋯ → Exportar abre el diálogo con el formato (Word, uno más de la lista). */}
+          {(page.type !== "database" || !invitado) && (
             <button
               onClick={() => {
                 setOpen(false);
-                exportaHtml({ titulo: page.title, icon: page.icon, content: page.content });
+                setExportar(true);
               }}
-              className={itemMenu}
-              title="Un .html que se abre en cualquier navegador; para PDF, imprime la página (Ctrl+P)"
+              disabled={exportando}
+              className={`${itemMenu} disabled:opacity-60`}
             >
-              <FileCode size={16} />
-              Exportar HTML
+              <FileDown size={16} />
+              {exportando ? "Exportando…" : "Exportar"}
             </button>
           )}
           {canEdit && !invitado && (
@@ -461,6 +441,23 @@ function PageMenu({
         </div>
       )}
       {moving && <MovePageModal pageId={page.id} onClose={() => setMoving(false)} />}
+      {exportar && (
+        <DialogoExportar
+          formatos={page.type === "database" ? ["markdown"] : ["pdf", "html", "markdown", "word"]}
+          conSubpaginas={!invitado && page.type !== "database"}
+          onClose={() => setExportar(false)}
+          onExportar={async (o) => {
+            if (page.type === "database" || (o.formato === "markdown" && o.subpaginas)) return exportarZip();
+            if (o.formato === "markdown") return exportarMarkdown();
+            if (o.formato === "word") return exportarWord();
+            // Lo último guardado, como en Markdown (el editor guarda a los 800 ms).
+            const fresca = await utils.pages.get.fetch({ id: page.id }, { staleTime: 0 });
+            const pagina = { titulo: page.title, icon: page.icon, content: fresca.content };
+            if (o.formato === "html") exportaHtml(pagina);
+            else imprimePdf(pagina, { formato: o.papel, escala: o.escala });
+          }}
+        />
+      )}
     </div>
   );
 }
