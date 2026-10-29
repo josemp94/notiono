@@ -140,6 +140,8 @@ fun BloqueVisual(b: Bloque, estado: EstadoEditor, editable: Boolean, acciones: A
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp, max = 480.dp).clip(RoundedCornerShape(6.dp))
                         .clickable { if (editable) acciones.editaDibujo(b) else grande = true },
                 )
+                // La leyenda, como la de una imagen (la misma que pone la web).
+                if (img.isNotBlank()) Pie(b, editable, acciones)
             }
             if (grande) Dialog({ grande = false }, DialogProperties(usePlatformDefaultWidth = false)) {
                 Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White), contentAlignment = Alignment.Center) {
@@ -235,7 +237,7 @@ private fun Pie(b: Bloque, editable: Boolean, acciones: AccionesEditor) {
     val pie = b.prop("caption").orEmpty()
     if (pie.isNotBlank() || editable) {
         Text(
-            pie.ifBlank { if (editable) "Añadir pie…" else "" },
+            pie.ifBlank { if (editable) "Añadir leyenda…" else "" },
             fontSize = 13.sp, color = C.apagado,
             modifier = Modifier.padding(top = 4.dp).clickable(enabled = editable) { acciones.editaPie(b) },
         )

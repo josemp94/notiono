@@ -86,12 +86,24 @@ export const itemIndice = (editor: NotionoEditor): DefaultReactSuggestionItem =>
 
 export const itemDibujo = (editor: NotionoEditor): DefaultReactSuggestionItem => ({
   title: "Dibujo",
-  subtext: "Dibuja a mano: bolígrafo, subrayador, formas y texto",
+  // Como las entradas de BlockNote/Notion: corta, y en «Medios», junto a Imagen.
+  subtext: "Dibujo a mano redimensionable con leyenda",
   aliases: ["dibujo", "dibujar", "drawing", "draw", "boceto", "pizarra", "mano", "lapiz", "lápiz", "sketch"],
-  group: "Bloques básicos",
+  group: "Medios",
   icon: <PenLine size={18} />,
   onItemClick: () => {
     // React monta el bloque después de insertarlo: para entonces ya está apuntado.
     abrirAlMontar.add(insertOrUpdateBlockForSlashMenu(editor, { type: "drawing" }).id);
   },
 });
+
+/**
+ * Los ítems del menú «/» con cada grupo junto, en el orden en que sale por primera vez:
+ * los nuestros (Llamada, Dibujo…) se meten con los de serie de su grupo. BlockNote pinta
+ * un rótulo cada vez que cambia el grupo y le pone su nombre de `key`: un grupo partido
+ * en dos dejaba rótulos repetidos y vacíos al filtrar.
+ */
+export function porGrupos<T extends { group?: string }>(items: T[]): T[] {
+  const orden = [...new Set(items.map((x) => x.group))];
+  return orden.flatMap((g) => items.filter((x) => x.group === g));
+}

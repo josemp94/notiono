@@ -388,7 +388,7 @@ class AccionesEditor(
                 dialogo = null
                 if (tex != null) estado.props(b, "tex" to JsonPrimitive(tex))
             }
-            "pie" -> if (b != null) PideTexto("Pie de foto", b.prop("caption") ?: "") { t ->
+            "pie" -> if (b != null) PideTexto("Leyenda", b.prop("caption") ?: "") { t ->
                 dialogo = null
                 if (t != null) estado.props(b, "caption" to JsonPrimitive(t))
             }

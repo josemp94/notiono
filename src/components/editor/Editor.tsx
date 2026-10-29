@@ -31,7 +31,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "./mention";
-import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
+import { itemDibujo, porGrupos, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "./menuBarra";
 import { trpc } from "@/trpc/react";
 import { instalarDropDeColumnas } from "./columnDrop";
 import { useTheme } from "@/lib/theme";
@@ -481,8 +481,9 @@ export function Editor({
           triggerCharacter="/"
           getItems={async (query) =>
             filterSuggestionItems(
-              [
+              porGrupos([
                 ...getDefaultReactSlashMenuItems(editor),
+                itemDibujo(editor),
                 itemLlamada(editor),
                 itemEnlaceWeb(editor, (url) => linkPreview.mutateAsync({ url })),
                 ...itemsColumnas(editor),
@@ -504,7 +505,6 @@ export function Editor({
                   },
                 },
                 itemEcuacion(editor),
-                itemDibujo(editor),
                 itemIndice(editor),
                 {
                   title: "Base de datos",
@@ -545,7 +545,7 @@ export function Editor({
                       props: { collectionId: d.collectionId, pageId: d.pageId },
                     }),
                 })),
-              ],
+              ]),
               query,
             )
           }

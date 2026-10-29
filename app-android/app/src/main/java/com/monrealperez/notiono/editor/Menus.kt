@@ -84,7 +84,6 @@ val ITEMS_BLOQUE = listOf(
     ItemBloque("callout", "Llamada", "lightbulb", "Bloques básicos", "llamada callout aviso"),
     ItemBloque("divider", "Separador", "minus", "Bloques básicos", "separador linea divider ---"),
     ItemBloque("codeBlock", "Código", "code", "Bloques básicos", "codigo code ```"),
-    ItemBloque("drawing", "Dibujo", "pen-line", "Bloques básicos", "dibujo dibujar mano lapiz boceto pizarra subrayador drawing"),
     ItemBloque("subpagina", "Subpágina", "file-text", "Bloques básicos", "subpagina pagina page"),
     ItemBloque("table", "Tabla", "table", "Avanzados", "tabla rejilla"),
     ItemBloque("columnas2", "2 columnas", "columns-2", "Avanzados", "columnas"),
@@ -93,6 +92,8 @@ val ITEMS_BLOQUE = listOf(
     ItemBloque("equation", "Ecuación", "sigma", "Avanzados", "ecuacion latex tex matematicas"),
     ItemBloque("bookmark", "Enlace web", "link-2", "Avanzados", "enlace web marcador bookmark youtube video"),
     ItemBloque("image", "Imagen", "image", "Multimedia", "imagen foto"),
+    // Como en la web: en «Multimedia», junto a Imagen (se comporta como una).
+    ItemBloque("drawing", "Dibujo", "pen-line", "Multimedia", "dibujo dibujar mano lapiz boceto pizarra subrayador drawing"),
     ItemBloque("video", "Vídeo", "video", "Multimedia", "video"),
     ItemBloque("audio", "Audio", "music", "Multimedia", "audio sonido"),
     ItemBloque("file", "Archivo", "paperclip", "Multimedia", "archivo fichero adjunto"),
@@ -369,7 +370,10 @@ fun HojaAccionesBloque(b: Bloque, estado: EstadoEditor, acciones: AccionesEditor
             FilaMenu("Sangrar", "indent-increase") { estado.sangra(b); onCerrar() }
             FilaMenu("Quitar sangría", "indent-decrease") { estado.desangra(b); onCerrar() }
         }
-        FilaMenu("Copiar enlace al bloque", "link") { acciones.copiaEnlaceBloque(b); onCerrar() }
+        // Las de una imagen de Notion (el dibujo se comporta como una).
+        if (editable && b.tipo == "drawing") FilaMenu("Editar dibujo", "pen-line") { onCerrar(); acciones.editaDibujo(b) }
+        if (editable && b.tipo in setOf("image", "drawing")) FilaMenu("Leyenda", "message-square-text") { onCerrar(); acciones.editaPie(b) }
+                FilaMenu("Copiar enlace al bloque", "link") { acciones.copiaEnlaceBloque(b); onCerrar() }
         if (b.esTexto) FilaMenu("Copiar texto", "copy") { acciones.copiaTexto(b); onCerrar() }
         if (editable) {
             Separador()

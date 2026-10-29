@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUpRight, ChevronRight, Code, Copy, FileText, FolderInput, Heading1, Heading2, Heading3, Lightbulb, Link2,
-  List, ListChecks, ListOrdered, MessageSquare, Palette, PanelRight, Pencil, PenLine, Quote, Repeat, SmilePlus, Star, StarOff, Trash2, Type,
+  List, ListChecks, ListOrdered, MessageSquare, Palette, PanelRight, Pencil, Quote, Repeat, SmilePlus, Star, StarOff, Trash2, Type,
 } from "lucide-react";
 import { useBlockNoteEditor, useComponentsContext, useExtensionState, usePortalElement } from "@blocknote/react";
 import { SideMenuExtension } from "@blocknote/core/extensions";
@@ -26,7 +26,6 @@ import { SelectorIcono } from "@/components/PageIcon";
 import { MovePageModal } from "@/components/MovePage";
 import { abrirEnPanel } from "@/lib/vistazo";
 import { enlaceDe } from "@/lib/subpaginas";
-import { abrirAlMontar } from "./drawingBlock";
 
 /** Bloque tal como lo da el editor (solo lo que se usa aquí). */
 type Bloque = { id: string; type: string; props?: Record<string, unknown>; content?: unknown; children?: Bloque[] };
@@ -47,7 +46,6 @@ const CONVERTIR: { etiqueta: string; type: string; props?: Record<string, unknow
   { etiqueta: "Cita", type: "quote", icono: <Quote size={16} /> },
   { etiqueta: "Código", type: "codeBlock", icono: <Code size={16} /> },
   { etiqueta: "Llamada", type: "callout", icono: <Lightbulb size={16} /> },
-  { etiqueta: "Dibujo", type: "drawing", icono: <PenLine size={16} /> },
 ];
 /** Los colores de BlockNote, con su nombre como en Notion. */
 const COLORES = [
@@ -332,7 +330,6 @@ export function useAccionesBloque(editor: Ed, pageId: string) {
 
   async function convertir(b: Bloque, i: number) {
     const c = CONVERTIR[i];
-    if (c.type === "drawing") abrirAlMontar.add(b.id);
     if (c.type !== "pagina") {
       editor.updateBlock(b.id, { type: c.type, props: c.props ?? {} });
       return;

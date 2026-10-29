@@ -99,6 +99,14 @@ export const LENGUAJE_CODIGO = "javascript";
  */
 export const configDibujo = {
   type: "drawing" as const,
-  propSchema: { escena: { default: "" }, imagen: { default: "" }, texto: { default: "" } },
+  propSchema: {
+    escena: { default: "" },
+    imagen: { default: "" },
+    texto: { default: "" },
+    // Como una imagen de Notion (y de BlockNote): leyenda, ancho y alineación.
+    caption: { default: "" },
+    previewWidth: { default: undefined, type: "number" as const },
+    textAlignment: { default: "center" as const, values: ["left", "center", "right"] as const },
+  },
   content: "none" as const,
 };

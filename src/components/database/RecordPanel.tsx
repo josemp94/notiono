@@ -9,7 +9,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { editorSchema, MentionMenu, subirArchivo, type NotionoPartialBlock } from "@/components/editor/mention";
-import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "@/components/editor/menuBarra";
+import { itemDibujo, porGrupos, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, itemsColumnas } from "@/components/editor/menuBarra";
 import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
 import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
@@ -190,15 +190,15 @@ export function RecordCard({
             triggerCharacter="/"
             getItems={async (query) =>
               filterSuggestionItems(
-                [
+                porGrupos([
                   ...getDefaultReactSlashMenuItems(editor),
+                itemDibujo(editor),
                   itemLlamada(editor),
                   itemEnlaceWeb(editor, (url) => linkPreview.mutateAsync({ url })),
                   ...itemsColumnas(editor),
                   itemEcuacion(editor),
-                itemDibujo(editor),
                   itemIndice(editor),
-                ],
+                ]),
                 query,
               )
             }
