@@ -137,6 +137,11 @@ h1, h2, h3, .font-display {
   scrollbar-color: var(--border) transparent;
 }
 
+/* «Lista de tareas» hecha: tachada y en gris, como en Notion (BlockNote solo la tacha). */
+.bn-block-content[data-content-type="checkListItem"][data-checked="true"] .bn-inline-content {
+  color: var(--muted);
+}
+
 /* --- Columnas del editor ---------------------------------------------------
    Los bloques `columnList` y `column` los ponemos nosotros (BlockNote solo los
    trae en su paquete de pago; ver columnBlock.tsx). Lo que hace falta es que los

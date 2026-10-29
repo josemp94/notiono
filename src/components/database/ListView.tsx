@@ -39,18 +39,7 @@ export function ListView({
   const marcar = useMarcarCasilla(pageId);
 
   const titleField = fields.find((f) => f.type === "text") ?? fields[0];
-  // La primera casilla visible va delante del título, como en las apps de tareas.
-  const hecha = fields.find((f) => f.type === "checkbox" && f.id !== titleField?.id);
-  const propFields = fields.filter((f) => f.id !== titleField?.id && f.id !== hecha?.id).slice(0, 3);
-  const casilla = (r: Rec, f: FieldLite, conNombre = false) => (
-    <Casilla
-      key={f.id}
-      marcada={Boolean(r.cells?.[f.id])}
-      nombre={f.name}
-      conNombre={conNombre}
-      onCambia={canEdit ? (v) => marcar(r.id, f.id, v) : undefined}
-    />
-  );
+  const propFields = fields.filter((f) => f.id !== titleField?.id).slice(0, 3);
 
   const recTitle = (r: Rec) => {
     const t = titleField ? r.cells?.[titleField.id] : "";
@@ -73,40 +62,36 @@ export function ListView({
         </div>
       )}
       <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
-        {g.records.map((r) => {
-          const marcada = Boolean(hecha && r.cells?.[hecha.id]);
-          return (
+        {g.records.map((r) => (
+          // Como en Notion: las propiedades a la derecha del título, en su orden, y una
+          // casilla entre ellas se marca ahí mismo (sin abrir la ficha ni tachar nada).
           <li key={r.id} className="flex items-center hover:bg-[var(--border)]/30">
-            {hecha && <span className="flex shrink-0 pl-2">{casilla(r, hecha)}</span>}
-            <button
-              onClick={() => abrir(r)}
-              className={`flex min-w-0 flex-1 items-center gap-3 py-2 text-left ${hecha ? "pl-2 pr-3" : "px-3"}`}
-            >
-              {!hecha && <FileText size={14} className="shrink-0 text-[var(--muted)]" />}
-              <span className={`min-w-0 flex-1 truncate font-medium ${marcada ? "text-[var(--muted)] line-through" : ""}`}>
-                <RichText texto={recTitle(r)} />
-              </span>
-              <span className="hidden shrink-0 items-center gap-3 text-xs text-[var(--muted)] sm:flex">
-                {propFields.map((f) => {
-                  if (f.type === "checkbox") return null;
-                  const txt = displayValue(f, r.cells?.[f.id], people);
-                  if (!txt) return null;
-                  return (
-                    <span key={f.id} className="truncate">
-                      {txt}
-                    </span>
-                  );
-                })}
-              </span>
+            <button onClick={() => abrir(r)} className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-3 text-left">
+              <FileText size={14} className="shrink-0 text-[var(--muted)]" />
+              <span className="min-w-0 flex-1 truncate font-medium"><RichText texto={recTitle(r)} /></span>
             </button>
-            {propFields.some((f) => f.type === "checkbox") && (
-              <span className="flex shrink-0 items-center gap-2 pr-3">
-                {propFields.filter((f) => f.type === "checkbox").map((f) => casilla(r, f, true))}
-              </span>
-            )}
+            <span onClick={() => abrir(r)} className="flex shrink-0 cursor-pointer items-center gap-3 self-stretch pl-3 pr-3 text-xs text-[var(--muted)]">
+              {propFields.map((f) => {
+                if (f.type === "checkbox")
+                  return (
+                    <Casilla
+                      key={f.id}
+                      marcada={Boolean(r.cells?.[f.id])}
+                      nombre={f.name}
+                      onCambia={canEdit ? (v) => marcar(r.id, f.id, v) : undefined}
+                    />
+                  );
+                const txt = displayValue(f, r.cells?.[f.id], people);
+                if (!txt) return null;
+                return (
+                  <span key={f.id} className="hidden max-w-40 truncate sm:inline">
+                    {txt}
+                  </span>
+                );
+              })}
+            </span>
           </li>
-          );
-        })}
+        ))}
         {g.records.length === 0 && (
           <li className="px-3 py-4 text-sm text-[var(--muted)]">Sin registros.</li>
         )}

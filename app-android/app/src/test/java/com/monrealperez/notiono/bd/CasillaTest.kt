@@ -1,7 +1,11 @@
 package com.monrealperez.notiono.bd
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -23,6 +27,8 @@ import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -102,6 +108,24 @@ class CasillaTest {
         compose.onNodeWithText("Regar").performClick()
         compose.waitForIdle()
         assertEquals(listOf("r2"), abiertas)
+    }
+
+    /** Como en Notion: la casilla va con las demás propiedades (no delante del título) y la fila hecha no se tacha. */
+    @Test
+    fun enLaListaLaCasillaEsUnaPropiedadMasYNoTachaElTitulo() {
+        compose.setContent { TemaNotiono(false) { VistaLista(est, abrir = { abiertas += it }) } }
+        fun estilo(t: String) = mutableListOf<TextLayoutResult>().also {
+            compose.onNodeWithText(t).fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action!!(it)
+        }.single().layoutInput.style
+        val titulo = compose.onNodeWithText("Regar")
+        assertNull("la fila hecha no tacha el título", estilo("Regar").textDecoration?.takeIf { it != TextDecoration.None })
+        assertEquals("ni lo apaga", estilo("Comprar pan").color, estilo("Regar").color)
+        // Las dos casillas (una por fila), debajo de su título, con su nombre como las demás propiedades.
+        val casillas = compose.onAllNodes(isToggleable()).fetchSemanticsNodes()
+        assertEquals(2, casillas.size)
+        val delTitulo = titulo.getUnclippedBoundsInRoot()
+        assertTrue("la casilla no va delante del título", casillas.last().boundsInRoot.top >= delTitulo.bottom.value - 1f)
+        assertEquals(2, compose.onAllNodesWithText("Hecha").fetchSemanticsNodes().size)
     }
 
     @Test
