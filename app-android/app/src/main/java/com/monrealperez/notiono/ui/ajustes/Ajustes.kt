@@ -261,6 +261,15 @@ private fun SeccionDiagnostico() {
 
 /** Lo nuevo de cada versión, lo último primero (Ajustes → Novedades). */
 val NOVEDADES = listOf(
+    "2.5.0" to listOf(
+        "Dibujo a mano: un bloque «Dibujo» (menú «/») con bolígrafo, lápiz, rotulador y subrayador, goma, texto y formas, colores y grosores, y fondo liso, de cuadrícula, puntos o rayas. Se edita igual aquí que en el ordenador.",
+        "Exportar a Word: desde el menú de una página o de una fila, el .docx se comparte con lo que quieras (con sus casillas, imágenes y dibujos).",
+        "«Recordarme…» en el menú de una página o de una fila: en 1 hora, esta tarde, mañana a las 9:00 o cuando elijas. El aviso trae «Hecho» y «Posponer 1 h».",
+        "Inicio con más bloques: acciones rápidas, bloc de notas que se guarda solo (y se convierte en página), una nota fijada con sus casillas y tus recordatorios. Y la fecha de hoy con el buscador debajo.",
+        "Mis tareas por secciones (Vencidas, Hoy, Mañana, Próximas, Sin fecha y Completadas), con el filtro «Hoy», «+» para añadir una tarea y el círculo para marcarla hecha.",
+        "Widget «Nota»: «Mis notas recientes» pasa con ‹ › por las últimas páginas que abriste.",
+        "Información de la página al pie de su menú: palabras, casillas hechas, imágenes y fechas.",
+    ),
     "2.4.1" to listOf(
         "Las casillas se marcan tocándolas en todas las vistas: en la Lista van delante del título (y la tarea hecha sale tachada), y en las tarjetas del Kanban y la Galería se marcan sin abrir la ficha.",
     ),
