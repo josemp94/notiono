@@ -238,6 +238,7 @@ fun Principal(destinos: Flow<Destino>) {
                         composable("tareas") { PantallaTareas() }
                         composable("bandeja") { PantallaBandeja() }
                         composable("ajustes") { PantallaAjustes() }
+                        composable("ajustes/copia") { com.monrealperez.notiono.ui.ajustes.PantallaCopiaNas() }
                         composable("papelera") { PantallaPapelera() }
                         composable("plantillas") { PantallaPlantillas() }
                         composable("espacio/general") { PantallaEspacioGeneral() }

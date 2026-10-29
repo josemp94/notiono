@@ -61,7 +61,7 @@ import com.monrealperez.notiono.util.Actualizador
 import com.monrealperez.notiono.util.Fechas
 import kotlinx.coroutines.launch
 
-/** Ajustes: perfil, espacio, avisos, versión de la app, widgets, diagnóstico y cerrar sesión. Lo de administrar, en la web. */
+/** Ajustes: perfil, espacio, avisos, copia en el NAS, versión de la app, widgets, diagnóstico y cerrar sesión. Lo de administrar, en la web. */
 @Composable
 fun PantallaAjustes() {
     val ctx = LocalContext.current
@@ -107,6 +107,9 @@ fun PantallaAjustes() {
                         Avisador.activar(ctx, it)
                     }, colors = SwitchDefaults.colors(checkedTrackColor = Marca))
                 }) { avisos = !avisos; Avisador.activar(ctx, avisos) }
+            Separador(Modifier.padding(vertical = 8.dp))
+            TituloSeccion("Copia de seguridad")
+            FilaMenu("Copia en el NAS", "hard-drive", detalle = resumenCopia(s.copia)) { n.a("ajustes/copia") }
             Separador(Modifier.padding(vertical = 8.dp))
             TituloSeccion("La app")
             FilaMenu("Versión ${BuildConfig.VERSION_NAME}", "smartphone", detalle = when {

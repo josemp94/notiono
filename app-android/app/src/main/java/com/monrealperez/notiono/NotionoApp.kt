@@ -32,6 +32,13 @@ class NotionoApp : Application(), SingletonImageLoader.Factory {
                 .debounce(1500)
                 .collect { Widgets.actualizaTodo(this@NotionoApp, "cambio") }
         }
+        // Lo editado en la app va a la copia en el NAS un rato después (si está conectada).
+        s.alcance.launch {
+            s.repo.cambios
+                .filter { it.startsWith("bloques:") || it.startsWith("vista:") || it.startsWith("pagina:") || it == "arbol" }
+                .debounce(1500)
+                .collect { s.copia.trasEditar() }
+        }
         // Una fecha cambiada en la app: sus recordatorios, a reprogramar.
         s.alcance.launch {
             s.repo.cambios.filter { it.startsWith("vista:") }.debounce(3000).collect { Alarmas.actualiza(this@NotionoApp, "cambio") }

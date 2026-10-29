@@ -31,6 +31,7 @@ class Servicios private constructor(ctx: Context) {
     val registro = Registro(ctx.filesDir, ctx.getSharedPreferences("registro", Context.MODE_PRIVATE)).also { r ->
         repo.alFallar = { ruta, e -> r.anota("red", "$ruta: ${e.estado} ${e.tipo}") }
     }
+    val copia by lazy { com.monrealperez.notiono.copia.CopiaNas(ctx, com.monrealperez.notiono.copia.CifradorKeystore, api, http, registro) }
 
     /**
      * Para lo que tiene que terminar aunque se cierre la pantalla (mandar lo pendiente al
