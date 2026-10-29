@@ -130,6 +130,7 @@ class AccionesEditor(
         val (tipo, props) = tipoDe(clave)
         estado.convierte(b, tipo, props)
         if (b.esTexto) estado.foco = PeticionFoco(b.id, b.texto?.length ?: 0)
+        if (tipo == "drawing") editaDibujo(b)
     }
 
     fun pideConvertir() {
@@ -159,6 +160,7 @@ class AccionesEditor(
                 objetivo = e
                 dialogo = "tex"
             }
+            "drawing" -> Bloque.nuevo("drawing").let { coloca(it); editaDibujo(it) }
             "bookmark" -> { objetivo = null; dialogo = "url" }
             "image", "video", "audio", "file" -> { tipoSubida = item.clave; dialogo = "subir" }
             "bd" -> alcance.launch {
@@ -256,6 +258,7 @@ class AccionesEditor(
     fun eligeEmojiLlamada(b: Bloque) { objetivo = b; dialogo = "llamada" }
     fun eligeLenguaje(b: Bloque) { objetivo = b; dialogo = "lenguaje" }
     fun editaTex(b: Bloque) { objetivo = b; dialogo = "tex" }
+    fun editaDibujo(b: Bloque) { objetivo = b; dialogo = "dibujo" }
     fun editaPie(b: Bloque) { objetivo = b; dialogo = "pie" }
     fun cambiaMedio(b: Bloque) { objetivo = b; tipoSubida = b.tipo; dialogo = "subir" }
     fun editaMarcador(b: Bloque) { objetivo = b; dialogo = "url" }
@@ -334,6 +337,10 @@ class AccionesEditor(
                         else coloca(Bloque.nuevo("bookmark", props))
                     }
                 }
+            }
+            "dibujo" -> if (b != null) LienzoDibujo(b.prop("escena").orEmpty(), onCerrar = { dialogo = null }) { g ->
+                dialogo = null
+                estado.props(b, "escena" to JsonPrimitive(g.escena), "imagen" to JsonPrimitive(g.imagen), "texto" to JsonPrimitive(g.texto))
             }
             "tex" -> if (b != null) EditorTex(b.prop("tex") ?: "") { tex ->
                 dialogo = null

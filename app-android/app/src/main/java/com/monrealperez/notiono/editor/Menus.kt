@@ -84,6 +84,7 @@ val ITEMS_BLOQUE = listOf(
     ItemBloque("callout", "Llamada", "lightbulb", "Bloques básicos", "llamada callout aviso"),
     ItemBloque("divider", "Separador", "minus", "Bloques básicos", "separador linea divider ---"),
     ItemBloque("codeBlock", "Código", "code", "Bloques básicos", "codigo code ```"),
+    ItemBloque("drawing", "Dibujo", "pen-line", "Bloques básicos", "dibujo dibujar mano lapiz boceto pizarra subrayador drawing"),
     ItemBloque("subpagina", "Subpágina", "file-text", "Bloques básicos", "subpagina pagina page"),
     ItemBloque("table", "Tabla", "table", "Avanzados", "tabla rejilla"),
     ItemBloque("columnas2", "2 columnas", "columns-2", "Avanzados", "columnas"),
@@ -382,6 +383,7 @@ fun nombreTipo(tipo: String) = when (tipo) {
     "table" -> "Tabla"
     "bookmark" -> "Enlace web"
     "equation" -> "Ecuación"
+    "drawing" -> "Dibujo"
     "toc" -> "Tabla de contenidos"
     "database" -> "Base de datos"
     "columnList" -> "Columnas"

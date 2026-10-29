@@ -354,6 +354,8 @@ class EstadoEditor(var pal: Paleta, val editable: Boolean) {
                 b.texto = SpannableStringBuilder()
                 b.crudo = null
             }
+            // A un bloque sin texto (Dibujo): lo escrito se va, como en la web.
+            if (tipo !in TIPOS_TEXTO) b.texto = null
             if (tipo == "codeBlock") b.texto?.let { Inline.limpia(it, 0, it.length, pal) }
             estructura(b)
         }

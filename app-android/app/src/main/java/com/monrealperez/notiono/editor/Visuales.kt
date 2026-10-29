@@ -127,6 +127,25 @@ fun BloqueVisual(b: Bloque, estado: EstadoEditor, editable: Boolean, acciones: A
                 }
             }
         }
+        "drawing" -> {
+            val img = b.prop("imagen").orEmpty()
+            var grande by remember { mutableStateOf(false) }
+            Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                if (img.isBlank()) Vacio("pen-line", if (editable) "Dibujo vacío · toca para dibujar" else "Dibujo vacío", editable) { acciones.editaDibujo(b) }
+                else AsyncImage(
+                    model = api.absoluta(img), contentDescription = "Dibujo",
+                    contentScale = ContentScale.FillWidth,
+                    colorFilter = if (C.oscuro) InvierteOscuro else null,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp).clip(RoundedCornerShape(6.dp))
+                        .clickable { if (editable) acciones.editaDibujo(b) else grande = true },
+                )
+            }
+            if (grande) Dialog({ grande = false }, DialogProperties(usePlatformDefaultWidth = false)) {
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White), contentAlignment = Alignment.Center) {
+                    VisorImagen(api.absoluta(img), onCerrar = { grande = false })
+                }
+            }
+        }
         "equation" -> Box(
             Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(6.dp)).clickable(enabled = editable) { acciones.editaTex(b) }.padding(8.dp),
             contentAlignment = Alignment.Center,

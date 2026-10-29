@@ -15,7 +15,7 @@ val TIPOS_TEXTO = setOf(
 
 /** Tipos que la app sabe pintar (lo demás sale como marcador y se conserva intacto). */
 val TIPOS_CONOCIDOS = TIPOS_TEXTO + setOf(
-    "divider", "image", "video", "audio", "file", "table", "bookmark", "equation", "toc", "columnList", "column", "database",
+    "divider", "image", "video", "audio", "file", "table", "bookmark", "equation", "toc", "columnList", "column", "database", "drawing",
 )
 
 /**
@@ -106,6 +106,7 @@ class Bloque(
                 "table" -> mapOf("textColor" to JsonPrimitive("default"))
                 "bookmark" -> mapOf("url" to JsonPrimitive(""), "title" to JsonPrimitive(""), "description" to JsonPrimitive(""), "image" to JsonPrimitive(""), "siteName" to JsonPrimitive(""))
                 "equation" -> mapOf("tex" to JsonPrimitive(""))
+                "drawing" -> mapOf("escena" to JsonPrimitive(""), "imagen" to JsonPrimitive(""), "texto" to JsonPrimitive(""))
                 "column" -> mapOf("ancho" to JsonPrimitive(1))
                 "database" -> mapOf("collectionId" to JsonPrimitive(""), "pageId" to JsonPrimitive(""), "viewId" to JsonPrimitive(""))
                 else -> emptyMap()
