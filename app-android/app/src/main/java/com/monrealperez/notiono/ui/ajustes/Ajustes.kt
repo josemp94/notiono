@@ -261,6 +261,9 @@ private fun SeccionDiagnostico() {
 
 /** Lo nuevo de cada versión, lo último primero (Ajustes → Novedades). */
 val NOVEDADES = listOf(
+    "2.4.1" to listOf(
+        "Las casillas se marcan tocándolas en todas las vistas: en la Lista van delante del título (y la tarea hecha sale tachada), y en las tarjetas del Kanban y la Galería se marcan sin abrir la ficha.",
+    ),
     "2.4.0" to listOf(
         "Varios espacios, como en Notion: el selector enseña los avisos sin leer de cada espacio y deja crear uno nuevo con su nombre e icono.",
         "Ajustes del espacio: General (nombre, icono, salir o eliminarlo escribiendo su nombre) y Personas, con miembros, invitados, invitaciones pendientes, roles y traspasar la propiedad.",

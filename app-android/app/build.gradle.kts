@@ -25,8 +25,8 @@ android {
         applicationId = "com.monrealperez.notiono"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.4.0"
+        versionCode = 11
+        versionName = "2.4.1"
         buildConfigField("String", "BASE_URL", "\"https://notiono.monrealperez.com\"")
         vectorDrawables.useSupportLibrary = true
     }
