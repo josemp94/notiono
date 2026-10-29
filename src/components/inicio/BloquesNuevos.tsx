@@ -10,8 +10,14 @@ import { cuandoEvento } from "@/lib/recordatorios";
 import { fechaTarea } from "@/lib/cellText";
 import type { ConfigInicio } from "@/lib/inicio";
 
+/**
+ * La tarjeta de cada bloque del Inicio, como las del Home de Notion (Mis tareas, Próximos
+ * eventos): la llevan también los que Notion no tiene, para que se vean de la misma familia.
+ */
+export const TARJETA = "overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] shadow-sm";
+
 const boton =
-  "toque flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-[var(--border)] px-2 py-3 text-sm hover:bg-[var(--hover)] disabled:opacity-60";
+  "toque flex flex-1 flex-col items-center gap-1.5 px-2 py-3 text-sm hover:bg-[var(--hover)] disabled:opacity-60";
 
 /** Crear una página (opcionalmente con contenido) y abrirla. */
 function useNuevaPagina() {
@@ -53,7 +59,7 @@ export function AccionesRapidas({ config, guardar }: { config: ConfigInicio; gua
   }
   return (
     <div>
-      <div className="flex gap-2">
+      <div className={`flex divide-x divide-[var(--border)] ${TARJETA}`}>
         <button disabled={ocupado} onClick={haz(() => nueva(""))} className={boton}>
           <FilePlus size={20} strokeWidth={1.75} /> Página
         </button>
@@ -187,17 +193,17 @@ export function BlocNotas({ inicial }: { inicial: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto]);
   return (
-    <div>
+    <div className={TARJETA}>
       <textarea
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         rows={5}
         placeholder="Apunta algo rápido… (- [ ] para casillas)"
         aria-label="Bloc de notas rápido"
-        className="w-full resize-y rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--muted)]"
+        className="block w-full resize-y bg-transparent px-3 py-2 text-sm outline-none"
       />
-      <div className="mt-1 flex items-center justify-between">
-        <span className="text-xs text-[var(--muted)]">{estado === "guardando" ? "Guardando…" : estado === "guardado" ? "Guardado" : ""}</span>
+      <div className="flex items-center justify-between border-t border-[var(--border)] px-2 py-1">
+        <span className="px-1 text-xs text-[var(--muted)]">{estado === "guardando" ? "Guardando…" : estado === "guardado" ? "Guardado" : ""}</span>
         <button
           disabled={!texto.trim() || convertir.isPending || estado === "guardando"}
           onClick={() => {
@@ -295,7 +301,7 @@ export function NotaFijada({ pageId, titulo }: { pageId: string; titulo: string 
       return [fila, ...pinta(b.children ?? [], nivel + 1)].filter(Boolean);
     });
   return (
-    <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+    <div className={`${TARJETA} px-3 py-2 text-sm`}>
       <Link href={`/p/${pageId}`} className="mb-1 block font-medium hover:underline">
         {titulo || "Sin título"}
       </Link>
@@ -307,7 +313,7 @@ export function NotaFijada({ pageId, titulo }: { pageId: string; titulo: string 
 /** Recordatorios: mis próximos avisos pendientes (de este espacio). */
 export function ListaRecordatorios({ lista }: { lista: { key: string; titulo: string; inicio: string; pageId: string; recordId: string | null }[] }) {
   return (
-    <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+    <ul className={`divide-y divide-[var(--border)] ${TARJETA}`}>
       {lista.slice(0, 8).map((r) => (
         <li key={r.key}>
           <Link href={`/p/${r.pageId}${r.recordId ? `?r=${r.recordId}` : ""}`} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-[var(--border)]/20">

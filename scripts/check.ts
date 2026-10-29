@@ -1191,6 +1191,18 @@ import { agrupaTareas, estaHecha, seccionDe, valorHecho } from "../src/lib/tarea
   assert.equal(seccionDe(t("x", "2027-01-01"), "2026-12-31"), "manana");
 }
 
+// El Inicio con los nombres del Home de Notion, igual en la web y en la app (Inicio.kt).
+import { TITULO_BLOQUE } from "../src/lib/inicio";
+import { readFileSync } from "node:fs";
+{
+  assert.equal(TITULO_BLOQUE.recientes, "Visitado recientemente");
+  assert.equal(TITULO_BLOQUE.proximas, "Próximos eventos");
+  const kt = readFileSync(new URL("../app-android/app/src/main/java/com/monrealperez/notiono/ui/inicio/Inicio.kt", import.meta.url), "utf8");
+  for (const [id, titulo] of Object.entries(TITULO_BLOQUE))
+    assert.match(kt, new RegExp(`"${id}" to \\("[^"]+" to "${titulo}"\\)`), `la app llama «${titulo}» al bloque ${id}`);
+  assert.doesNotMatch(kt, /Buscar en Notiono/, "el Inicio de Notion no lleva buscador");
+}
+
 // Información de la página: palabras, caracteres, casillas, imágenes y adjuntos.
 import { cuandoInfo, infoPagina, pieInfo } from "../src/lib/infoPagina";
 {

@@ -20,18 +20,17 @@ import {
   Globe,
   GripVertical,
   Link2,
+  MoreHorizontal,
   Plus,
   Pin,
   RotateCcw,
-  Search,
   Settings2,
   Star,
   StickyNote,
   X,
   Zap,
 } from "lucide-react";
-import { AccionesRapidas, BlocNotas, ElegirBdTareas, ElegirNota, ListaRecordatorios, NotaFijada } from "@/components/inicio/BloquesNuevos";
-import { openSearchPalette } from "@/components/SearchPalette";
+import { AccionesRapidas, BlocNotas, ElegirBdTareas, ElegirNota, ListaRecordatorios, NotaFijada, TARJETA } from "@/components/inicio/BloquesNuevos";
 import { trpc } from "@/trpc/react";
 import { getRecents, RECENTS_EVENT, type Recent } from "@/lib/recents";
 import { fechaTarea } from "@/lib/cellText";
@@ -44,6 +43,7 @@ import {
   proximasFechas,
   saludoInicio,
   tareasDeHoy,
+  TITULO_BLOQUE,
   urlValida,
   type BloqueInicio,
   type ConfigInicio,
@@ -54,18 +54,19 @@ import { IconoPagina } from "@/components/PageIcon";
 import { MovePageModal } from "@/components/MovePage";
 import { AbrirAlIniciar, useInicio } from "@/components/AbrirAlIniciar";
 import { BotonPanel } from "@/components/AppShell";
+import { coverStyle } from "@/components/PageCover";
 
 const BLOQUE: Record<BloqueInicio, { titulo: string; icono: ReactNode; vacio: string }> = {
-  recientes: { titulo: "Recientes", icono: <Clock size={15} />, vacio: "Aún no has abierto ninguna página en este dispositivo." },
-  tareas: { titulo: "Mis tareas", icono: <CircleCheck size={15} />, vacio: "No tienes nada asignado." },
-  hoy: { titulo: "Tareas para hoy", icono: <CalendarCheck size={15} />, vacio: "Nada para hoy ni vencido." },
-  proximas: { titulo: "Próximas fechas", icono: <CalendarDays size={15} />, vacio: "Nada en los próximos 7 días." },
-  favoritos: { titulo: "Favoritos", icono: <Star size={15} />, vacio: "Marca páginas con la estrella para verlas aquí." },
-  enlaces: { titulo: "Enlaces fijados", icono: <Link2 size={15} />, vacio: "Fija páginas o webs que uses a menudo." },
-  acciones: { titulo: "Acciones rápidas", icono: <Zap size={15} />, vacio: "" },
-  bloc: { titulo: "Bloc de notas", icono: <StickyNote size={15} />, vacio: "" },
-  nota: { titulo: "Nota fijada", icono: <Pin size={15} />, vacio: "Elige qué página ver aquí." },
-  recordatorios: { titulo: "Recordatorios", icono: <Bell size={15} />, vacio: "No tienes recordatorios pendientes." },
+  recientes: { titulo: TITULO_BLOQUE.recientes, icono: <Clock size={15} />, vacio: "Aún no has abierto ninguna página en este dispositivo." },
+  tareas: { titulo: TITULO_BLOQUE.tareas, icono: <CircleCheck size={15} />, vacio: "No tienes nada asignado." },
+  hoy: { titulo: TITULO_BLOQUE.hoy, icono: <CalendarCheck size={15} />, vacio: "Nada para hoy ni vencido." },
+  proximas: { titulo: TITULO_BLOQUE.proximas, icono: <CalendarDays size={15} />, vacio: "Nada en los próximos 7 días." },
+  favoritos: { titulo: TITULO_BLOQUE.favoritos, icono: <Star size={15} />, vacio: "Marca páginas con la estrella para verlas aquí." },
+  enlaces: { titulo: TITULO_BLOQUE.enlaces, icono: <Link2 size={15} />, vacio: "Fija páginas o webs que uses a menudo." },
+  acciones: { titulo: TITULO_BLOQUE.acciones, icono: <Zap size={15} />, vacio: "" },
+  bloc: { titulo: TITULO_BLOQUE.bloc, icono: <StickyNote size={15} />, vacio: "" },
+  nota: { titulo: TITULO_BLOQUE.nota, icono: <Pin size={15} />, vacio: "Elige qué página ver aquí." },
+  recordatorios: { titulo: TITULO_BLOQUE.recordatorios, icono: <Bell size={15} />, vacio: "No tienes recordatorios pendientes." },
 };
 
 type Tarea = { recordId: string; pageId: string; dbTitle: string; title: string; status: string; date: string };
@@ -163,16 +164,17 @@ function InicioMiembro() {
   if (decidiendo) return null;
 
   const nombre = me?.name?.split(" ")[0] ?? "";
-  const [saludo, fechaHoy] = saludoInicio(nombre).split(" · ");
+  const [saludo] = saludoInicio(nombre).split(" · ");
   const hoy = diaLocal();
   const tareas: Tarea[] = tasks ?? [];
+  const portadas = Object.fromEntries((tree ?? []).map((p) => [p.id, p.cover]));
 
   const contenido = (id: BloqueInicio): ReactNode => {
     switch (id) {
       case "recientes":
-        return recientes.length ? <Tarjetas paginas={recientes.slice(0, 8).map((r) => ({ id: r.pageId, title: r.title, icon: r.icon }))} /> : null;
+        return recientes.length ? <Tarjetas paginas={recientes.slice(0, 8).map((r) => ({ id: r.pageId, title: r.title, icon: r.icon }))} portadas={portadas} /> : null;
       case "favoritos":
-        return favoritos?.length ? <Tarjetas paginas={favoritos} /> : null;
+        return favoritos?.length ? <Tarjetas paginas={favoritos} portadas={portadas} /> : null;
       case "tareas":
         return tareas.length ? (
           <>
@@ -265,16 +267,8 @@ function InicioMiembro() {
         )}
       </div>
 
-      <h1 className="font-display mt-2 text-center text-2xl font-extrabold md:text-3xl">{saludo}</h1>
-      <p className="mt-1 text-center text-sm text-[var(--muted)] first-letter:uppercase">{fechaHoy}</p>
-      {/* El buscador debajo del saludo, como el «Buscar» del Home de Notion: abre Ctrl+K. */}
-      <button
-        onClick={openSearchPalette}
-        className="mx-auto mb-8 mt-4 flex w-full max-w-md items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--hover)] md:mb-10"
-      >
-        <Search size={16} strokeWidth={1.75} /> Buscar en Notiono…
-        <span className="ml-auto hidden text-xs md:inline">Ctrl+K</span>
-      </button>
+      {/* Solo el saludo, como el Home de Notion (sin fecha ni buscador: buscar está en el panel y en Ctrl+K). */}
+      <h1 className="font-display mb-8 mt-2 text-center text-2xl font-bold md:mb-10 md:text-3xl">{saludo}</h1>
 
       {fallo && <p className="mb-4 text-center text-sm text-red-500">No se pudo guardar: {fallo}</p>}
 
@@ -282,9 +276,20 @@ function InicioMiembro() {
         <ModoPersonalizar config={config} guardar={guardar} contenido={contenido} />
       ) : (
         <>
-          {secciones.map((s) => (
-            <section key={s.id} className="mb-8">
-              <Encabezado id={s.id} />
+          {secciones.map((s, i) => (
+            <section key={s.id} className="group/seccion mb-8">
+              <Encabezado
+                id={s.id}
+                // El ⋯ de cada sección, como en Notion: subir, bajar u ocultarla.
+                mover={(d) => {
+                  const j = config.bloques.findIndex((b) => b.id === secciones[i + d]?.id);
+                  const k = config.bloques.findIndex((b) => b.id === s.id);
+                  if (j >= 0) guardar({ ...config, bloques: lleva(config.bloques, k, j) });
+                }}
+                primera={i === 0}
+                ultima={i === secciones.length - 1}
+                ocultar={() => guardar({ ...config, bloques: config.bloques.map((b) => (b.id === s.id ? { ...b, visible: false } : b)) })}
+              />
               {s.c}
             </section>
           ))}
@@ -299,11 +304,53 @@ function InicioMiembro() {
   );
 }
 
-function Encabezado({ id }: { id: BloqueInicio }) {
+function Encabezado({
+  id,
+  mover,
+  ocultar,
+  primera,
+  ultima,
+}: {
+  id: BloqueInicio;
+  mover?: (d: -1 | 1) => void;
+  ocultar?: () => void;
+  primera?: boolean;
+  ultima?: boolean;
+}) {
+  const [menu, setMenu] = useState(false);
+  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-[var(--foreground)] hover:bg-[var(--hover)] disabled:opacity-40";
   return (
-    <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[var(--muted)]">
-      {BLOQUE[id].icono} {BLOQUE[id].titulo}
-    </h2>
+    <div className="relative mb-2 flex items-center">
+      <h2 className="flex flex-1 items-center gap-1.5 text-sm font-medium text-[var(--muted)]">
+        {BLOQUE[id].icono} {BLOQUE[id].titulo}
+      </h2>
+      {ocultar && (
+        <button
+          onClick={() => setMenu((m) => !m)}
+          title="Opciones de la sección"
+          aria-label="Opciones de la sección"
+          className={`toque al-pasar flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] md:opacity-0 md:group-hover/seccion:opacity-100 ${menu ? "md:opacity-100" : ""}`}
+        >
+          <MoreHorizontal size={16} />
+        </button>
+      )}
+      {menu && ocultar && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setMenu(false)} />
+          <div data-menu="" className="absolute right-0 top-full z-30 mt-1 w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 shadow-xl">
+            <button disabled={primera} onClick={() => (setMenu(false), mover?.(-1))} className={item}>
+              <ArrowUp size={15} strokeWidth={1.75} /> Subir
+            </button>
+            <button disabled={ultima} onClick={() => (setMenu(false), mover?.(1))} className={item}>
+              <ArrowDown size={15} strokeWidth={1.75} /> Bajar
+            </button>
+            <button onClick={() => (setMenu(false), ocultar())} className={item}>
+              <EyeOff size={15} strokeWidth={1.75} /> Ocultar sección
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -422,27 +469,35 @@ function BotonIcono({
   );
 }
 
-function Tarjetas({ paginas }: { paginas: { id: string; title: string; icon: string | null }[] }) {
+/**
+ * Las tarjetas de «Visitado recientemente» (y Favoritos), como las del Home de Notion: la
+ * portada arriba (o una franja gris), el icono montado encima y el título debajo.
+ */
+function Tarjetas({ paginas, portadas = {} }: { paginas: { id: string; title: string; icon: string | null }[]; portadas?: Record<string, string | null> }) {
   return (
-    <div className="barra-scroll flex gap-3 overflow-x-auto pb-2">
-      {paginas.map((p) => (
-        <Link
-          key={p.id}
-          href={`/p/${p.id}`}
-          className="w-36 shrink-0 rounded-lg border border-[var(--border)] p-3 hover:bg-[var(--hover)]"
-        >
-          <div className="mb-2">
-            <IconoPagina icon={p.icon} size={22} fallback="📄" />
-          </div>
-          <div className="line-clamp-2 text-sm font-medium">{p.title || "Sin título"}</div>
-        </Link>
-      ))}
+    <div className="barra-scroll -mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+      {paginas.map((p) => {
+        const portada = portadas[p.id];
+        return (
+          <Link
+            key={p.id}
+            href={`/p/${p.id}`}
+            className={`flex h-36 w-36 shrink-0 flex-col transition hover:shadow-md ${TARJETA}`}
+          >
+            <div className="h-11 shrink-0 bg-[var(--hover)]" style={portada ? coverStyle(portada) : undefined} />
+            <div className="-mt-4 px-3">
+              <IconoPagina icon={p.icon} size={26} fallback={<FileText size={26} strokeWidth={1.5} className="text-[var(--muted)]" />} />
+            </div>
+            <div className="mt-1.5 line-clamp-3 px-3 text-sm font-semibold leading-snug">{p.title || "Sin título"}</div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
 function Lista({ children }: { children: ReactNode }) {
-  return <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">{children}</ul>;
+  return <ul className={`divide-y divide-[var(--border)] ${TARJETA}`}>{children}</ul>;
 }
 
 function VerTodas() {

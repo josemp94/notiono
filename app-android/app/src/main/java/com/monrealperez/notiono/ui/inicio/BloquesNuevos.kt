@@ -5,6 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import com.monrealperez.notiono.ui.comun.Separador
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -82,15 +86,17 @@ fun AccionesRapidas(config: ConfigInicio, guarda: (ConfigInicio) -> Unit) {
     @Composable
     fun Boton(texto: String, icono: String, modifier: Modifier, onClick: () -> Unit) {
         Column(
-            modifier.clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp)).clickable(onClick = onClick).padding(vertical = 12.dp),
+            modifier.clickable(onClick = onClick).padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icono(icono, tam = 22.dp, color = C.texto)
             Text(texto, fontSize = 13.sp, color = C.texto, modifier = Modifier.padding(top = 4.dp))
         }
     }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // En una sola tarjeta, como las demás del Inicio.
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).tarjetaInicio().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
         Boton("Página", "file-plus", Modifier.weight(1f)) { n.nuevaPagina(null) }
+        Divisor()
         Boton("Lista", "list-todo", Modifier.weight(1f)) {
             alcance.launch {
                 try {
@@ -103,11 +109,16 @@ fun AccionesRapidas(config: ConfigInicio, guarda: (ConfigInicio) -> Unit) {
                 }
             }
         }
+        Divisor()
         Boton("Tarea", "circle-check", Modifier.weight(1f)) { tarea = true }
+        Divisor()
         Boton("Foto", "camera", Modifier.weight(1f)) { n.foto() }
     }
     if (tarea) DialogoTarea(config, guarda) { tarea = false }
 }
+
+@Composable
+private fun Divisor() = Box(Modifier.fillMaxHeight().width(1.dp).background(C.borde))
 
 /** Elegir la BD de las tareas rápidas (una vez; se cambia en Mis tareas). */
 @Composable
@@ -196,10 +207,17 @@ fun BlocNotas(inicial: String) {
         runCatching { s.repo.mutacion("inicio.guardarBloc", objeto("texto" to texto)) }
         guardado = texto
     }
-    Column(Modifier.padding(horizontal = 16.dp)) {
-        Campo(texto, { texto = it.take(MAX_BLOC) }, placeholder = "Apunta algo rápido… (- [ ] para casillas)", unaLinea = false,
-            modifier = Modifier.heightIn(min = 110.dp).semantics { contentDescription = "Bloc de notas rápido" })
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().tarjetaInicio()) {
+        androidx.compose.material3.OutlinedTextField(
+            texto, { texto = it.take(MAX_BLOC) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp).semantics { contentDescription = "Bloc de notas rápido" },
+            placeholder = { Text("Apunta algo rápido… (- [ ] para casillas)", color = C.apagado) },
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent, unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent, cursorColor = com.monrealperez.notiono.ui.tema.Marca,
+            ),
+        )
+        Separador()
+        Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (texto != guardado) "Guardando…" else if (texto.isNotEmpty()) "Guardado" else "", fontSize = 12.sp, color = C.apagado, modifier = Modifier.weight(1f))
             TextButton({
                 alcance.launch {
@@ -269,7 +287,7 @@ fun NotaFijada(pageId: String, titulo: String) {
             Pinta(b.arr("children")?.map { it.comoObjeto }.orEmpty(), nivel + 1)
         }
     }
-    Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp)).padding(12.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().tarjetaInicio().padding(12.dp)) {
         Text(titulo.ifBlank { "Sin título" }, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = C.texto, modifier = Modifier.clickable { n.pagina(pageId) }.padding(bottom = 4.dp))
         when {
             q.error != null && bloques == null -> Text("Esta página ya no existe o no la ves.", color = C.apagado, fontSize = 14.sp)
@@ -284,7 +302,7 @@ fun NotaFijada(pageId: String, titulo: String) {
 @Composable
 fun ListaRecordatorios(lista: List<JsonObject>) {
     val n = LocalNavegador.current
-    Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp))) {
+    Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().tarjetaInicio()) {
         for (r in lista.take(8)) {
             Row(
                 Modifier.fillMaxWidth().clickable { val rid = r.str("recordId"); if (rid != null) n.fila(r.str("pageId")!!, rid) else n.pagina(r.str("pageId")!!) }

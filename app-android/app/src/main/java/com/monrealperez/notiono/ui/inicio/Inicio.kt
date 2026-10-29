@@ -9,6 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.shadow
+import com.monrealperez.notiono.ui.comun.HojaLista
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -75,10 +81,10 @@ object ArranqueInicio {
 }
 
 private val TITULOS = mapOf(
-    "recientes" to ("clock" to "Recientes"),
+    "recientes" to ("clock" to "Visitado recientemente"),
     "tareas" to ("circle-check" to "Mis tareas"),
     "hoy" to ("calendar-check" to "Tareas para hoy"),
-    "proximas" to ("calendar-days" to "Próximas fechas"),
+    "proximas" to ("calendar-days" to "Próximos eventos"),
     "favoritos" to ("star" to "Favoritos"),
     "enlaces" to ("link-2" to "Enlaces fijados"),
     "acciones" to ("zap" to "Acciones rápidas"),
@@ -234,31 +240,26 @@ private fun InicioMiembro() {
         )
         if (decidiendo) return@Column
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-            // «Buenos días, Pablo · jueves 29 de octubre» y el buscador debajo, como en la web.
+            // Solo el saludo, como el Home de Notion (sin fecha ni buscador: buscar está abajo).
             Text(
                 if (nombre.isNotBlank()) "$saludo, $nombre" else saludo,
-                fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = C.texto, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                fontSize = 24.sp, fontWeight = FontWeight.Bold, color = C.texto, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 12.dp),
             )
-            Text(
-                fechaLarga(hoy).replaceFirstChar { it.uppercase() }, fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-            )
-            Row(
-                Modifier.padding(horizontal = 16.dp, vertical = 16.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp))
-                    .clickable { n.a("buscar") }.padding(horizontal = 12.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icono("search", tam = 17.dp, color = C.apagado)
-                Text("Buscar en Notiono…", color = C.apagado, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
-            }
             if (editando) {
                 Personalizar(datos, ::guarda)
             } else {
                 val secciones = config.bloques.filter { it.visible && tiene(it.id) }
-                for (b in secciones) {
+                for ((i, b) in secciones.withIndex()) {
                     val (icono, titulo) = TITULOS.getValue(b.id)
-                    Encabezado(icono, titulo)
+                    // El ⋯ de cada sección, como en Notion: subir, bajar u ocultarla.
+                    Encabezado(icono, titulo, primera = i == 0, ultima = i == secciones.lastIndex,
+                        mover = { d ->
+                            val j = config.bloques.indexOfFirst { it.id == secciones.getOrNull(i + d)?.id }
+                            val k = config.bloques.indexOfFirst { it.id == b.id }
+                            if (j >= 0) guarda(config.copy(bloques = config.bloques.toMutableList().apply { add(j, removeAt(k)) }))
+                        },
+                        ocultar = { guarda(config.copy(bloques = config.bloques.map { if (it.id == b.id) it.copy(visible = false) else it })) })
                     Contenido(b.id)
                 }
                 val alguno = secciones.isNotEmpty()
@@ -441,23 +442,28 @@ private fun FilaEnlace(e: Enlace, p: Pair<String, String?>?, onClick: () -> Unit
 @Composable
 private fun Tarjetas(paginas: List<Triple<String, String, String?>>) {
     val n = LocalNavegador.current
-    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Como las de «Visitado recientemente» de Notion: franja arriba, el icono montado encima y el título.
+    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         for ((id, title, icon) in paginas) {
-            Column(
-                Modifier.width(140.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp))
-                    .clickable { n.pagina(id) }.padding(12.dp),
-            ) {
-                IconoPagina(icon, 24.dp)
-                Text(title.ifBlank { "Sin título" }, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis, color = C.texto, modifier = Modifier.padding(top = 8.dp).height(40.dp))
+            Column(Modifier.width(140.dp).height(140.dp).tarjetaInicio().clickable { n.pagina(id) }) {
+                Box(Modifier.fillMaxWidth().height(44.dp).background(C.hover))
+                Box(Modifier.padding(start = 12.dp).offset(y = (-14).dp)) { IconoPagina(icon, 26.dp) }
+                Text(title.ifBlank { "Sin título" }, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 3, lineHeight = 18.sp,
+                    overflow = TextOverflow.Ellipsis, color = C.texto, modifier = Modifier.padding(horizontal = 12.dp).offset(y = (-8).dp))
             }
         }
     }
 }
 
+/** La tarjeta de cada bloque del Inicio (como las del Home de Notion), también la de los que Notion no tiene. */
+fun Modifier.tarjetaInicio(): Modifier = composed {
+    val forma = RoundedCornerShape(12.dp)
+    this.shadow(1.dp, forma).clip(forma).background(C.fondo).border(1.dp, C.borde, forma)
+}
+
 @Composable
 private fun Lista(contenido: @Composable () -> Unit) {
-    Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp))) { contenido() }
+    Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().tarjetaInicio()) { contenido() }
 }
 
 @Composable
@@ -470,9 +476,16 @@ private fun VerTodas() {
 }
 
 @Composable
-private fun Encabezado(icono: String, texto: String) {
-    Row(Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Encabezado(icono: String, texto: String, primera: Boolean = true, ultima: Boolean = true, mover: ((Int) -> Unit)? = null, ocultar: (() -> Unit)? = null) {
+    var menu by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Icono(icono, tam = 15.dp, color = C.apagado)
-        Text(texto, color = C.apagado, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 6.dp))
+        Text(texto, color = C.apagado, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 6.dp).weight(1f))
+        if (ocultar != null) BotonIcono("ellipsis", { menu = true }, descripcion = "Opciones de la sección")
+    }
+    if (menu && ocultar != null) HojaLista({ menu = false }, texto) {
+        if (!primera) FilaMenu("Subir", "arrow-up") { menu = false; mover?.invoke(-1) }
+        if (!ultima) FilaMenu("Bajar", "arrow-down") { menu = false; mover?.invoke(1) }
+        FilaMenu("Ocultar sección", "eye-off") { menu = false; ocultar() }
     }
 }

@@ -63,10 +63,10 @@ private val ETIQUETAS_BOTON = mapOf(
 
 /** Botón de icono con zona de toque de 40 dp (la `.toque` de la web). */
 @Composable
-fun BotonIcono(icono: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = C.apagado, tam: Dp = 20.dp, activo: Boolean = true) {
+fun BotonIcono(icono: String, onClick: () -> Unit, modifier: Modifier = Modifier, color: Color = C.apagado, tam: Dp = 20.dp, activo: Boolean = true, descripcion: String? = null) {
     Box(
         modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = activo, onClickLabel = null, role = Role.Button, onClick = onClick)
-            .semantics { ETIQUETAS_BOTON[icono]?.let { contentDescription = it } },
+            .semantics { (descripcion ?: ETIQUETAS_BOTON[icono])?.let { contentDescription = it } },
         contentAlignment = Alignment.Center,
     ) { Icono(icono, tam = tam, color = if (activo) color else color.copy(alpha = 0.4f)) }
 }

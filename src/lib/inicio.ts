@@ -16,6 +16,23 @@ export const BLOQUES = [
 ] as const;
 export type BloqueInicio = (typeof BLOQUES)[number];
 
+/**
+ * Cómo se llama cada bloque (web y app, `TITULOS` de Inicio.kt): los que tiene Notion, con
+ * su nombre del Home de Notion; los demás, con el suyo.
+ */
+export const TITULO_BLOQUE: Record<BloqueInicio, string> = {
+  recientes: "Visitado recientemente",
+  tareas: "Mis tareas",
+  hoy: "Tareas para hoy",
+  proximas: "Próximos eventos",
+  favoritos: "Favoritos",
+  enlaces: "Enlaces fijados",
+  acciones: "Acciones rápidas",
+  bloc: "Bloc de notas",
+  nota: "Nota fijada",
+  recordatorios: "Recordatorios",
+};
+
 /** Quien nunca ha tocado nada ve el Inicio de siempre: recientes y mis tareas. */
 const VISIBLES_POR_DEFECTO: BloqueInicio[] = ["recientes", "tareas"];
 

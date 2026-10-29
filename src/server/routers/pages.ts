@@ -30,6 +30,8 @@ type TreeNode = {
   parentId: string | null;
   order: string;
   type: string;
+  /** La portada (para las tarjetas de «Visitado recientemente» del Inicio). */
+  cover: string | null;
   hasChildren: boolean;
 };
 
@@ -38,7 +40,7 @@ export const pagesRouter = router({
   tree: workspaceProcedure.query(async ({ ctx }): Promise<TreeNode[]> => {
     const todas = await ctx.db.page.findMany({
       where: { workspaceId: ctx.workspace.id, archivedAt: null, embedded: false },
-      select: { id: true, title: true, icon: true, parentId: true, order: true, type: true },
+      select: { id: true, title: true, icon: true, parentId: true, order: true, type: true, cover: true },
       orderBy: { order: "asc" },
     });
     // Una página restringida no existe para quien no está invitado: ni en el árbol.
