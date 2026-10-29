@@ -52,7 +52,8 @@ import java.time.LocalDate
 /**
  * Capturas de lo nuevo de la 2.5.0 en la app, en claro y en oscuro (390 dp), con datos de
  * mentira: Inicio (acciones, bloc, nota fijada, recordatorios, información de la página),
- * Mis tareas por secciones y «Recordarme…». Solo graban con -Proborazzi.test.record=true.
+ * Mis tareas por secciones, el menú de la mención de fecha, el Inicio entero y «Exportar».
+ * Solo graban con -Proborazzi.test.record=true.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -76,7 +77,9 @@ class CapturasPabloTest {
                       {"recordId":"r5","pageId":"bd","dbTitle":"Tareas","title":"Llamar a la abuela","date":"${hoy.plusDays(4)}","status":"","hecha":false,"marca":{"fieldId":"c","si":true,"no":false}},
                       {"recordId":"r6","pageId":"bd","dbTitle":"Tareas","title":"Ordenar el trastero","date":"","status":"","hecha":false,"marca":{"fieldId":"c","si":true,"no":false}},
                       {"recordId":"r4","pageId":"bd","dbTitle":"Tareas","title":"Enviar el informe","date":"${hoy.minusDays(1)}","status":"","hecha":true,"marca":{"fieldId":"c","si":true,"no":false}}]"""
-                    "inicio.get" -> """{"config":{"bloques":[],"tareas":"bd"},"paginas":{"bd":{"title":"Tareas","icon":null}}}"""
+                    "inicio.get" -> """{"config":{"bloques":[{"id":"recientes","visible":true},{"id":"tareas","visible":true},{"id":"acciones","visible":true},{"id":"nota","visible":true}],"tareas":"bd","nota":"pn"},"paginas":{"bd":{"title":"Tareas","icon":null},"pn":{"title":"Lista de la compra","icon":"🛒"}}}"""
+                    "auth.me" -> """{"id":"u1","email":"pablo@example.com","name":"Pablo","role":"owner","wsRole":"owner","workspace":{"id":"w1","name":"Casa"}}"""
+                    "inicio.recordatorios" -> "[]"
                     "app.bloques" -> """{"huella":"h","bloques":[
                       {"id":"n0","type":"heading","props":{"level":2},"content":[{"type":"text","text":"Súper","styles":{}}],"children":[]},
                       {"id":"n1","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"Leche","styles":{}}],"children":[]},
@@ -129,6 +132,18 @@ class CapturasPabloTest {
         }
     }
 
+    /** El Inicio entero como el Home de Notion (2.5.1): saludo, «Visitado recientemente», tarjetas y ⋯ por sección. */
+    private fun inicioEntero(oscuro: Boolean) {
+        val s = Servicios.de(ctx)
+        for ((i, t) in listOf("Apuntes de Pablo" to "📓", "Viaje a Asturias" to "🏔️", "Recetas" to null).withIndex())
+            s.recientes.anota("w1", com.monrealperez.notiono.datos.Reciente("p$i", t.first, t.second, System.currentTimeMillis() - i * 60_000L))
+        com.monrealperez.notiono.ui.inicio.ArranqueInicio.pendiente = false
+        foto("app-inicio-entero", oscuro, "Visitado recientemente") { com.monrealperez.notiono.ui.inicio.PantallaInicio() }
+    }
+    @Test fun inicioEnteroClaro() = inicioEntero(false)
+    @Test fun inicioEnteroOscuro() = inicioEntero(true)
+    @Test fun exportarClaro() = foto("app-exportar", false, "Formato de exportación") { com.monrealperez.notiono.ui.pagina.HojaExportar("p1", null, esBd = false) {} }
+    @Test fun exportarOscuro() = foto("app-exportar", true, "Formato de exportación") { com.monrealperez.notiono.ui.pagina.HojaExportar("p1", null, esBd = false) {} }
     @Test fun inicioClaro() = inicio(false)
     @Test fun inicioOscuro() = inicio(true)
     @Test fun tareasClaro() = foto("app-mis-tareas", false, "Pagar la luz") { PantallaTareas() }

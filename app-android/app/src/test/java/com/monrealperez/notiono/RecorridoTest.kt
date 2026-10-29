@@ -414,7 +414,7 @@ class RecorridoTest {
         destinos.trySend(Destino.Pagina(pagina))
         espera("la página") { campos().any { it.text.toString() == "Lista de la compra" } }
         pulsaDesc("Más opciones")
-        // El menú (con «Recordarme…» y la información al pie, 2.5.0) ya no cabe en la hoja a medio
+        // El menú (con «Exportar» y la información al pie) ya no cabe en la hoja a medio
         // abrir: se sube con el dedo, como lo haría una persona.
         val lista = compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsActions.ScrollBy)).fetchSemanticsNodes().last()
         compose.onNode(SemanticsMatcher("lista del menú") { it.id == lista.id })

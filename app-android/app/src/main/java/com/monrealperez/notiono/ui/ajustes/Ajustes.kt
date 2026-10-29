@@ -261,6 +261,17 @@ private fun SeccionDiagnostico() {
 
 /** Lo nuevo de cada versión, lo último primero (Ajustes → Novedades). */
 val NOVEDADES = listOf(
+    "2.5.1" to listOf(
+        "Más parecido a Notion: lo que Notion tiene se ve y se hace como en Notion, y lo que no tiene encaja con lo demás.",
+        "Las casillas de una base de datos son una propiedad más: en la Lista van con las demás, se marcan tocándolas y ya no tachan el título. La «Lista de tareas» de una página sí se tacha y se pone en gris, como en Notion.",
+        "Recordatorios como en Notion: escribe «@recordar mañana» (o «@recordar a las 19:00», «@recordar el miércoles a las 13:00») o elige «Recordar…» en el menú @. Tocando la fecha cambias el día, la hora y el aviso. «Recordarme…» ya no está en el menú de la página.",
+        "«Posponer 1 h» mueve ese recordatorio a dentro de una hora (si era «antes» de un evento, el evento no se toca).",
+        "«Exportar» en el menú de la página y de la fila, como en Notion: eliges el formato (PDF, HTML, Markdown y CSV o Word).",
+        "Al pie del menú: «Recuento de palabras» y «Última edición», como en Notion; lo demás, en «Más información».",
+        "Inicio como el de Notion: el saludo, «Visitado recientemente» con tarjetas, «Próximos eventos» y «Mis tareas», todos con la misma tarjeta, y el ⋯ de cada sección para subirla, bajarla u ocultarla.",
+        "El dibujo se porta como una imagen: está con las imágenes en el menú «/» y tiene leyenda.",
+        "Widget «Nota»: las ‹ › van a la derecha del título, como en el Calendario, y «Mis notas recientes» se elige como una opción más.",
+    ),
     "2.5.0" to listOf(
         "Dibujo a mano: un bloque «Dibujo» (menú «/») con bolígrafo, lápiz, rotulador y subrayador, goma, texto y formas, colores y grosores, y fondo liso, de cuadrícula, puntos o rayas. Se edita igual aquí que en el ordenador.",
         "Exportar a Word: desde el menú de una página o de una fila, el .docx se comparte con lo que quieras (con sus casillas, imágenes y dibujos).",
