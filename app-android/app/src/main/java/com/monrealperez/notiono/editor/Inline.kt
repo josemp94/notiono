@@ -102,7 +102,8 @@ object Inline {
     fun chip(nodo: JsonObject, pal: Paleta): ChipSpan {
         val (fondo, tinta) = when (nodo.str("type")) {
             "personMention" -> pal.personaFondo to pal.personaTinta
-            "dateMention" -> pal.fechaFondo to pal.fechaTinta
+            // Con recordatorio, en azul (como en la web y como Notion distingue las fechas con aviso).
+            "dateMention" -> if ((nodo["props"] as? JsonObject)?.str("recordatorio").isNullOrEmpty()) pal.fechaFondo to pal.fechaTinta else pal.personaFondo to pal.personaTinta
             else -> pal.chipFondo to pal.chipTinta
         }
         return ChipSpan(nodo, etiquetaChip(nodo), fondo, tinta)
