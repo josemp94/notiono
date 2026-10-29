@@ -3,6 +3,7 @@ package com.monrealperez.notiono.ui.buscar
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
@@ -140,8 +141,19 @@ private fun Filtro(texto: String, activo: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun Resultado(titulo: String, icono: String?, detalle: String?, color: String?, porDefecto: String = "file-text", onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        com.monrealperez.notiono.ui.comun.BarraColor(color, Modifier.padding(end = 6.dp), alto = 20.dp)
+    // La barrita del color de página en el margen, sin mover el icono ni el título de los que no tienen.
+    val barra = com.monrealperez.notiono.ui.comun.ColorPagina.barra(color, C.oscuro)
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .drawBehind {
+                if (barra != null) drawRoundRect(
+                    barra, topLeft = androidx.compose.ui.geometry.Offset(7.dp.toPx(), size.height / 2 - 10.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(3.dp.toPx(), 20.dp.toPx()), cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()),
+                )
+            }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         IconoPagina(icono, 20.dp, porDefecto = porDefecto)
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(titulo.ifBlank { "Sin título" }, fontSize = 15.sp, color = C.texto, maxLines = 1, overflow = TextOverflow.Ellipsis)

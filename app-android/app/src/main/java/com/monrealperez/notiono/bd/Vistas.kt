@@ -61,6 +61,7 @@ import com.monrealperez.notiono.red.arr
 import com.monrealperez.notiono.red.bool
 import com.monrealperez.notiono.red.str
 import com.monrealperez.notiono.ui.comun.BarraColor
+import androidx.compose.ui.draw.drawBehind
 import com.monrealperez.notiono.ui.comun.FilaMenu
 import com.monrealperez.notiono.ui.comun.HojaLista
 import com.monrealperez.notiono.ui.comun.Icono
@@ -275,9 +276,14 @@ fun VistaLista(est: EstadoBD, abrir: (String) -> Unit) {
     // Como en Notion: una casilla es una propiedad más, en su sitio, que se marca ahí
     // mismo sin abrir la ficha; el título no se tacha ni se apaga.
     val fila: @Composable (Fila) -> Unit = { f ->
-        Column(Modifier.fillMaxWidth().background(fondoFila(f.color) ?: C.fondo).clickable { abrir(f.id) }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        // El color de la fila como página: una barrita en el borde que no mueve el título, como la web.
+        val barra = com.monrealperez.notiono.ui.comun.ColorPagina.barra(f.colorPagina, C.oscuro)
+        Column(
+            Modifier.fillMaxWidth().background(fondoFila(f.color) ?: C.fondo)
+                .drawBehind { if (barra != null) drawRect(barra, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
+                .clickable { abrir(f.id) }.padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                BarraColor(f.colorPagina, Modifier.padding(end = 6.dp), alto = 18.dp)
                 Icono("file-text", tam = 16.dp, color = C.apagado)
                 Text(
                     est.tituloDe(f), fontSize = 15.sp, fontWeight = FontWeight.Medium, color = C.texto,

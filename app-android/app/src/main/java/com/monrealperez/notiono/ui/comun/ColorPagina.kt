@@ -70,7 +70,9 @@ fun BarraColor(color: String?, modifier: Modifier = Modifier, alto: Dp = 16.dp) 
 @Composable
 fun MuestraColorPagina(id: String) {
     val forma = RoundedCornerShape(4.dp)
-    Box(Modifier.size(20.dp).clip(forma).background(ColorPagina.fondo(id, C.oscuro) ?: C.fondo).border(1.dp, C.borde, forma))
+    Box(Modifier.size(20.dp).clip(forma).background(ColorPagina.fondo(id, C.oscuro) ?: C.fondo)
+        // El borde en el tono de su barrita, como la web: en oscuro los fondos se parecen mucho entre sí.
+        .border(1.dp, ColorPagina.barra(id, C.oscuro) ?: C.borde, forma))
 }
 
 /** «Color de página» de ⋯ → Apariencia y diseño: los diez, con su muestra y una marca en el elegido. */
