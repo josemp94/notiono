@@ -37,6 +37,7 @@ import java.time.Duration
  * el móvil, pintando al momento lo guardado (sin esperar a la red), con sus casillas.
  */
 @RunWith(RobolectricTestRunner::class)
+@org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w390dp-h844dp-xxhdpi")
 class NotaRecientesTest {
     private val ctx get() = ApplicationProvider.getApplicationContext<Context>()
@@ -112,6 +113,24 @@ class NotaRecientesTest {
         // Y por detrás pide la nota nueva al servidor (cuando contesta, la vuelve a pintar).
         lento = false
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
+    }
+
+    /** Capturas del widget en modo recientes (con -Proborazzi.test.record=true), claro y oscuro. */
+    @Test
+    fun capturas() {
+        for (oscuro in listOf(false, true)) {
+            org.robolectric.RuntimeEnvironment.setQualifiers(if (oscuro) "+night" else "+notnight")
+            val id = Arnes.pon(ctx, NotaReceiver::class.java, ConfigWidget(pagina = "p2", titulo = "Página p2", espacio = "w1", recientes = true))
+            NotaReceiver().onUpdate(ctx, AppWidgetManager.getInstance(ctx), intArrayOf(id))
+            val v = Arnes.vista(ctx, synchronized(pintados) { pintados[id] }!!, 320, 220)
+            v.measure(View.MeasureSpec.makeMeasureSpec(v.layoutParams.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(v.layoutParams.height, View.MeasureSpec.EXACTLY))
+            v.layout(0, 0, v.measuredWidth, v.measuredHeight)
+            // Sin Activity (Roborazzi la pide para una View suelta): se pinta en un Bitmap a mano.
+            val b = android.graphics.Bitmap.createBitmap(v.measuredWidth, v.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
+            v.draw(android.graphics.Canvas(b))
+            File("build/capturas/pablo").apply { mkdirs() }.resolve("widget-nota-recientes-${if (oscuro) "oscuro" else "claro"}.png")
+                .outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        }
     }
 
     @Test
