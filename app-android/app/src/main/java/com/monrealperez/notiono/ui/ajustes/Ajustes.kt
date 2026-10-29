@@ -264,6 +264,15 @@ private fun SeccionDiagnostico() {
 
 /** Lo nuevo de cada versión, lo último primero (Ajustes → Novedades). */
 val NOVEDADES = listOf(
+    "2.5.2" to listOf(
+        "Etiquetas como en Notion: la plantilla «Notas» trae la propiedad Etiquetas (selección múltiple) y una vista por etiqueta, donde una nota con dos etiquetas sale en las dos. Se ponen y se quitan tocándolas en la ficha, y ahí mismo se renombran, se cambian de color o se borran.",
+        "El buscador encuentra también las notas de tus bases de datos (por su título y su texto) y las abre como una página.",
+        "«Apariencia y diseño» en el menú de la página, como en Notion: el estilo de letra y el texto pequeño. Y, de Notiono, el color de página: tiñe suave el fondo y deja una rayita de su color en listas, tarjetas, Inicio, el buscador y el widget Nota.",
+        "Al crear una página nueva puedes elegir dónde guardarla con «Añadir a ▾», como en Notion. Si no eliges, se queda en la raíz del espacio.",
+        "Widgets «Favoritos» y «Recientes», como los de Notion (el de recientes ya no mezcla las favoritas).",
+        "Copia en el NAS (Ajustes): un Word de cada página en tu Synology Drive, con las mismas carpetas que tus páginas, cada 6 horas y al poco de editar. Solo sube lo que cambia y la contraseña del NAS se queda cifrada en el móvil.",
+        "Los widgets Lista y Calendario ya no tachan las tareas hechas de una base de datos, como en Notion.",
+    ),
     "2.5.1" to listOf(
         "Más parecido a Notion: lo que Notion tiene se ve y se hace como en Notion, y lo que no tiene encaja con lo demás.",
         "Las casillas de una base de datos son una propiedad más: en la Lista van con las demás, se marcan tocándolas y ya no tachan el título. La «Lista de tareas» de una página sí se tacha y se pone en gris, como en Notion.",
