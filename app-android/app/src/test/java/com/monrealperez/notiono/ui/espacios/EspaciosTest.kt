@@ -121,7 +121,7 @@ class EspaciosTest {
 
     private fun conNavegador(contenido: @androidx.compose.runtime.Composable () -> Unit) = compose.setContent {
         val nav = androidx.compose.runtime.remember { NavHostController(ctx) }
-        CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, {})) { TemaNotiono(false) { contenido() } }
+        CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, { _, _ -> })) { TemaNotiono(false) { contenido() } }
     }
 
     /**

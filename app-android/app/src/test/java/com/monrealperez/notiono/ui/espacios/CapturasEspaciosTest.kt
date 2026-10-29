@@ -140,7 +140,7 @@ class CapturasEspaciosTest {
         val y = json.decodeFromString(Yo.serializer(), yo())
         compose.setContent {
             val nav = remember { NavHostController(ctx) }
-            CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, {})) {
+            CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, { _, _ -> })) {
                 TemaNotiono(oscuro) {
                     Box(Modifier.fillMaxSize().background(C.fondo)) {
                         when (pantalla) {

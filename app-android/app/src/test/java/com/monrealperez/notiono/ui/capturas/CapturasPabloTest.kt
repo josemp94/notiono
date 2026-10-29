@@ -109,7 +109,7 @@ class CapturasPabloTest {
     private fun foto(nombre: String, oscuro: Boolean, espera: String, contenido: @androidx.compose.runtime.Composable () -> Unit) {
         compose.setContent {
             val nav = androidx.compose.runtime.remember { NavHostController(ctx) }
-            CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, {})) {
+            CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, { _, _ -> })) {
                 // El fondo lo pone Principal en la app.
                 TemaNotiono(oscuro) { androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(C.fondo)) { contenido() } }
             }

@@ -93,7 +93,7 @@ class TareasInicioTest {
 
     private fun monta(contenido: @androidx.compose.runtime.Composable () -> Unit) = compose.setContent {
         val nav = androidx.compose.runtime.remember { NavHostController(ctx) }
-        CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, {})) { TemaNotiono(false) { contenido() } }
+        CompositionLocalProvider(LocalNavegador provides Navegador(nav, {}, { _, _ -> })) { TemaNotiono(false) { contenido() } }
     }
 
     private fun espera(ruta: String): String {

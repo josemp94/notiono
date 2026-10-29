@@ -92,15 +92,20 @@ import kotlinx.serialization.json.JsonPrimitive
 class Navegador(
     val nav: NavHostController,
     val abrirPanel: () -> Unit,
-    val nuevaPagina: (parentId: String?) -> Unit,
+    private val crea: (parentId: String?, ubicar: Boolean) -> Unit,
 ) {
+    /**
+     * Página nueva. `ubicar`: la del botón de nueva página, el Inicio y los widgets, como Notion
+     * en el móvil: se crea en la raíz y se abre con «Añadir a ▾» para elegir dónde dejarla.
+     */
+    fun nuevaPagina(parentId: String?, ubicar: Boolean = false) = crea(parentId, ubicar)
     /** Página nueva con una foto de la cámara (widget y Acciones rápidas del Inicio); la pone Principal. */
     var foto: () -> Unit = {}
     // Los ids que no lo parecen (una mención rota dentro de un documento) no navegan: la
     // ruta no casaría con ningún destino y la app se cerraría.
-    fun pagina(id: String, alFinal: Boolean = false, vista: String? = null) {
+    fun pagina(id: String, alFinal: Boolean = false, vista: String? = null, nueva: Boolean = false) {
         if (!Destino.esId(id)) return Avisos.di("Enlace a una página que no existe")
-        nav.navigate("pagina/$id?final=$alFinal" + (vista?.takeIf(Destino::esId)?.let { "&v=$it" } ?: "")) { launchSingleTop = true }
+        nav.navigate(rutaPagina(id, alFinal, vista, nueva)) { launchSingleTop = true }
     }
     fun fila(pageId: String, recordId: String) {
         if (!Destino.esId(pageId) || !Destino.esId(recordId)) return Avisos.di("Enlace a una fila que no existe")
@@ -109,6 +114,12 @@ class Navegador(
     fun a(ruta: String) = nav.navigate(ruta) { launchSingleTop = true }
     fun atras() {
         if (!nav.popBackStack()) nav.navigate("inicio")
+    }
+
+    companion object {
+        /** La ruta de una página; `nueva`: recién creada sin sitio (sale «Añadir a ▾»). */
+        fun rutaPagina(id: String, alFinal: Boolean = false, vista: String? = null, nueva: Boolean = false) =
+            "pagina/$id?final=$alFinal" + (vista?.takeIf(Destino::esId)?.let { "&v=$it" } ?: "") + (if (nueva) "&nueva=true" else "")
     }
 }
 
@@ -124,18 +135,18 @@ fun Principal(destinos: Flow<Destino>) {
     val alcance = rememberAlcance()
     val avisos = remember { SnackbarHostState() }
 
-    val nuevaPagina: (String?) -> Unit = { padre ->
+    val nuevaPagina: (String?, Boolean) -> Unit = { padre, ubicar ->
         alcance.launch {
             try {
                 val r = s.repo.mutacion("pages.create", objeto("parentId" to padre, "title" to ""), encolable = false, etiquetas = listOf("arbol"))
-                r?.comoObjeto?.str("id")?.let { id -> nav.navigate("pagina/$id?final=false") }
+                r?.comoObjeto?.str("id")?.let { id -> nav.navigate(Navegador.rutaPagina(id, nueva = ubicar && padre == null)) }
             } catch (e: ErrorApi) {
                 Avisos.di(if (e.sinConexion) "Sin conexión: no se puede crear la página" else (e.message ?: "No se pudo crear"))
             }
         }
     }
     val navegador = remember(nav) {
-        Navegador(nav, abrirPanel = { alcance.launch { panel.open() } }, nuevaPagina = nuevaPagina)
+        Navegador(nav, abrirPanel = { alcance.launch { panel.open() } }, crea = nuevaPagina)
     }
     // «Foto» del widget de acciones: la cámara y, con la foto, una página nueva que la lleva.
     var fotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -148,7 +159,7 @@ fun Principal(destinos: Flow<Destino>) {
                 val titulo = "Foto ${Fechas.fechaHora(java.time.Instant.now().toString())}"
                 val id = s.repo.mutacion("pages.create", objeto("title" to titulo), encolable = false, etiquetas = listOf("arbol"))?.comoObjeto?.str("id")!!
                 s.repo.mutacion("app.aplicar", objeto("id" to id, "ops" to bloques.map { objeto("op" to "upsert", "block" to it) }), encolable = false)
-                navegador.pagina(id)
+                navegador.pagina(id, nueva = true)
             } catch (e: Exception) {
                 Avisos.di(if (e is ErrorApi && e.sinConexion) "Sin conexión: no se puede subir la foto" else e.message ?: "No se pudo guardar la foto")
             }
@@ -201,8 +212,8 @@ fun Principal(destinos: Flow<Destino>) {
                         Avisos.di(e.message ?: "No se pudo crear la fila")
                     }
                 }
-                Destino.Nueva -> nuevaPagina(null)
-                is Destino.NotaRapida -> if (d.paginaDestino != null) navegador.pagina(d.paginaDestino, alFinal = true) else nuevaPagina(null)
+                Destino.Nueva -> nuevaPagina(null, true)
+                is Destino.NotaRapida -> if (d.paginaDestino != null) navegador.pagina(d.paginaDestino, alFinal = true) else nuevaPagina(null, true)
             }
         } }
     }
@@ -244,14 +255,18 @@ fun Principal(destinos: Flow<Destino>) {
                         composable("espacio/general") { PantallaEspacioGeneral() }
                         composable("espacio/personas") { PantallaPersonas() }
                         composable(
-                            "pagina/{id}?final={final}&v={v}",
+                            "pagina/{id}?final={final}&v={v}&nueva={nueva}",
                             arguments = listOf(
                                 navArgument("id") { type = NavType.StringType },
                                 navArgument("final") { type = NavType.BoolType; defaultValue = false },
                                 navArgument("v") { type = NavType.StringType; nullable = true; defaultValue = null },
+                                navArgument("nueva") { type = NavType.BoolType; defaultValue = false },
                             ),
                         ) { e ->
-                            PantallaPagina(e.arguments!!.getString("id")!!, alFinal = e.arguments!!.getBoolean("final"), vista = e.arguments!!.getString("v"))
+                            PantallaPagina(
+                                e.arguments!!.getString("id")!!, alFinal = e.arguments!!.getBoolean("final"), vista = e.arguments!!.getString("v"),
+                                nueva = e.arguments!!.getBoolean("nueva"),
+                            )
                         }
                         composable("fila/{pageId}/{recordId}") { e ->
                             PantallaFila(e.arguments!!.getString("pageId")!!, e.arguments!!.getString("recordId")!!)
@@ -285,7 +300,7 @@ private fun BarraInferior(ruta: String, n: Navegador) {
         Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
             ElementoBarra("house", "Inicio", ruta == "inicio") { n.nav.navigate("inicio") { popUpTo("inicio") { inclusive = true } } }
             ElementoBarra("search", "Buscar", ruta == "buscar") { n.a("buscar") }
-            if (!puede.invitado) ElementoBarra("square-pen", "Nueva", false) { n.nuevaPagina(null) }
+            if (!puede.invitado) ElementoBarra("square-pen", "Nueva", false) { n.nuevaPagina(null, ubicar = true) }
             if (puede.misTareas) ElementoBarra("circle-check", "Tareas", ruta == "tareas") { n.a("tareas") }
             ElementoBarra("inbox", "Bandeja", ruta == "bandeja", insignia = cuantas) { n.a("bandeja") }
         }

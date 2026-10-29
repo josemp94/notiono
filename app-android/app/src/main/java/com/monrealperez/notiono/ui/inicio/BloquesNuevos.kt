@@ -95,7 +95,7 @@ fun AccionesRapidas(config: ConfigInicio, guarda: (ConfigInicio) -> Unit) {
     }
     // En una sola tarjeta, como las demás del Inicio.
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).tarjetaInicio().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-        Boton("Página", "file-plus", Modifier.weight(1f)) { n.nuevaPagina(null) }
+        Boton("Página", "file-plus", Modifier.weight(1f)) { n.nuevaPagina(null, ubicar = true) }
         Divisor()
         Boton("Lista", "list-todo", Modifier.weight(1f)) {
             alcance.launch {
@@ -103,7 +103,7 @@ fun AccionesRapidas(config: ConfigInicio, guarda: (ConfigInicio) -> Unit) {
                     val id = s.repo.mutacion("pages.create", objeto("title" to ""), encolable = false, etiquetas = listOf("arbol"))?.comoObjeto?.str("id")!!
                     val casilla = objeto("id" to java.util.UUID.randomUUID().toString(), "type" to "checkListItem", "props" to objeto("checked" to false), "content" to emptyList<JsonElement>(), "children" to emptyList<JsonElement>())
                     s.repo.mutacion("app.aplicar", objeto("id" to id, "ops" to listOf(objeto("op" to "upsert", "block" to casilla))), encolable = false)
-                    n.pagina(id)
+                    n.pagina(id, nueva = true)
                 } catch (e: ErrorApi) {
                     Avisos.di(if (e.sinConexion) "Sin conexión: no se puede crear la lista" else e.message ?: "No se pudo crear")
                 }
@@ -227,7 +227,7 @@ fun BlocNotas(inicial: String) {
                         val id = s.repo.mutacion("inicio.blocAPagina", encolable = false, etiquetas = listOf("arbol", "inicio"))?.comoObjeto?.str("id")
                         texto = ""
                         guardado = ""
-                        id?.let { n.pagina(it) }
+                        id?.let { n.pagina(it, nueva = true) }
                     } catch (e: ErrorApi) {
                         Avisos.di(if (e.sinConexion) "Sin conexión: la página se crea en el servidor" else e.message ?: "No se pudo")
                     }
