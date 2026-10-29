@@ -13,8 +13,8 @@
  */
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, workspaceProcedure } from "../trpc";
-import { exigeNivel } from "../services/perms";
+import { authedProcedure, router, workspaceProcedure } from "../trpc";
+import { alcanza, exigeNivel, mapaDeNiveles } from "../services/perms";
 import { guardaContenidoPagina } from "../services/pages";
 import { jsonLimpio } from "../jsonLimpio";
 import { aplicarOpsJson, type BloqueBN, type OpBloque } from "../app/bloquesYjs";
@@ -268,6 +268,74 @@ export const appNativaRouter = router({
       }
       return { fecha: input.fecha };
     }),
+
+  /**
+   * «Copia en el NAS» (la hace la app, docs/app-nativa.md): lo que hay que copiar de este
+   * espacio, sin contenido. Las páginas que esta persona ve (con su madre, para reflejar el
+   * árbol) y las filas de cada base de datos con su título; cada una con su última edición,
+   * que es lo que mira la app para subir solo lo que ha cambiado. Las BD embebidas en una
+   * página van dentro del Word de esa página, no aparte.
+   */
+  arbolCopia: workspaceProcedure.query(async ({ ctx }) => {
+    const nivel = await mapaDeNiveles(ctx.db, ctx.workspace.id, ctx.user.id, ctx.role ?? "member");
+    const todas = await ctx.db.page.findMany({
+      where: { workspaceId: ctx.workspace.id, archivedAt: null, embedded: false },
+      select: { id: true, parentId: true, title: true, type: true, order: true, updatedAt: true },
+      orderBy: { order: "asc" },
+    });
+    const visibles = todas.filter((p) => alcanza(nivel(p.id), "view"));
+    const ids = new Set(visibles.map((p) => p.id));
+    const bds = visibles.filter((p) => p.type === "database").map((p) => p.id);
+    const cols = await ctx.db.collection.findMany({
+      where: { pageId: { in: bds } },
+      select: {
+        pageId: true,
+        fields: { where: { type: "text" }, orderBy: { order: "asc" }, take: 1, select: { id: true } },
+        records: { where: { archivedAt: null }, orderBy: { order: "asc" }, select: { id: true, cells: true, updatedAt: true } },
+      },
+    });
+    return {
+      espacio: { id: ctx.workspace.id },
+      paginas: visibles.map((p) => ({
+        id: p.id,
+        parentId: p.parentId && ids.has(p.parentId) ? p.parentId : null,
+        titulo: p.title,
+        tipo: p.type,
+        editada: p.updatedAt,
+      })),
+      filas: cols.flatMap((c) =>
+        c.records.map((r) => {
+          const t = c.fields[0] ? (r.cells as Record<string, unknown> | null)?.[c.fields[0].id] : undefined;
+          return { id: r.id, pageId: c.pageId, titulo: typeof t === "string" ? t : "", editada: r.updatedAt };
+        }),
+      ),
+    };
+  }),
+
+  /** La app informa de cómo fue su copia en el NAS (nunca credenciales); la web lo enseña. */
+  informaCopia: authedProcedure
+    .input(
+      z.object({
+        activa: z.boolean(),
+        ultima: z.coerce.date().nullable(),
+        paginas: z.number().int().min(0).max(1_000_000),
+        error: z.string().max(500).nullable(),
+        carpeta: z.string().max(300).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const datos = { ...input, actualizado: new Date() };
+      await ctx.db.copiaNas.upsert({ where: { userId: ctx.user.id }, create: { userId: ctx.user.id, ...datos }, update: datos });
+      return { ok: true };
+    }),
+
+  /** El estado de la copia en el NAS de quien pregunta (solo lo suyo). */
+  estadoCopia: authedProcedure.query(({ ctx }) =>
+    ctx.db.copiaNas.findUnique({
+      where: { userId: ctx.user.id },
+      select: { activa: true, ultima: true, paginas: true, error: true, carpeta: true, actualizado: true },
+    }),
+  ),
 
   /**
    * Exportar a Word (.docx) una página o, con `recordId`, una fila de la BD `id` con sus

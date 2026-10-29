@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Smartphone } from "lucide-react";
+import { Download, HardDrive, Smartphone } from "lucide-react";
 import { confirmar } from "@/components/Confirmar";
 import { AbrirAlIniciar } from "@/components/AbrirAlIniciar";
 import { AjustesEspacio, PersonasEspacio } from "@/components/Espacios";
@@ -90,6 +90,7 @@ export default function SettingsPage() {
 
       <PushSection />
       <AppSection />
+      <CopiaNasSection />
 
       <GrupoAjustes titulo={`Espacio · ${me?.workspace?.name ?? "…"}`} />
       <AjustesEspacio />
@@ -234,6 +235,43 @@ function BackupSection() {
         <Download size={15} /> Descargar copia (ZIP)
       </button>
       {estado && <p className="mt-2 text-xs text-[var(--muted)]">{estado}</p>}
+    </section>
+  );
+}
+
+/**
+ * «Copia en el NAS»: la hace la app de Android (Ajustes → Copia en el NAS), que sube un
+ * Word por página a tu Synology Drive; aquí solo se ve cómo le fue (lo que informa la app,
+ * sin credenciales). Notion no tiene copia automática (notion.com/es/help/back-up-your-data).
+ */
+function CopiaNasSection() {
+  const { data: c } = trpc.app.estadoCopia.useQuery();
+  const fecha = (d: Date | string) =>
+    new Date(d).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
+  return (
+    <section className="mt-8">
+      <h2 className="font-display mb-1 flex items-center gap-2 font-bold">
+        <HardDrive size={16} /> Copia en el NAS
+      </h2>
+      {!c || !c.activa ? (
+        <p className="text-sm text-[var(--muted)]">
+          La app de Android puede guardar sola una copia en Word de tus páginas en tu Synology Drive (una
+          carpeta por página con subpáginas o base de datos), cada 6 horas y al poco de editar. Se activa en la
+          app: <b>Ajustes → Copia en el NAS</b>. Tu contraseña del NAS se queda en el móvil.
+        </p>
+      ) : (
+        <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
+          <div>
+            {c.ultima ? `Última copia: ${fecha(c.ultima)}` : "Aún no ha terminado ninguna copia"}
+            {c.ultima && ` · ${c.paginas} ${c.paginas === 1 ? "página" : "páginas"}`}
+          </div>
+          {c.carpeta && <div className="text-xs text-[var(--muted)]">En {c.carpeta}, en tu Synology Drive</div>}
+          {c.error && <div className="mt-1 text-xs text-red-500">Último error: {c.error}</div>}
+          <div className="mt-1 text-xs text-[var(--muted)]">
+            La hace la app de Android (Ajustes → Copia en el NAS) · informó {fecha(c.actualizado)}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

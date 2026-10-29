@@ -239,6 +239,7 @@ const FUERA_DEL_ESPACIO = new Set([
   "notifications.markRead", "notifications.markAllRead", "notifications.checkDue",
   "inicio.guardar", "inicio.guardarBloc", // mi propio Inicio (como markRead), no el espacio
   "push.publicKey", "push.subscribe", "push.unsubscribe", "push.isSubscribed",
+  "app.informaCopia", "app.estadoCopia", // mi propia copia en el NAS (sin nada del espacio)
 ]);
 
 async function invitados() {
@@ -286,6 +287,11 @@ async function invitados() {
   // Buscador (títulos y contenido), menciones y enlaces entrantes.
   assert.deepEqual(await r.pages.search({ query: "Priv" }), []);
   assert.deepEqual(await r.pages.search({ query: "SECRETO", inContent: true }), []);
+  // Ni las filas de una base que no ve (el buscador también trae filas, como Notion).
+  assert.deepEqual(await r.pages.search({ query: "SECRETO", inContent: true, filas: true }), []);
+  assert.deepEqual(await r.pages.search({ query: "SECRETO", filas: true }), []);
+  const mias = await g.pages.search({ query: "SECRETO", filas: true });
+  assert.deepEqual(mias.map((x) => ["recordId" in x ? x.recordId : null, x.id]), [[tcol.records[0].id, tareas.id]], "la dueña sí encuentra su fila");
   assert.deepEqual((await r.pages.search({ query: "Sub" })).map((p) => p.id), [sub.id]);
   await g.pages.updateContent({ id: privada.id, content: [{ id: "p2", type: "paragraph", content: [{ type: "mention", props: { pageId: compartida.id } }] }] });
   assert.deepEqual(await r.pages.backlinks({ id: compartida.id }), [], "un enlace desde una privada no se ve");

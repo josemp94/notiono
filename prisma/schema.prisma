@@ -30,6 +30,7 @@ model User {
   pageFollows       PageFollow[]
   appAuthCodes      AppAuthCode[]
   appRegistros      AppRegistro[]
+  copiaNas          CopiaNas?
 }
 
 /**
@@ -78,6 +79,19 @@ model AppAuthCode {
  * no tiene pantalla: se lee en la BD (consulta en docs/app-nativa.md). Tope por usuario
  * en `src/server/appRegistro.ts`.
  */
+// «Copia en el NAS» (app de Android): el estado que informa la app, sin credenciales.
+model CopiaNas {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activa      Boolean   @default(true)
+  ultima      DateTime? // última copia que acabó bien
+  paginas     Int       @default(0) // páginas (y filas) que hay en la copia
+  error       String? // el último error, en cristiano; null si la última fue bien
+  carpeta     String? // dónde copia, en el Drive de esa persona (p. ej. /home/Notiono)
+  actualizado DateTime  @default(now()) // cuándo informó la app por última vez
+}
+
 model AppRegistro {
   id          String   @id @default(cuid())
   userId      String
