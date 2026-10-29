@@ -26,6 +26,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { nombreSeguro } from "@/lib/exportZip";
 import { bloqueRecordatorio, recordatorioRapido } from "@/lib/recordatorios";
 import { randomUUID } from "node:crypto";
+import { infoPagina } from "@/lib/infoPagina";
 import { generaDocx, leeAsset } from "../docx";
 import { calculaCalendario } from "../app/calendario";
 import { recordatoriosEntre, textoAviso } from "../recordatorios";
@@ -177,6 +178,34 @@ export const appNativaRouter = router({
       await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
       const { title } = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { title: true } });
       return { titulo: title, markdown: await bloquesAMarkdown(await leerBloquesPagina(page)) };
+    }),
+
+  /**
+   * «Información de la página» (al pie del menú ⋯, web y app): palabras, caracteres,
+   * casillas, imágenes y adjuntos de lo que hay ahora (el documento vivo), y cuándo se creó
+   * y se editó por última vez (y quién, si se sabe).
+   */
+  info: workspaceProcedure
+    .input(z.object({ id: z.string(), recordId: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const page = await paginaDelEspacio(ctx, input.id);
+      await exigeNivel(ctx.db, page.id, ctx.user.id, ctx.role ?? "member", "view");
+      const nombre = async (uid: string | null | undefined) => {
+        if (!uid) return null;
+        const u = await ctx.db.user.findUnique({ where: { id: uid }, select: { name: true, email: true } });
+        return u ? u.name || u.email : null;
+      };
+      if (input.recordId) {
+        const r = await ctx.db.record.findFirst({
+          where: { id: input.recordId, collection: { pageId: page.id } },
+          select: { content: true, createdAt: true, updatedAt: true, createdById: true, updatedById: true },
+        });
+        if (!r) throw new TRPCError({ code: "NOT_FOUND" });
+        return { ...infoPagina(r.content), creada: r.createdAt, editada: r.updatedAt, creadaPor: await nombre(r.createdById), editadaPor: await nombre(r.updatedById) };
+      }
+      const p = await ctx.db.page.findUniqueOrThrow({ where: { id: page.id }, select: { createdAt: true, updatedAt: true } });
+      const ultima = await ctx.db.version.findFirst({ where: { pageId: page.id, authorId: { not: null } }, orderBy: { createdAt: "desc" }, select: { authorId: true } });
+      return { ...infoPagina(await leerBloquesPagina(page)), creada: p.createdAt, editada: p.updatedAt, creadaPor: null, editadaPor: await nombre(ultima?.authorId) };
     }),
 
   /** Mi recordatorio rápido de una página o de una fila (el «Recordatorio: …» de arriba), si lo hay. */

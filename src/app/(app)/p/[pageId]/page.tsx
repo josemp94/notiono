@@ -23,6 +23,7 @@ import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
 import { editorParaExport } from "@/components/editor/bloquesExport";
 import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
 import { BotonRecordar, Recordar } from "@/components/Recordar";
+import { InfoPagina } from "@/components/InfoPagina";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
 function haceCuanto(d: Date | string): string {
@@ -461,6 +462,12 @@ function PageMenu({
               <FolderInput size={16} />
               Mover a…
             </button>
+          )}
+          {page.type !== "database" && (
+            <>
+              <div className="my-1 border-t border-[var(--border)]" />
+              <InfoPagina id={page.id} />
+            </>
           )}
         </div>
       )}

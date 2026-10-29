@@ -14,6 +14,7 @@ import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
 import { downloadBase64, MIME_WORD } from "@/lib/download";
 import { BotonRecordar, Recordar } from "@/components/Recordar";
+import { InfoPagina } from "@/components/InfoPagina";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
 import { Cell } from "./Cell";
@@ -445,6 +446,12 @@ function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPl
             <button onClick={hacer(onBorrar)} className={`${item} text-red-500`}>
               <Trash2 size={15} /> Borrar
             </button>
+          )}
+          {recordar && (
+            <>
+              <div className="my-1 border-t border-[var(--border)]" />
+              <InfoPagina id={recordar.id} recordId={recordar.recordId} />
+            </>
           )}
         </Popover>
       )}

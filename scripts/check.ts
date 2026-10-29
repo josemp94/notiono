@@ -1174,6 +1174,33 @@ import { agrupaTareas, estaHecha, seccionDe, valorHecho } from "../src/lib/tarea
   assert.equal(seccionDe(t("x", "2027-01-01"), "2026-12-31"), "manana");
 }
 
+// Información de la página: palabras, caracteres, casillas, imágenes y adjuntos.
+import { infoPagina } from "../src/lib/infoPagina";
+{
+  const t = (text: string) => ({ type: "text", text, styles: {} });
+  const i = infoPagina([
+    { type: "heading", content: [t("Lista de la compra")] },
+    { type: "checkListItem", props: { checked: true }, content: [t("Leche")] },
+    { type: "checkListItem", props: { checked: false }, content: [t("Pan "), { type: "link", href: "x", content: [t("integral")] }], children: [
+      { type: "checkListItem", props: { checked: true }, content: [t("del día")] },
+    ] },
+    { type: "paragraph", content: [t("Ver con "), { type: "mention", props: { title: "Ana" } }, t(" mañana, ¿vale?")] },
+    { type: "table", content: { rows: [{ cells: [[t("uno")], { type: "tableCell", content: [t("dos")] }] }] } },
+    { type: "image", props: { url: "/api/asset/a" } },
+    { type: "drawing", props: { imagen: "/api/asset/d", texto: "boceto" } },
+    { type: "drawing", props: { imagen: "", texto: "" } },
+    { type: "file", props: { name: "factura.pdf" } },
+    { type: "video", props: { url: "x" } },
+  ]);
+  assert.deepEqual(
+    { ...i, caracteres: undefined },
+    { palabras: 17, caracteres: undefined, casillas: 3, hechas: 2, imagenes: 2, adjuntos: 2 },
+  );
+  // «Lista de la compra» (18) + «Leche» (5) + «Pan integral» (12) + «del día» (7) + «Ver con Ana mañana, ¿vale?» (26) + «uno dos» (7) + «boceto» (6)
+  assert.equal(i.caracteres, 18 + 5 + 12 + 7 + 26 + 7 + 6);
+  assert.deepEqual(infoPagina(null), { palabras: 0, caracteres: 0, casillas: 0, hechas: 0, imagenes: 0, adjuntos: 0 });
+}
+
 compruebaColaboracion()
   .then(compruebaWord)
   .then(() => import("./checkApp").then((m) => m.compruebaApp()))

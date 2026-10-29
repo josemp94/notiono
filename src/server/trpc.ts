@@ -79,6 +79,7 @@ export const PERMITIDO_INVITADO = new Set([
   "app.exportarWord",
   "app.recordatorio",
   "app.recordar",
+  "app.info",
   "app.recordatorios",
   "app.avisos",
 ]);
