@@ -22,7 +22,8 @@ export function SelectorColorPagina({ valor, onElegir }: { valor: string | null 
         >
           <span
             className="size-5 shrink-0 rounded border border-[var(--border)]"
-            style={{ background: c.id === "default" ? "var(--background)" : `var(--pag-${c.id})` }}
+            // El borde en el tono de su barrita: en oscuro los fondos se parecen mucho entre sí.
+            style={c.id === "default" ? { background: "var(--background)" } : { background: `var(--pag-${c.id})`, borderColor: `var(--ico-${c.id})` }}
           />
           {c.nombre}
           {actual === c.id && <Check size={14} className="ml-auto text-brand" />}

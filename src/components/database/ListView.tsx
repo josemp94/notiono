@@ -1,6 +1,6 @@
 "use client";
 
-import { BarraColor } from "@/components/ColorPagina";
+import { sombraColor } from "@/components/ColorPagina";
 import { useState } from "react";
 import { FileText } from "lucide-react";
 import { trpc } from "@/trpc/react";
@@ -8,7 +8,7 @@ import { RichText } from "@/lib/mdInline";
 import { RecordPanel } from "./RecordPanel";
 import { Casilla, useMarcarCasilla } from "./Casilla";
 import { usePeople } from "./Cell";
-import { displayValue, groupBy, type FieldLite } from "@/lib/cellText";
+import { displayValue, groupBy, OPTION_COLORS, optionsOf, type FieldLite } from "@/lib/cellText";
 
 type Rec = { id: string; cells: Record<string, unknown>; order: string; color?: string | null };
 
@@ -70,9 +70,9 @@ export function ListView({
         {g.records.map((r) => (
           // Como en Notion: las propiedades a la derecha del título, en su orden, y una
           // casilla entre ellas se marca ahí mismo (sin abrir la ficha ni tachar nada).
-          <li key={r.id} className="flex items-center hover:bg-[var(--border)]/30">
+          // El color de la fila como página: una barrita en el borde, sin mover el título.
+          <li key={r.id} className="flex items-center hover:bg-[var(--border)]/30" style={sombraColor(r.color)}>
             <button onClick={() => abrir(r)} className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-3 text-left">
-              <BarraColor color={r.color} className="-ml-1.5" />
               <FileText size={14} className="shrink-0 text-[var(--muted)]" />
               <span className="min-w-0 flex-1 truncate font-medium"><RichText texto={recTitle(r)} /></span>
             </button>
@@ -87,6 +87,22 @@ export function ListView({
                       onCambia={canEdit ? (v) => marcar(r.id, f.id, v) : undefined}
                     />
                   );
+                // Selección, Estado y Selección múltiple, con sus pastillas de color, como Notion.
+                if (["select", "status", "multiselect"].includes(f.type)) {
+                  const v = r.cells?.[f.id];
+                  const ids = (Array.isArray(v) ? v : v ? [v] : []).map(String);
+                  const ops = optionsOf(f).filter((o) => ids.includes(o.id));
+                  if (!ops.length) return null;
+                  return (
+                    <span key={f.id} className="hidden max-w-60 items-center gap-1 overflow-hidden sm:flex">
+                      {ops.map((o) => (
+                        <span key={o.id} className="truncate rounded px-1.5 py-0.5" style={{ background: OPTION_COLORS[o.color ?? "gray"], color: "var(--tag-fg)" }}>
+                          {o.label}
+                        </span>
+                      ))}
+                    </span>
+                  );
+                }
                 const txt = displayValue(f, r.cells?.[f.id], people);
                 if (!txt) return null;
                 return (
