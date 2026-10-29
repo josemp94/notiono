@@ -26,7 +26,7 @@ import com.monrealperez.notiono.red.respuestaTrpc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
@@ -195,8 +195,9 @@ class WidgetsFallosTest {
                 it[stringPreferencesKey("titulo")] = "Tareas · Pendientes"
             }
         }
-        alcance.cancel()
-        Thread.sleep(200)
+        // DataStore suelta el fichero cuando el Job TERMINA, no al cancelarlo: con la máquina
+        // cargada 200 ms no bastaban y la migración chocaba con esta instancia («multiple DataStores»).
+        runBlocking { alcance.coroutineContext[Job]!!.cancelAndJoin() }
         assertEquals(ConfigWidget(pagina = "bd1", titulo = "Tareas · Pendientes"), Configs.lee(ctx, id))
         respuesta = ::bueno
         onUpdate(ListaReceiver(), id)
