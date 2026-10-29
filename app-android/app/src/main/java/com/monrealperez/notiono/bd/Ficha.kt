@@ -144,6 +144,8 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
                     est.borraFila(fila.id); menu = false; onBorrada()
                 }
             }
+            com.monrealperez.notiono.ui.comun.Separador(Modifier.padding(vertical = 4.dp))
+            com.monrealperez.notiono.ui.pagina.InfoPagina(pageId, recordId)
         }
     }
 }

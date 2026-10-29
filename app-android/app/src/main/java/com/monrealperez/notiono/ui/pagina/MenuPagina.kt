@@ -183,6 +183,11 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             Separador(Modifier.padding(vertical = 4.dp))
             FilaMenu("Enviar a la papelera", "trash-2", color = Color(0xFFD44C47)) { borrar = true }
         }
+        // Al pie, como Notion y la web: palabras, casillas, imágenes, creada y editada.
+        if (!info.esBd) {
+            Separador(Modifier.padding(vertical = 4.dp))
+            InfoPagina(id)
+        }
     }
     if (borrar) Confirmar("¿Enviar a la papelera?", "Se va con sus subpáginas. Puedes recuperarla desde la papelera durante 30 días.", boton = "Enviar", onSi = {
         borrar = false
