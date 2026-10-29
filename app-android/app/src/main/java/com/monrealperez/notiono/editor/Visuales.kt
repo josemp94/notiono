@@ -136,7 +136,8 @@ fun BloqueVisual(b: Bloque, estado: EstadoEditor, editable: Boolean, acciones: A
                     model = api.absoluta(img), contentDescription = "Dibujo",
                     contentScale = ContentScale.FillWidth,
                     colorFilter = if (C.oscuro) InvierteOscuro else null,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp).clip(RoundedCornerShape(6.dp))
+                    // Con alto mínimo: mientras carga la imagen (o sin red y sin caché) se puede tocar igual.
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp, max = 480.dp).clip(RoundedCornerShape(6.dp))
                         .clickable { if (editable) acciones.editaDibujo(b) else grande = true },
                 )
             }

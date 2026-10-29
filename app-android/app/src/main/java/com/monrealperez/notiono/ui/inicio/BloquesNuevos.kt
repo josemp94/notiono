@@ -127,7 +127,6 @@ fun HojaElegirBd(onCerrar: () -> Unit, onElegir: (String) -> Unit) {
 @Composable
 fun DialogoTarea(config: ConfigInicio, guarda: (ConfigInicio) -> Unit, onCerrar: () -> Unit) {
     val s = Servicios.de(LocalContext.current)
-    val alcance = rememberAlcance()
     var bd by remember { mutableStateOf(config.tareas) }
     var titulo by remember { mutableStateOf("") }
     var fecha by remember { mutableStateOf<String?>(null) }
@@ -140,7 +139,8 @@ fun DialogoTarea(config: ConfigInicio, guarda: (ConfigInicio) -> Unit, onCerrar:
         val t = titulo.trim()
         if (t.isEmpty()) return
         onCerrar()
-        alcance.launch {
+        // En el ámbito de la app: al cerrarse la hoja se cancela el suyo y la lista no se enteraba.
+        s.alcance.launch {
             try {
                 val r = s.repo.mutacion("inicio.nuevaTarea", objeto("titulo" to t, "fecha" to fecha), etiquetas = listOf("tareas"))
                 Avisos.di("Tarea añadida")
