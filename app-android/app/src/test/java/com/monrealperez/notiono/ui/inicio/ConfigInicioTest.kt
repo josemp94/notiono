@@ -18,7 +18,7 @@ class ConfigInicioTest {
         for (raw in listOf("null", "3", "[]", "{}", """{"bloques":"no"}""", """{"bloques":[{"id":"inventado"}]}""")) {
             val c = cfg(raw)
             assertEquals(raw, "recientes,tareas", visibles(c))
-            assertEquals(6, c.bloques.size)
+            assertEquals(10, c.bloques.size)
             assertEquals(Abrir("inicio"), c.abrir)
         }
         assertEquals("recientes,tareas", visibles(ConfigInicio.de(null)))
@@ -27,7 +27,7 @@ class ConfigInicioTest {
     @Test
     fun ordenDesconocidosYQueFaltan() {
         val c = cfg("""{"bloques":[{"id":"enlaces","visible":true},{"id":"futuro","visible":true},{"id":"hoy"},{"id":"enlaces","visible":false},{"id":"recientes","visible":false}]}""")
-        assertEquals("enlaces,hoy,recientes,tareas,proximas,favoritos", c.bloques.joinToString(",") { it.id })
+        assertEquals("enlaces,hoy,recientes,tareas,proximas,favoritos,acciones,bloc,nota,recordatorios", c.bloques.joinToString(",") { it.id })
         assertEquals("enlaces,hoy", visibles(c))
     }
 
@@ -48,6 +48,36 @@ class ConfigInicioTest {
         assertNull(urlValida("  "))
         assertEquals("https://ejemplo.es", urlValida(" ejemplo.es "))
         assertEquals("http://x.es/a", urlValida("http://x.es/a"))
+    }
+
+    @Test
+    fun lasPiezasDeLa250() {
+        // Un Inicio de la 2.4 recibe los bloques nuevos ocultos al final, sin perder su orden.
+        val viejo = cfg("""{"bloques":[{"id":"tareas","visible":true},{"id":"recientes","visible":true}]}""")
+        assertEquals("tareas,recientes", visibles(viejo))
+        assertEquals(listOf("acciones", "bloc", "nota", "recordatorios"), viejo.bloques.takeLast(4).map { it.id })
+        val c = cfg("""{"bloques":[{"id":"bloc","visible":true}],"nota":" p7 ","tareas":"bd1","bloc":"${"x".repeat(MAX_BLOC + 5)}"}""")
+        assertEquals(listOf("p7", "bd1"), listOf(c.nota, c.tareas))
+        assertEquals(MAX_BLOC, c.bloc.length)
+        assertEquals(listOf(null, null, ""), cfg("""{"nota":3,"tareas":"","bloc":5}""").let { listOf(it.nota, it.tareas, it.bloc) })
+        // A inicio.guardar van la nota y la BD de tareas; el bloc no (se guarda aparte).
+        val ida = c.aJson()
+        assertEquals(c.copy(bloc = ""), ConfigInicio.de(ida))
+        assertEquals("Buenos días", saludo(9))
+        assertEquals("jueves 29 de octubre", fechaLarga(LocalDate.parse("2026-10-29")))
+    }
+
+    @Test
+    fun misTareasPorSecciones() {
+        fun t(title: String, date: String, hecha: Boolean = false) = json.parseToJsonElement("""{"title":"$title","date":"$date","hecha":$hecha}""") as JsonObject
+        val lista = listOf(t("b", "2026-10-31"), t("viejo", "2026-10-01"), t("hoy", "2026-10-29T18:00"), t("sin", ""), t("mañana", "2026-10-30"), t("a", "2026-10-31"), t("ok", "2026-10-02", true))
+        val s = agrupaTareas(lista, LocalDate.parse("2026-10-29"))
+        assertEquals(
+            listOf("vencidas:viejo", "hoy:hoy", "manana:mañana", "proximas:a+b", "sinFecha:sin", "completadas:ok"),
+            s.map { (id, _, l) -> "$id:" + l.joinToString("+") { it["title"].toString().trim('"') } },
+        )
+        assertEquals(listOf("vencidas", "hoy"), agrupaTareas(lista, LocalDate.parse("2026-10-29"), soloHoy = true).map { it.first })
+        assertEquals("manana", seccionDe(t("x", "2027-01-01"), LocalDate.parse("2026-12-31")))
     }
 
     @Test

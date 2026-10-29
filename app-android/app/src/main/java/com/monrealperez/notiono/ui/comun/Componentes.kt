@@ -58,7 +58,7 @@ private val ETIQUETAS_BOTON = mapOf(
     "chevron-left" to "Anterior", "chevron-right" to "Siguiente", "x" to "Cerrar", "undo-2" to "Deshacer", "trash-2" to "Borrar",
     "table" to "Abrir la base de datos", "sliders-horizontal" to "Ajustes de la vista", "send" to "Enviar", "search" to "Buscar",
     "refresh-cw" to "Refrescar", "list-filter" to "Filtrar", "arrow-up-down" to "Ordenar", "download" to "Descargar",
-    "pencil" to "Renombrar", "share-2" to "Compartir",
+    "pencil" to "Renombrar", "share-2" to "Compartir", "plus" to "Añadir",
 )
 
 /** Botón de icono con zona de toque de 40 dp (la `.toque` de la web). */

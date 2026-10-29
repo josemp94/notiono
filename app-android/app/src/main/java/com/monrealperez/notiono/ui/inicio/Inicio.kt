@@ -81,6 +81,10 @@ private val TITULOS = mapOf(
     "proximas" to ("calendar-days" to "Próximas fechas"),
     "favoritos" to ("star" to "Favoritos"),
     "enlaces" to ("link-2" to "Enlaces fijados"),
+    "acciones" to ("zap" to "Acciones rápidas"),
+    "bloc" to ("sticky-note" to "Bloc de notas"),
+    "nota" to ("pin" to "Nota fijada"),
+    "recordatorios" to ("bell" to "Recordatorios"),
 )
 
 /**
@@ -134,7 +138,7 @@ private fun InicioMiembro() {
     val ve = { id: String -> editando || config.visible(id) }
     val tareas = rememberConsulta("db.myTasks", etiquetas = setOf("tareas", "espacio")).datos?.comoLista?.map { it.comoObjeto } ?: emptyList()
     val favoritos = if (ve("favoritos")) rememberConsulta("favorites.list", etiquetas = setOf("favoritos", "arbol")).datos?.comoLista?.map { it.comoObjeto }.orEmpty() else emptyList()
-    val recordatorios = if (ve("proximas")) rememberConsulta("inicio.recordatorios", etiquetas = setOf("espacio")).datos?.comoLista?.map { it.comoObjeto }.orEmpty() else emptyList()
+    val recordatorios = if (ve("proximas") || ve("recordatorios")) rememberConsulta("inicio.recordatorios", etiquetas = setOf("espacio")).datos?.comoLista?.map { it.comoObjeto }.orEmpty() else emptyList()
     val recientes = remember(yo?.workspace?.id) { s.recientes.lista(yo?.workspace?.id) }
 
     // «Abrir al iniciar»: con lo guardado si lo hay (no se espera a la red para decidir).
@@ -155,13 +159,7 @@ private fun InicioMiembro() {
 
     fun guarda(nueva: ConfigInicio) = guardaInicio(s, qInicio, datos.copy(config = nueva), alcance)
 
-    val h = LocalTime.now().hour
-    val saludo = when {
-        h < 7 -> "Buenas noches"
-        h < 13 -> "Buenos días"
-        h < 21 -> "Buenas tardes"
-        else -> "Buenas noches"
-    }
+    val saludo = saludo(LocalTime.now().hour)
     val nombre = yo?.name?.split(" ")?.firstOrNull().orEmpty()
     val hoy = LocalDate.now()
 
@@ -176,6 +174,10 @@ private fun InicioMiembro() {
             "hoy" -> hoyLista.isNotEmpty()
             "proximas" -> proximas.isNotEmpty()
             "enlaces" -> enlacesVivos.isNotEmpty()
+            "acciones" -> true
+            "bloc" -> qInicio.datos != null
+            "nota" -> config.nota != null && config.nota in datos.paginas
+            "recordatorios" -> recordatorios.isNotEmpty()
             else -> false
         }
     }
@@ -207,6 +209,10 @@ private fun InicioMiembro() {
                     }
                 }
             }
+            "acciones" -> AccionesRapidas(config, ::guarda)
+            "bloc" -> BlocNotas(config.bloc)
+            "nota" -> config.nota?.let { NotaFijada(it, datos.paginas[it]?.first.orEmpty()) }
+            "recordatorios" -> ListaRecordatorios(recordatorios)
             "enlaces" -> Lista {
                 for (e in enlacesVivos) {
                     FilaEnlace(e, e.pageId?.let { datos.paginas[it] }) { if (e.esWeb) Enlaces.abre(ctx, e.url!!) else n.pagina(e.pageId!!) }
@@ -228,11 +234,24 @@ private fun InicioMiembro() {
         )
         if (decidiendo) return@Column
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            // «Buenos días, Pablo · jueves 29 de octubre» y el buscador debajo, como en la web.
             Text(
                 if (nombre.isNotBlank()) "$saludo, $nombre" else saludo,
                 fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = C.texto, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
             )
+            Text(
+                fechaLarga(hoy).replaceFirstChar { it.uppercase() }, fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            )
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 16.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, C.borde, RoundedCornerShape(10.dp))
+                    .clickable { n.a("buscar") }.padding(horizontal = 12.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icono("search", tam = 17.dp, color = C.apagado)
+                Text("Buscar en Notiono…", color = C.apagado, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
+            }
             if (editando) {
                 Personalizar(datos, ::guarda)
             } else {
@@ -261,7 +280,9 @@ private fun InicioMiembro() {
  */
 private fun guardaInicio(s: Servicios, q: EstadoConsulta, nuevo: DatosInicio, alcance: kotlinx.coroutines.CoroutineScope) {
     val paginas = nuevo.paginas.mapValues { (_, v) -> objeto("title" to v.first, "icon" to v.second) }
-    val json = objeto("config" to nuevo.config.aJson(), "paginas" to paginas)
+    // En la caché, también el bloc (no va en inicio.guardar: se guarda aparte).
+    val conBloc = JsonObject(nuevo.config.aJson() + ("bloc" to kotlinx.serialization.json.JsonPrimitive(nuevo.config.bloc)))
+    val json = objeto("config" to conBloc, "paginas" to paginas)
     q.datos = json
     s.repo.cache.guarda(s.repo.clave("inicio.get"), json)
     alcance.launch {
@@ -321,8 +342,18 @@ private fun Personalizar(datos: DatosInicio, guarda: (ConfigInicio) -> Unit) {
                     guarda(config.copy(bloques = bloques.map { if (it.id == b.id) it.copy(visible = !it.visible) else it }))
                 })
             }
-            // En el móvil, del contenido solo los enlaces (que se editan aquí).
+            // En el móvil, del contenido solo lo que se elige aquí: enlaces, nota fijada y BD de tareas.
             if (b.visible && b.id == "enlaces") Column(Modifier.padding(bottom = 8.dp)) { EditorEnlaces(datos, guarda) }
+            if (b.visible && b.id == "nota") {
+                var eligeNota by remember { mutableStateOf(false) }
+                FilaMenu("Página", "file-text", detalle = config.nota?.let { datos.paginas[it]?.first?.ifBlank { "Sin título" } ?: "Ya no existe" } ?: "Elegir…") { eligeNota = true }
+                if (eligeNota) HojaElegirPagina("Nota fijada", { eligeNota = false }) { p -> eligeNota = false; guarda(config.copy(nota = p.id)) }
+            }
+            if (b.visible && b.id == "acciones") {
+                var eligeBd by remember { mutableStateOf(false) }
+                FilaMenu("Las tareas van a", "database", detalle = config.tareas?.let { datos.paginas[it]?.first?.ifBlank { "Sin título" } ?: "Ya no existe" } ?: "Elegir…") { eligeBd = true }
+                if (eligeBd) HojaElegirBd({ eligeBd = false }) { id -> eligeBd = false; guarda(config.copy(tareas = id)) }
+            }
         }
     }
 }

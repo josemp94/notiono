@@ -94,6 +94,8 @@ class Navegador(
     val abrirPanel: () -> Unit,
     val nuevaPagina: (parentId: String?) -> Unit,
 ) {
+    /** Página nueva con una foto de la cámara (widget y Acciones rápidas del Inicio); la pone Principal. */
+    var foto: () -> Unit = {}
     // Los ids que no lo parecen (una mención rota dentro de un documento) no navegan: la
     // ruta no casaría con ningún destino y la app se cerraría.
     fun pagina(id: String, alFinal: Boolean = false, vista: String? = null) {
@@ -153,6 +155,12 @@ fun Principal(destinos: Flow<Destino>) {
         }
     }
 
+    navegador.foto = {
+        val u = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", File(ctx.cacheDir, "foto-${System.currentTimeMillis()}.jpg"))
+        fotoUri = u
+        com.monrealperez.notiono.util.Enlaces.lanza(camara, u, "No hay ninguna app de cámara")
+    }
+
     // Enlaces, atajos y widgets.
     LaunchedEffect(Unit) {
         // En el hilo principal: tras pasar de espacio (red de por medio) se navega, y el
@@ -170,11 +178,7 @@ fun Principal(destinos: Flow<Destino>) {
                 is Destino.Fila -> navegador.fila(d.pageId, d.recordId)
                 Destino.Buscar -> navegador.a("buscar")
                 Destino.Bandeja -> navegador.a("bandeja")
-                Destino.Foto -> {
-                    val u = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", File(ctx.cacheDir, "foto-${System.currentTimeMillis()}.jpg"))
-                    fotoUri = u
-                    com.monrealperez.notiono.util.Enlaces.lanza(camara, u, "No hay ninguna app de cámara")
-                }
+                Destino.Foto -> navegador.foto()
                 // El «+» de los widgets Lista y Calendario: fila nueva en esa BD y a su ficha.
                 is Destino.NuevaFila -> alcance.launch {
                     try {
