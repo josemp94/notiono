@@ -69,7 +69,7 @@ export function SearchPalette() {
   }, [query]);
 
   const { data: results } = trpc.pages.search.useQuery(
-    { query: debounced, inContent: true, tipo, editadoDias: dias },
+    { query: debounced, inContent: true, tipo, editadoDias: dias, filas: true },
     { enabled: open && debounced.trim().length > 0 },
   );
   // Sin nada escrito, las últimas páginas visitadas — como Notion. Se cruzan con
@@ -81,16 +81,27 @@ export function SearchPalette() {
     .flatMap((r) => byId.get(r.pageId) ?? [])
     .slice(0, 8)
     .map((p) => ({ id: p.id, title: p.title, icon: p.icon, type: "doc", inTitle: false, reciente: true }));
-  const items: (typeof recientes[number] | NonNullable<typeof results>[number])[] = debounced.trim()
-    ? results ?? []
-    : recientes;
+  // Páginas, filas de BD (con recordId) o recientes, en una sola forma.
+  type Item = {
+    id: string;
+    title: string;
+    icon: string | null;
+    type: string;
+    inTitle?: boolean;
+    reciente?: boolean;
+    recordId?: string;
+    dbTitle?: string;
+    color?: string | null;
+  };
+  const items: Item[] = debounced.trim() ? ((results ?? []) as Item[]) : recientes;
   const selIdx = Math.min(sel, Math.max(items.length - 1, 0));
 
   if (!open) return null;
 
-  const go = (id: string) => {
+  // Una fila de base de datos (las notas de una BD «Notas») se abre como página: ?r=.
+  const go = (p: { id: string; recordId?: string }) => {
     setOpen(false);
-    router.push(`/p/${id}`);
+    router.push(p.recordId ? `/p/${p.id}?r=${p.recordId}` : `/p/${p.id}`);
   };
 
   return (
@@ -117,7 +128,7 @@ export function SearchPalette() {
               e.preventDefault();
               setSel((s) => Math.max(s - 1, 0));
             } else if (e.key === "Enter" && items[selIdx]) {
-              go(items[selIdx].id);
+              go(items[selIdx]);
             }
           }}
           placeholder="Buscar en títulos y contenido…"
@@ -170,24 +181,26 @@ export function SearchPalette() {
         <div className="min-h-0 flex-1 overflow-y-auto p-1 md:max-h-80 md:flex-none">
           {items.map((p, i) => (
             <button
-              key={p.id}
-              onClick={() => go(p.id)}
+              key={p.recordId ?? p.id}
+              onClick={() => go(p)}
               onMouseEnter={() => setSel(i)}
               className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm ${
                 i === selIdx ? "bg-[var(--active)] font-medium" : ""
               }`}
             >
               {/* El color de página (del árbol, que siempre está fresco). */}
-              <BarraColor color={byId.get(p.id)?.color} className="-ml-1.5 h-4 self-center" />
+              <BarraColor color={p.recordId ? p.color : byId.get(p.id)?.color} className="-ml-1.5 h-4 self-center" />
               <span className="flex shrink-0 items-center text-[var(--muted)]">
-                {p.icon ? <IconoPagina icon={p.icon} size={16} /> : p.type === "database" ? <Database size={16} /> : <FileText size={16} />}
+                {p.recordId ? <FileText size={16} /> : p.icon ? <IconoPagina icon={p.icon} size={16} /> : p.type === "database" ? <Database size={16} /> : <FileText size={16} />}
               </span>
               <span className="min-w-0 flex-1 truncate">{p.title || "Sin título"}</span>
               <span className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--muted)]">
-                {"reciente" in p && p.reciente ? (
+                {p.reciente ? (
                   <>
                     <Clock size={11} /> Reciente
                   </>
+                ) : p.recordId ? (
+                  <span className="max-w-32 truncate">{p.dbTitle || "Base de datos"}</span>
                 ) : p.inTitle ? (
                   p.type === "database" ? "Base de datos" : "Página"
                 ) : (

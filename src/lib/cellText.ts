@@ -244,9 +244,18 @@ export function groupBy<R extends RecordLite>(
   if (!field) return [];
   const empty = field.name.trim() ? `Sin ${field.name.toLowerCase()}` : "Sin valor";
   const buckets = new Map<string, R[]>();
+  const mete = (label: string, r: R) => buckets.set(label, [...(buckets.get(label) ?? []), r]);
   for (const r of records) {
-    const label = displayValue(field, r.cells?.[field.id], people) || empty;
-    buckets.set(label, [...(buckets.get(label) ?? []), r]);
+    // Selección múltiple, como en Notion: un grupo por etiqueta, y la fila con varias
+    // sale en cada uno de los suyos (no un grupo «A, B» por cada combinación).
+    if (field.type === "multiselect") {
+      const v = r.cells?.[field.id];
+      const etiquetas = [...new Set((Array.isArray(v) ? v : v ? [v] : []).map((x) => displayValue(field, [x], people)).filter(Boolean))];
+      if (!etiquetas.length) mete(empty, r);
+      for (const e of etiquetas) mete(e, r);
+      continue;
+    }
+    mete(displayValue(field, r.cells?.[field.id], people) || empty, r);
   }
   // Selección y Estado siguen el orden de sus opciones; el resto, alfabético.
   const order = optionsOf(field).map((o) => o.label);

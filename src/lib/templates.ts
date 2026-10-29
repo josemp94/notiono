@@ -11,6 +11,8 @@ export type TemplateDef =
         type: string;
         groupByField?: string;
         calcs?: Record<string, string>;
+        /** Orden de la vista, por nombre de campo. */
+        sorts?: { field: string; dir: "asc" | "desc" }[];
         /** Matriz: campos de cada eje y rótulo/color por celda ("x|y" con los valores de los ejes). */
         ejeX?: string;
         ejeY?: string;
@@ -120,6 +122,45 @@ export const TEMPLATES: Record<string, { name: string; icon: string; description
         { Nombre: "Preparar la propuesta", Estado: "st_doing", Prioridad: "alta", "Fecha límite": inDays(3) },
         { Nombre: "Revisar el presupuesto", Estado: "st_todo", Prioridad: "media", "Fecha límite": inDays(7) },
         { Nombre: "Enviar el informe semanal", Estado: "st_done", Prioridad: "baja", "Fecha límite": inDays(-1) },
+      ],
+    }),
+  },
+
+  // Como la plantilla «Docs» de Notion (notion.com/help/guides/documents-database-for-product-teams):
+  // las etiquetas son una propiedad Selección múltiple, con la fecha de creación y de última
+  // edición, una vista con todo, otra agrupada por etiqueta y otra con lo editado hace poco.
+  notas: {
+    name: "Notas",
+    icon: "🗒️",
+    description: "Notas con etiquetas. Vistas Todas, Por etiqueta y Recientes.",
+    make: () => ({
+      type: "database",
+      fields: [
+        { name: "Nombre", type: "text" },
+        {
+          name: "Etiquetas",
+          type: "multiselect",
+          config: {
+            options: [
+              { id: "ideas", label: "Ideas", color: "yellow" },
+              { id: "personal", label: "Personal", color: "blue" },
+              { id: "recetas", label: "Recetas", color: "green" },
+              { id: "trabajo", label: "Trabajo", color: "purple" },
+            ],
+          },
+        },
+        { name: "Creado", type: "created_time" },
+        { name: "Última edición", type: "last_edited_time" },
+      ],
+      views: [
+        { name: "Todas las notas", type: "table" },
+        { name: "Por etiqueta", type: "list", groupByField: "Etiquetas" },
+        { name: "Recientes", type: "list", sorts: [{ field: "Última edición", dir: "desc" }] },
+      ],
+      records: [
+        { Nombre: "Ideas para el viaje", Etiquetas: ["ideas", "personal"] },
+        { Nombre: "Lentejas de la abuela", Etiquetas: ["recetas"] },
+        { Nombre: "Resumen de la reunión", Etiquetas: ["trabajo"] },
       ],
     }),
   },

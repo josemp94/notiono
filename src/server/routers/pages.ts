@@ -38,6 +38,50 @@ type TreeNode = {
   hasChildren: boolean;
 };
 
+/**
+ * Filas de base de datos que casan con la búsqueda, como en Notion (cada fila es una
+ * página): por su título (la primera columna de texto) y, con `enContenido`, por el
+ * texto de su cuerpo. Como Notion, NO por el valor de sus propiedades (etiquetas…):
+ * eso lo busca la lupa de la propia base de datos (notion.com/es/help/search).
+ */
+async function buscaFilas(
+  db: Prisma.TransactionClient,
+  workspaceId: string,
+  q: string,
+  enContenido: boolean,
+  tipo: "all" | "doc" | "database",
+  desde: Date | null,
+  nivel: (pageId: string) => Nivel,
+) {
+  if (tipo === "database") return [];
+  const like = `%${q}%`;
+  const filas = await db.$queryRaw<
+    { recordId: string; id: string; title: string | null; icon: string | null; dbTitle: string; color: string | null; inTitle: boolean }[]
+  >(Prisma.sql`
+    SELECT r.id AS "recordId", p.id, r.cells ->> f.id AS title, p.icon, p.title AS "dbTitle", r.color,
+           COALESCE(r.cells ->> f.id ILIKE ${like}, false) AS "inTitle"
+    FROM "Record" r
+    JOIN "Collection" c ON c.id = r."collectionId"
+    JOIN "Page" p ON p.id = c."pageId"
+    JOIN LATERAL (
+      SELECT id FROM "Field" WHERE "collectionId" = c.id AND type = 'text' ORDER BY "order" LIMIT 1
+    ) f ON true
+    WHERE p."workspaceId" = ${workspaceId}
+      AND p."archivedAt" IS NULL
+      AND r."archivedAt" IS NULL
+      ${desde ? Prisma.sql`AND r."updatedAt" >= ${desde}` : Prisma.empty}
+      AND (
+        r.cells ->> f.id ILIKE ${like}
+        ${enContenido ? Prisma.sql`OR jsonb_path_query_array(r.content, '$.**.text')::text ILIKE ${like}` : Prisma.empty}
+      )
+    ORDER BY "inTitle" DESC, r."updatedAt" DESC
+    LIMIT 20
+  `);
+  return filas
+    .filter((f) => alcanza(nivel(f.id), "view"))
+    .map((f) => ({ ...f, title: f.title ?? "", type: "record" as const }));
+}
+
 export const pagesRouter = router({
   /** Árbol completo de páginas vivas del workspace (para el sidebar). */
   tree: workspaceProcedure.query(async ({ ctx }): Promise<TreeNode[]> => {
@@ -73,6 +117,8 @@ export const pagesRouter = router({
         // Filtros de la paleta: tipo de página y edición reciente (días hacia atrás).
         tipo: z.enum(["all", "doc", "database"]).default("all"),
         editadoDias: z.number().int().positive().optional(),
+        // Filas de BD también (el buscador; las menciones y los selectores solo quieren páginas).
+        filas: z.boolean().default(false),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -95,7 +141,8 @@ export const pagesRouter = router({
           orderBy: { updatedAt: "desc" },
           take: 20,
         });
-        return rows.filter((r) => alcanza(nivel(r.id), "view")).map((r) => ({ ...r, inTitle: true }));
+        const paginas = rows.filter((r) => alcanza(nivel(r.id), "view")).map((r) => ({ ...r, inTitle: true }));
+        return [...paginas, ...(input.filas ? await buscaFilas(ctx.db, ctx.workspace.id, q, false, input.tipo, desde, nivel) : [])];
       }
       // jsonb_path_query_array saca solo los textos de los bloques: buscar sobre content::text
       // en crudo daría falsos positivos con las claves del JSON ("text", "table", "styles"…).
@@ -119,7 +166,8 @@ export const pagesRouter = router({
         ORDER BY (title ILIKE ${like}) DESC, "updatedAt" DESC
         LIMIT 20
       `);
-      return rows.filter((r) => alcanza(nivel(r.id), "view"));
+      const paginas = rows.filter((r) => alcanza(nivel(r.id), "view"));
+      return [...paginas, ...(input.filas ? await buscaFilas(ctx.db, ctx.workspace.id, q, true, input.tipo, desde, nivel) : [])];
     }),
 
   /**
@@ -349,6 +397,11 @@ export const pagesRouter = router({
           if (v.ejeX) config.ejeX = idByName.get(v.ejeX) ?? null;
           if (v.ejeY) config.ejeY = idByName.get(v.ejeY) ?? null;
           if (v.celdas) config.celdas = v.celdas;
+          if (v.sorts)
+            config.sorts = v.sorts.flatMap((o) => {
+              const fid = idByName.get(o.field);
+              return fid ? [{ fieldId: fid, dir: o.dir }] : [];
+            });
           if (v.calcs) {
             config.calcs = Object.fromEntries(
               Object.entries(v.calcs).flatMap(([name, calc]) => {

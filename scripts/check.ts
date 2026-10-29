@@ -1242,6 +1242,52 @@ import { cuandoInfo, infoPagina, pieInfo } from "../src/lib/infoPagina";
   });
 }
 
+// Etiquetas como Notion: agrupar por Selección múltiple pone la fila en cada una de sus
+// etiquetas (no un grupo «A, B»), y las vacías en «Sin …».
+{
+  const etiquetas = {
+    id: "et",
+    name: "Etiquetas",
+    type: "multiselect",
+    config: { options: [{ id: "a", label: "Ideas" }, { id: "b", label: "Recetas" }, { id: "c", label: "Viaje" }] },
+  };
+  const grupos = groupBy(
+    [
+      { id: "1", cells: { et: ["a", "b"] } },
+      { id: "2", cells: { et: ["b"] } },
+      { id: "3", cells: {} },
+      { id: "4", cells: { et: ["a", "a"] } },
+    ],
+    etiquetas,
+    new Map(),
+  );
+  assert.deepEqual(
+    grupos.map((g) => [g.label, g.records.map((r) => r.id)]),
+    [["Ideas", ["1", "4"]], ["Recetas", ["1", "2"]], ["Sin etiquetas", ["3"]]],
+  );
+}
+
+// Plantillas: cada vista se refiere a campos que existen (agrupar, ordenar, totales), y la de
+// «Notas» es como la de Notion (propiedad Etiquetas de Selección múltiple, vista agrupada).
+import { TEMPLATES } from "../src/lib/templates";
+{
+  for (const [clave, t] of Object.entries(TEMPLATES)) {
+    const d = t.make();
+    if (d.type !== "database") continue;
+    const nombres = new Set(d.fields.map((f) => f.name));
+    for (const v of d.views) {
+      for (const n of [v.groupByField, v.ejeX, v.ejeY, ...(v.sorts ?? []).map((o) => o.field), ...Object.keys(v.calcs ?? {})])
+        if (n) assert.ok(nombres.has(n), `plantilla ${clave}, vista ${v.name}: no existe el campo «${n}»`);
+    }
+  }
+  const notas = TEMPLATES.notas.make();
+  assert.equal(notas.type, "database");
+  if (notas.type === "database") {
+    assert.equal(notas.fields.find((f) => f.name === "Etiquetas")?.type, "multiselect");
+    assert.ok(notas.views.some((v) => v.groupByField === "Etiquetas"));
+  }
+}
+
 // Color de página: solo los de la paleta de Notion; «Predeterminado» o uno raro = sin color.
 import { colorPagina, COLORES_PAGINA } from "../src/lib/colorPagina";
 {
