@@ -1,30 +1,36 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { trpc } from "@/trpc/react";
-
-const fecha = (d: Date | string) =>
-  new Date(d).toLocaleString("es-ES", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-const n = (x: number, uno: string, varios: string) => `${x.toLocaleString("es-ES")} ${x === 1 ? uno : varios}`;
+import { pieInfo } from "@/lib/infoPagina";
 
 /**
- * Al pie del menú ⋯ (como el recuento de Notion): palabras y caracteres, casillas hechas,
- * imágenes y adjuntos, y cuándo se creó y se editó (`app.info`, lo mismo que en la app).
+ * Al pie del menú ⋯, como en Notion: «Recuento de palabras», «Última edición por …» y
+ * cuándo. Lo que Notion no enseña (caracteres, casillas, imágenes y adjuntos, creada)
+ * va plegado en «Más información» para no ensuciar el pie (`app.info`, igual que la app).
  */
 export function InfoPagina({ id, recordId }: { id: string; recordId?: string }) {
   const { data: i } = trpc.app.info.useQuery({ id, recordId }, { staleTime: 0 });
+  const [mas, setMas] = useState(false);
   if (!i) return <div className="px-3 py-2 text-xs text-[var(--muted)]">…</div>;
-  const lineas = [
-    `${n(i.palabras, "palabra", "palabras")} · ${n(i.caracteres, "carácter", "caracteres")}`,
-    i.casillas ? `Casillas: ${i.hechas} de ${i.casillas} hechas` : null,
-    i.imagenes || i.adjuntos ? [i.imagenes ? n(i.imagenes, "imagen", "imágenes") : null, i.adjuntos ? n(i.adjuntos, "adjunto", "adjuntos") : null].filter(Boolean).join(" · ") : null,
-    `Creada el ${fecha(i.creada)}${i.creadaPor ? ` por ${i.creadaPor}` : ""}`,
-    `Editada el ${fecha(i.editada)}${i.editadaPor ? ` por ${i.editadaPor}` : ""}`,
-  ].filter(Boolean);
+  const { principal, extra } = pieInfo(i);
   return (
-    <div className="space-y-0.5 px-3 py-2 text-xs text-[var(--muted)]" aria-label="Información de la página">
-      {lineas.map((l) => (
+    <div className="px-3 py-2 text-xs leading-5 text-[var(--muted)]" aria-label="Información de la página">
+      {principal.map((l) => (
         <div key={l}>{l}</div>
       ))}
+      <button onClick={() => setMas((m) => !m)} aria-expanded={mas} className="-ml-1 mt-0.5 flex items-center gap-0.5 rounded px-1 hover:bg-[var(--hover)] hover:text-[var(--foreground)]">
+        <ChevronRight size={12} className={`transition-transform ${mas ? "rotate-90" : ""}`} />
+        Más información
+      </button>
+      {mas && (
+        <div className="mt-0.5 pl-4">
+          {extra.map((l) => (
+            <div key={l}>{l}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

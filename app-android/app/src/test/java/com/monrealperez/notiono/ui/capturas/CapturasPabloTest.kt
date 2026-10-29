@@ -30,7 +30,7 @@ import com.monrealperez.notiono.ui.inicio.ConfigInicio
 import com.monrealperez.notiono.ui.inicio.ListaRecordatorios
 import com.monrealperez.notiono.ui.inicio.NotaFijada
 import com.monrealperez.notiono.ui.pagina.HojaFecha
-import com.monrealperez.notiono.ui.pagina.lineasInfo
+import com.monrealperez.notiono.ui.pagina.pieInfo
 import com.monrealperez.notiono.ui.tareas.PantallaTareas
 import com.monrealperez.notiono.ui.tema.C
 import com.monrealperez.notiono.ui.tema.TemaNotiono
@@ -124,7 +124,7 @@ class CapturasPabloTest {
             NotaFijada("pn", "Lista de la compra")
             androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
             ListaRecordatorios(listOf(json.parseToJsonElement("""{"key":"k","titulo":"Llamar al fontanero","inicio":"${hoy.plusDays(1)}T09:00","pageId":"p1","recordId":null}""") as JsonObject))
-            for (l in lineasInfo(json.parseToJsonElement("""{"palabras":124,"caracteres":702,"casillas":3,"hechas":1,"imagenes":2,"adjuntos":1,"creada":"2026-10-29T08:51:00.000Z","editada":"2026-10-29T09:51:00.000Z","editadaPor":"Pablo"}""") as JsonObject))
+            for (l in pieInfo(json.parseToJsonElement("""{"palabras":124,"caracteres":702,"casillas":3,"hechas":1,"imagenes":2,"adjuntos":1,"creada":"2026-10-29T08:51:00.000Z","editada":"2026-10-29T09:51:00.000Z","editadaPor":"Pablo"}""") as JsonObject).let { it.first + it.second })
                 androidx.compose.material3.Text(l, color = C.apagado, fontSize = androidx.compose.ui.unit.TextUnit(12f, androidx.compose.ui.unit.TextUnitType.Sp), modifier = Modifier.padding(horizontal = 16.dp))
         }
     }

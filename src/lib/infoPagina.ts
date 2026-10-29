@@ -50,3 +50,40 @@ export function infoPagina(bloques: unknown): InfoPagina {
   info.caracteres = [...lineas.join("")].length;
   return info;
 }
+
+/**
+ * El pie del menú ⋯, como el de Notion: «Recuento de palabras: N», «Última edición por
+ * …» y cuándo («Hoy a las 10:51»). Lo demás que sabe Notiono (caracteres, casillas,
+ * imágenes y adjuntos, cuándo se creó) va en `extra`, plegado tras «Más información».
+ * Fechas en hora de Madrid. La app hace lo mismo (InfoPagina.kt) con las mismas pruebas.
+ */
+export function pieInfo(
+  i: InfoPagina & { creada: Date | string; editada: Date | string; creadaPor?: string | null; editadaPor?: string | null },
+  ahora = new Date(),
+): { principal: string[]; extra: string[] } {
+  const n = (x: number, uno: string, varios: string) => `${x.toLocaleString("es-ES")} ${x === 1 ? uno : varios}`;
+  return {
+    principal: [
+      `Recuento de palabras: ${i.palabras.toLocaleString("es-ES")}`,
+      i.editadaPor ? `Última edición por ${i.editadaPor}` : "Última edición",
+      cuandoInfo(i.editada, ahora),
+    ],
+    extra: [
+      n(i.caracteres, "carácter", "caracteres"),
+      i.casillas ? `Casillas: ${i.hechas} de ${i.casillas} hechas` : null,
+      i.imagenes || i.adjuntos ? [i.imagenes ? n(i.imagenes, "imagen", "imágenes") : null, i.adjuntos ? n(i.adjuntos, "adjunto", "adjuntos") : null].filter(Boolean).join(" · ") : null,
+      `Creada ${/^(Hoy|Ayer)/.test(cuandoInfo(i.creada, ahora)) ? cuandoInfo(i.creada, ahora).replace(/^./, (c) => c.toLowerCase()) : `el ${cuandoInfo(i.creada, ahora)}`}${i.creadaPor ? ` por ${i.creadaPor}` : ""}`,
+    ].filter((x): x is string => !!x),
+  };
+}
+
+/** «Hoy a las 10:51», «Ayer a las 9:05» o «29 oct 2026, 10:51» (hora de Madrid). */
+export function cuandoInfo(d: Date | string, ahora = new Date()): string {
+  const f = new Date(d);
+  const dia = (x: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(x);
+  const hora = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(f);
+  if (dia(f) === dia(ahora)) return `Hoy a las ${hora}`;
+  if (dia(f) === dia(new Date(ahora.getTime() - 864e5))) return `Ayer a las ${hora}`;
+  const fecha = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", year: "numeric" }).format(f).replace(/\./g, "");
+  return `${fecha}, ${hora}`;
+}

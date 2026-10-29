@@ -1192,7 +1192,7 @@ import { agrupaTareas, estaHecha, seccionDe, valorHecho } from "../src/lib/tarea
 }
 
 // Información de la página: palabras, caracteres, casillas, imágenes y adjuntos.
-import { infoPagina } from "../src/lib/infoPagina";
+import { cuandoInfo, infoPagina, pieInfo } from "../src/lib/infoPagina";
 {
   const t = (text: string) => ({ type: "text", text, styles: {} });
   const i = infoPagina([
@@ -1216,6 +1216,16 @@ import { infoPagina } from "../src/lib/infoPagina";
   // «Lista de la compra» (18) + «Leche» (5) + «Pan integral» (12) + «del día» (7) + «Ver con Ana mañana, ¿vale?» (26) + «uno dos» (7) + «boceto» (6)
   assert.equal(i.caracteres, 18 + 5 + 12 + 7 + 26 + 7 + 6);
   assert.deepEqual(infoPagina(null), { palabras: 0, caracteres: 0, casillas: 0, hechas: 0, imagenes: 0, adjuntos: 0 });
+  // El pie como el de Notion («Recuento de palabras», «Última edición por…» y cuándo) y lo demás aparte.
+  const ahora = new Date("2026-10-29T09:51:00Z"); // 10:51 en Madrid
+  const pie = pieInfo({ palabras: 12345, caracteres: 1, casillas: 2, hechas: 1, imagenes: 1, adjuntos: 3, creada: "2026-10-27T08:05:00Z", editada: "2026-10-29T08:51:00Z", creadaPor: null, editadaPor: "Pablo" }, ahora);
+  assert.deepEqual(pie.principal, ["Recuento de palabras: 12.345", "Última edición por Pablo", "Hoy a las 09:51"]);
+  assert.deepEqual(pie.extra, ["1 carácter", "Casillas: 1 de 2 hechas", "1 imagen · 3 adjuntos", "Creada el 27 oct 2026, 09:05"]);
+  assert.equal(cuandoInfo("2026-10-28T22:30:00Z", ahora), "Hoy a las 23:30".replace("Hoy", "Ayer"), "ayer en Madrid (las 23:30 del 28)");
+  assert.deepEqual(pieInfo({ palabras: 0, caracteres: 0, casillas: 0, hechas: 0, imagenes: 0, adjuntos: 0, creada: ahora, editada: ahora }, ahora), {
+    principal: ["Recuento de palabras: 0", "Última edición", "Hoy a las 10:51"],
+    extra: ["0 caracteres", "Creada hoy a las 10:51"],
+  });
 }
 
 compruebaColaboracion()
