@@ -59,12 +59,19 @@ object Muestras {
         TareaCal("m", "8", "Cita del médico", "2026-11-04T12:15", null, false),
     )
 
-    val recientes = listOf(
+    val favoritos = listOf(
         PaginaWidget("a", "Casa", "🏠", "", favorita = true),
         PaginaWidget("b", "Menú de la semana", "🍲", "", favorita = true),
+        PaginaWidget("g", "Viaje a Lisboa", "✈️", "", favorita = true),
+        PaginaWidget("h", "Cuentas del mes", "💶", "", favorita = true),
+        PaginaWidget("i", "Recetas", null, "", favorita = true),
+    )
+
+    val recientes = listOf(
         PaginaWidget("c", "Lista de la compra", "🛒", "hace 5 min"),
         PaginaWidget("d", "Viaje a Lisboa", "✈️", "hace 2 h"),
         PaginaWidget("e", "Libros pendientes", null, "ayer"),
         PaginaWidget("f", "Ideas de regalos", "🎁", "hace 3 días"),
+        PaginaWidget("j", "Menú de la semana", "🍲", "hace 4 días"),
     )
 }

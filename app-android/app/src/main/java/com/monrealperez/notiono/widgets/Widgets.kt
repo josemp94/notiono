@@ -59,7 +59,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Los widgets de la pantalla de inicio: Nota, Lista de una base de datos, Nota rápida,
- * Acciones rápidas, Páginas recientes y Calendario.
+ * Acciones rápidas, Recientes, Favoritos y Calendario.
  *
  * Son RemoteViews clásicos (`AppWidgetProvider`), no Glance. Glance pinta SIEMPRE desde
  * un trabajo de WorkManager con la sesión solo en memoria: en HyperOS ese trabajo se
@@ -87,7 +87,7 @@ object Widgets {
     /** Todos los receptores, en el orden en que se repintan. */
     val receptores: List<Class<out ProveedorWidget>> = listOf(
         NotaReceiver::class.java, ListaReceiver::class.java, CalendarioReceiver::class.java,
-        RecientesReceiver::class.java, RapidaReceiver::class.java, AccionesReceiver::class.java,
+        RecientesReceiver::class.java, FavoritosReceiver::class.java, RapidaReceiver::class.java, AccionesReceiver::class.java,
     )
 
     fun programa(ctx: Context) {

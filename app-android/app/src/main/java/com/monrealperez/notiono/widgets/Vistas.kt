@@ -387,14 +387,25 @@ class ListaReceiver : ProveedorWidget() {
     }
 }
 
-// ---------------- Páginas recientes ----------------
+// ---------------- Favoritos y Recientes ----------------
 
-/** Una fila del widget «Páginas recientes». `detalle`: «hace 5 min» (vacío en las favoritas). */
+/** Una fila de los widgets «Favoritos» y «Recientes». `detalle`: «hace 5 min» (vacío en las favoritas). */
 data class PaginaWidget(val id: String, val titulo: String, val icono: String?, val detalle: String, val favorita: Boolean = false)
 
-/** Widget «Páginas recientes»: las favoritas arriba y luego las últimas abiertas en el móvil. */
-class RecientesReceiver : ProveedorWidget() {
-    override val tipo = "recientes"
+/** Las filas de página de los dos widgets: icono, título, «hace…» o la estrella. */
+private fun filasPaginas(paginas: List<PaginaWidget>) = paginas.map { p ->
+    Fila(
+        p.id.hashCode().toLong(), p.titulo.ifBlank { "Sin título" }, emoji = emojiDe(p.icono), iconoPagina = true,
+        detalle = p.detalle.ifBlank { null }, estrella = p.favorita, alTocar = "notiono://pagina/${p.id}", altoDp = 5,
+    )
+}
+
+/**
+ * Widget «Favoritos», como el de Notion (notion.com/es/help/mobile-widgets): las páginas de la
+ * sección Favoritos, en su orden. Del servidor (`favorites.list`); sin red, lo último guardado.
+ */
+class FavoritosReceiver : ProveedorWidget() {
+    override val tipo = "favoritos"
 
     override fun consultas(c: ConfigWidget) = listOf(Consulta("favorites.list", null))
 
@@ -403,33 +414,45 @@ class RecientesReceiver : ProveedorWidget() {
     }
 
     override fun vista(ctx: Context, id: Int, c: ConfigWidget, e: EstadoWidget, opciones: Bundle?): Pintado {
-        if (!e.conSesion) return Pintado(fallo(ctx, "${Widgets.INICIA_SESION} para ver tus páginas."), "sesion")
-        val s = Servicios.de(ctx)
+        if (!e.conSesion) return Pintado(fallo(ctx, "${Widgets.INICIA_SESION} para ver tus favoritos."), "sesion")
         val favoritas = (e.datos as? JsonArray)?.mapNotNull { it as? JsonObject }
             ?.map { PaginaWidget(it.texto("i").orEmpty(), it.texto("t").orEmpty(), it.texto("ic"), "", favorita = true) } ?: emptyList()
-        val vistas = s.recientes.lista(s.espacioActivo()).filter { r -> favoritas.none { it.id == r.pageId } }
+        return Pintado(favoritos(ctx, id, favoritas, e.aviso()), e.que(favoritas.size), favoritas.size)
+    }
+
+    override fun muestra(ctx: Context): RemoteViews = favoritos(ctx, 0, Muestras.favoritos, null)
+
+    companion object {
+        fun favoritos(ctx: Context, id: Int, paginas: List<PaginaWidget>, aviso: String?): RemoteViews = vistaLista(
+            ctx, id, FavoritosReceiver::class.java, "Favoritos", Widgets.piAbre(ctx, "notiono://inicio"),
+            null, aviso, filasPaginas(paginas), "Marca páginas como favoritas y saldrán aquí.",
+        )
+    }
+}
+
+/**
+ * Widget «Recientes», como el de Notion: las páginas que abriste hace poco en el móvil (sin
+ * red: viven en el propio móvil). Las favoritas van en su widget, «Favoritos». La clase sigue
+ * siendo la de «Páginas recientes» para no perder los widgets ya puestos.
+ */
+class RecientesReceiver : ProveedorWidget() {
+    override val tipo = "recientes"
+
+    override fun vista(ctx: Context, id: Int, c: ConfigWidget, e: EstadoWidget, opciones: Bundle?): Pintado {
+        if (!e.conSesion) return Pintado(fallo(ctx, "${Widgets.INICIA_SESION} para ver tus páginas."), "sesion")
+        val s = Servicios.de(ctx)
+        val paginas = s.recientes.lista(s.espacioActivo()).take(30)
             .map { PaginaWidget(it.pageId, it.title, it.icon, Fechas.haceCuanto(Instant.ofEpochMilli(it.visto).toString())) }
-        val paginas = (favoritas + vistas).take(30)
-        // Las recientes son del móvil: con ellas, el fallo de las favoritas va como marca.
-        val aviso = e.aviso()?.takeIf { e.datos != null || vistas.isEmpty() }
-        return Pintado(recientes(ctx, id, paginas, aviso), e.que(paginas.size), paginas.size)
+        return Pintado(recientes(ctx, id, paginas, null), if (paginas.isEmpty()) "vacio" else "datos", paginas.size)
     }
 
     override fun muestra(ctx: Context): RemoteViews = recientes(ctx, 0, Muestras.recientes, null)
 
     companion object {
-        fun recientes(ctx: Context, id: Int, paginas: List<PaginaWidget>, aviso: String?): RemoteViews {
-            val filas = paginas.map { p ->
-                Fila(
-                    p.id.hashCode().toLong(), p.titulo.ifBlank { "Sin título" }, emoji = emojiDe(p.icono), iconoPagina = true,
-                    detalle = p.detalle.ifBlank { null }, estrella = p.favorita, alTocar = "notiono://pagina/${p.id}", altoDp = 5,
-                )
-            }
-            return vistaLista(
-                ctx, id, RecientesReceiver::class.java, "Páginas recientes", Widgets.piAbre(ctx, "notiono://inicio"),
-                Widgets.piAbre(ctx, "notiono://nueva"), aviso, filas, "Las páginas que abras en la app saldrán aquí.",
-            )
-        }
+        fun recientes(ctx: Context, id: Int, paginas: List<PaginaWidget>, aviso: String?): RemoteViews = vistaLista(
+            ctx, id, RecientesReceiver::class.java, "Recientes", Widgets.piAbre(ctx, "notiono://inicio"),
+            Widgets.piAbre(ctx, "notiono://nueva"), aviso, filasPaginas(paginas), "Las páginas que abras en la app saldrán aquí.",
+        )
     }
 }
 

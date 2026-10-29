@@ -15,8 +15,10 @@
     <string name="widget_rapida_desc">Un botón para escribir una nota nueva o añadir al final de una página</string>
     <string name="widget_acciones">Notiono · Acciones rápidas</string>
     <string name="widget_acciones_desc">Página nueva, tarea nueva, foto y buscar, a un toque</string>
-    <string name="widget_recientes">Notiono · Páginas recientes</string>
-    <string name="widget_recientes_desc">Tus favoritas arriba y después las últimas que abriste</string>
+    <string name="widget_recientes">Notiono · Recientes</string>
+    <string name="widget_recientes_desc">Las páginas que abriste hace poco</string>
+    <string name="widget_favoritos">Notiono · Favoritos</string>
+    <string name="widget_favoritos_desc">Las páginas de tu sección Favoritos, a un toque</string>
     <string name="widget_calendario">Notiono · Calendario</string>
     <string name="widget_calendario_desc">Tus tareas con fecha: el mes con sus días y la agenda (pequeño: los próximos días)</string>
     <string name="widget_nueva">Nueva</string>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widgets con lista (Nota, Lista de BD, Páginas recientes, Calendario pequeño): cabecera,
+<!-- Widgets con lista (Nota, Lista de BD, Recientes, Favoritos, Calendario pequeño): cabecera,
      línea de estado y la lista. Es un RemoteViews clásico (widgets/Vistas.kt): solo vistas
      que admite RemoteViews y colores de recurso, que el escritorio resuelve en claro u oscuro. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"

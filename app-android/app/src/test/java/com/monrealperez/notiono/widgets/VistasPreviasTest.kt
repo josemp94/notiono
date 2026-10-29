@@ -50,6 +50,7 @@ class VistasPreviasTest {
             Previa("rapida", 170, 60, R.layout.widget_previa_rapida, RapidaReceiver()),
             Previa("acciones", 320, 80, R.layout.widget_previa_acciones, AccionesReceiver()),
             Previa("recientes", 320, 250, R.layout.widget_previa_recientes, RecientesReceiver()),
+            Previa("favoritos", 320, 250, R.layout.widget_previa_favoritos, FavoritosReceiver()),
             Previa("calendario", 320, 400, R.layout.widget_previa_calendario, CalendarioReceiver()),
         )
         val enRes = System.getProperty("notiono.vistasPrevias") == "1"

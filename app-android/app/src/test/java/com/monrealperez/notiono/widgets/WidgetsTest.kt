@@ -50,6 +50,7 @@ class WidgetsTest {
             Triple(320, 400, CalendarioReceiver.grande(ctx, 5, YearMonth.from(hoy), hoy.plusDays(2), hoy, Muestras.tareas, null, JsonObject(emptyMap()))),
             Triple(320, 200, CalendarioReceiver.pequeño(ctx, 6, "Tareas", hoy, Muestras.tareas, null, JsonObject(emptyMap()))),
             Triple(320, 240, RecientesReceiver().muestra(ctx)),
+            Triple(320, 240, FavoritosReceiver().muestra(ctx)),
             Triple(180, 56, RapidaReceiver().muestra(ctx)),
             Triple(340, 76, AccionesReceiver().muestra(ctx)),
             Triple(320, 110, ProveedorWidget.fallo(ctx, "Inicia sesión en la app para ver esta nota.")),

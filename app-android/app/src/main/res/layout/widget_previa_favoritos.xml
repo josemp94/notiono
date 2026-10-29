@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa del widget en el selector (Android 12+). Los textos son los de widgets/Muestras.kt.
+     Se infla como RemoteViews (sin AppCompat): por eso android:tint y no app:tint. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" tools:ignore="UseAppTint,HardcodedText"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/widget_fondo" android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingBottom="6dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Favoritos"
+            android:textColor="@color/widget_texto" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" />
+        <ImageView android:layout_width="28dp" android:layout_height="28dp" android:padding="5dp" android:src="@drawable/widget_refrescar" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="32dp"
+        android:paddingTop="5dp" android:paddingBottom="5dp" android:paddingEnd="8dp">
+        <TextView android:layout_width="22dp" android:layout_height="wrap_content" android:gravity="center" android:text="🏠" android:textSize="15sp" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:layout_marginEnd="6dp"
+            android:text="Casa" android:textColor="@color/widget_texto" android:textSize="13sp" android:maxLines="1" />
+        <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/widget_estrella" android:tint="@color/marca" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="32dp"
+        android:paddingTop="5dp" android:paddingBottom="5dp" android:paddingEnd="8dp">
+        <TextView android:layout_width="22dp" android:layout_height="wrap_content" android:gravity="center" android:text="🍲" android:textSize="15sp" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:layout_marginEnd="6dp"
+            android:text="Menú de la semana" android:textColor="@color/widget_texto" android:textSize="13sp" android:maxLines="1" />
+        <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/widget_estrella" android:tint="@color/marca" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="32dp"
+        android:paddingTop="5dp" android:paddingBottom="5dp" android:paddingEnd="8dp">
+        <TextView android:layout_width="22dp" android:layout_height="wrap_content" android:gravity="center" android:text="✈️" android:textSize="15sp" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:layout_marginEnd="6dp"
+            android:text="Viaje a Lisboa" android:textColor="@color/widget_texto" android:textSize="13sp" android:maxLines="1" />
+        <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/widget_estrella" android:tint="@color/marca" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="32dp"
+        android:paddingTop="5dp" android:paddingBottom="5dp" android:paddingEnd="8dp">
+        <TextView android:layout_width="22dp" android:layout_height="wrap_content" android:gravity="center" android:text="💶" android:textSize="15sp" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:layout_marginEnd="6dp"
+            android:text="Cuentas del mes" android:textColor="@color/widget_texto" android:textSize="13sp" android:maxLines="1" />
+        <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/widget_estrella" android:tint="@color/marca" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="32dp"
+        android:paddingTop="5dp" android:paddingBottom="5dp" android:paddingEnd="8dp">
+        <ImageView android:layout_width="22dp" android:layout_height="18dp" android:src="@drawable/widget_pagina" android:tint="@color/widget_apagado" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:layout_marginEnd="6dp"
+            android:text="Recetas" android:textColor="@color/widget_texto" android:textSize="13sp" android:maxLines="1" />
+        <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/widget_estrella" android:tint="@color/marca" android:importantForAccessibility="no" />
+    </LinearLayout>
+</LinearLayout>
