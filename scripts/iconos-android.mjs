@@ -30,7 +30,7 @@ corner-up-left reply circle-check circle check-check archive-restore undo-2 info
 external-link file-down file-up sparkles zoom-in zoom-out maximize minimize filter sliders-horizontal
 arrow-down-up rows-3 between-horizontal-start ban pencil circle-plus rotate-ccw save list-tree table-of-contents
 square circle-dot loader-circle wand-sparkles letter-text text redo-2 sun-moon mail-open
-user-plus user-minus smile-plus pen-line bell-plus sunrise alarm-clock sticky-note notebook-pen
+user-plus user-minus smile-plus pen-line bell-plus sunrise alarm-clock sticky-note notebook-pen sunset bell-off calendar-clock
 `.split(/\s+/).filter(Boolean);
 
 // Los de página: los mismos que la pestaña «Iconos» del selector de la web.

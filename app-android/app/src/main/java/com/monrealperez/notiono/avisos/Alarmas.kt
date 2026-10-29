@@ -50,6 +50,8 @@ object Alarmas {
     const val CANAL = "recordatorios"
     private const val ACCION = "com.monrealperez.notiono.RECORDATORIO"
     private const val ACCION_MEDIANOCHE = "com.monrealperez.notiono.MEDIANOCHE"
+    const val ACCION_HECHO = "com.monrealperez.notiono.RECORDATORIO_HECHO"
+    const val ACCION_POSPONER = "com.monrealperez.notiono.RECORDATORIO_POSPONER"
     private val envio = Mutex()
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("recordatorios", Context.MODE_PRIVATE)
@@ -78,6 +80,53 @@ object Alarmas {
 
     /** Vuelve a programar lo guardado (tras reiniciar o actualizar, sin red). */
     fun reprograma(ctx: Context) = programa(ctx, guardados(ctx))
+
+    /** Uno más (el pospuesto), guardado con los demás: sobrevive a reiniciar aunque no haya red. */
+    @Synchronized
+    fun anade(ctx: Context, r: Recordatorio) {
+        val lista = guardados(ctx).filter { it.key != r.key } + r
+        prefs(ctx).edit(commit = true) { putString("lista", json.encodeToString(ListSerializer(Recordatorio.serializer()), lista)) }
+        programa(ctx, lista)
+    }
+
+    /**
+     * Los botones de la notificación, con la sesión y sin mirar el espacio activo (el aviso
+     * puede ser de otro): `POST /api/recordatorio`, lo mismo que pulsa el push de la web.
+     * «Posponer 1 h» suena dentro de una hora aunque no haya red (alarma local); si hay,
+     * con la key del servidor (así la bandeja y la alarma no se repiten).
+     */
+    suspend fun accion(ctx: Context, accion: String, r: Recordatorio) {
+        val s = Servicios.de(ctx)
+        NotificationManagerCompat.from(ctx).cancel(idNotificacion(r.key))
+        val cuerpo = kotlinx.serialization.json.buildJsonObject {
+            put("accion", kotlinx.serialization.json.JsonPrimitive(accion))
+            put("key", kotlinx.serialization.json.JsonPrimitive(r.key))
+            put("pageId", kotlinx.serialization.json.JsonPrimitive(r.pageId))
+            r.recordId?.let { put("recordId", kotlinx.serialization.json.JsonPrimitive(it)) }
+            put("titulo", kotlinx.serialization.json.JsonPrimitive(r.titulo))
+        }
+        val respuesta = runCatching { s.api.postJsonLee("/api/recordatorio", cuerpo) }
+            .onFailure { s.registro.anota("avisos", "recordatorio · $accion · fallo", it) }
+            .getOrNull()
+        if (accion == "posponer") {
+            val pos = (respuesta as? kotlinx.serialization.json.JsonObject)?.get("pospuesto") as? kotlinx.serialization.json.JsonObject
+            val key = (pos?.get("key") as? kotlinx.serialization.json.JsonPrimitive)?.content ?: "local:${r.key}:${System.currentTimeMillis()}"
+            val cuando = (pos?.get("cuando") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                ?: Instant.ofEpochMilli(System.currentTimeMillis() + 3_600_000).toString()
+            anade(ctx, r.copy(key = key, cuando = cuando))
+        } else if (respuesta != null) {
+            // Marcada: las listas y los widgets la quitan.
+            s.repo.avisa("vista:${r.pageId}", "tareas")
+            Widgets.repintaTodo(ctx)
+        }
+    }
+
+    private fun boton(ctx: Context, r: Recordatorio, accion: String, n: Int) = PendingIntent.getBroadcast(
+        ctx, idNotificacion(r.key) * 3 + n,
+        Intent(ctx, AlarmaReceiver::class.java).setAction(accion).setData(Uri.parse("notiono-recordatorio://${Uri.encode(r.key)}"))
+            .putExtra("r", json.encodeToString(Recordatorio.serializer(), r)),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private fun intento(ctx: Context, r: Recordatorio) = Intent(ctx, AlarmaReceiver::class.java).setAction(ACCION)
         // El dato distingue una alarma de otra; los extras viajan con ella.
@@ -161,6 +210,9 @@ object Alarmas {
             .setWhen(r.ms.takeIf { it > 0 } ?: System.currentTimeMillis())
             .setContentIntent(pi)
             .setAutoCancel(true)
+            // Como en la web: si es una fila con casilla o estado, «Hecho» la marca; si no, descarta.
+            .addAction(0, ctx.getString(R.string.recordatorio_hecho), boton(ctx, r, ACCION_HECHO, 1))
+            .addAction(0, ctx.getString(R.string.recordatorio_posponer), boton(ctx, r, ACCION_POSPONER, 2))
             .build()
         return try {
             NotificationManagerCompat.from(ctx).notify(idNotificacion(r.key), n)
@@ -181,6 +233,17 @@ class AlarmaReceiver : BroadcastReceiver() {
             return
         }
         val r = runCatching { json.decodeFromString(Recordatorio.serializer(), intent.getStringExtra("r") ?: return) }.getOrNull() ?: return
+        if (intent.action == Alarmas.ACCION_HECHO || intent.action == Alarmas.ACCION_POSPONER) {
+            val fin = goAsync()
+            s.alcance.launch {
+                try {
+                    withTimeoutOrNull(20_000) { Alarmas.accion(ctx, if (intent.action == Alarmas.ACCION_HECHO) "hecho" else "posponer", r) }
+                } finally {
+                    fin.finish()
+                }
+            }
+            return
+        }
         val retraso = (System.currentTimeMillis() - r.ms) / 1000
         val enseñado = Alarmas.muestra(ctx, r)
         s.registro.anota("avisos", "recordatorio a su hora · ${if (enseñado) "enseñado" else "no enseñado"} · retraso $retraso s" +

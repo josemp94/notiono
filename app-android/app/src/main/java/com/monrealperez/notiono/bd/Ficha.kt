@@ -125,6 +125,8 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
     )
     editando?.let { c -> EditorCelda(est, fila, c) { editando = null } }
     if (nuevaPropiedad) HojaNuevoCampo(est, null) { nuevaPropiedad = false }
+    var recordar by remember { mutableStateOf(false) }
+    if (recordar) com.monrealperez.notiono.ui.pagina.HojaRecordar(pageId, recordId) { recordar = false }
     if (menu) {
         val ctx = LocalContext.current
         com.monrealperez.notiono.ui.comun.Hoja({ menu = false }, est.tituloDe(fila)) {
@@ -136,6 +138,7 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
                 s.alcance.launch { com.monrealperez.notiono.util.Archivos.exportaWord(ctx, pageId, recordId) }; menu = false
             }
             if (est.editable) {
+                com.monrealperez.notiono.ui.comun.FilaMenu("Recordarme…", "alarm-clock", detalle = "En 1 hora, esta tarde, mañana…") { recordar = true; menu = false }
                 com.monrealperez.notiono.ui.comun.FilaMenu("Duplicar", "copy-plus") { est.duplicaFila(fila.id); menu = false }
                 com.monrealperez.notiono.ui.comun.FilaMenu("Borrar", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {
                     est.borraFila(fila.id); menu = false; onBorrada()

@@ -65,7 +65,14 @@ object Inline {
     }
 
     /** «Hoy», «Mañana», «Ayer» o «25 dic» (con año si no es el actual), como el chip de la web. */
-    fun etiquetaFecha(fecha: String, hoy: LocalDate = LocalDate.now()): String {
+    /** Como la web: «Mañana», «25 dic»; con hora, «Mañana 9:00». */
+    fun etiquetaFecha(fechaHora: String, hoy: LocalDate = LocalDate.now()): String {
+        val hora = fechaHora.substringAfter('T', "").takeIf { it.isNotEmpty() }?.removePrefix("0")
+        val dia = etiquetaDia(fechaHora.substringBefore('T'), hoy)
+        return if (hora != null) "$dia $hora" else dia
+    }
+
+    private fun etiquetaDia(fecha: String, hoy: LocalDate): String {
         val d = runCatching { LocalDate.parse(fecha) }.getOrNull() ?: return fecha
         return when (d) {
             hoy -> "Hoy"

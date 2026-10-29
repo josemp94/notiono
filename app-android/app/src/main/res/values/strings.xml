@@ -35,4 +35,6 @@
     <string name="canal_avisos_desc">Menciones, asignaciones, comentarios y fechas que vencen</string>
     <string name="canal_recordatorios">Recordatorios</string>
     <string name="canal_recordatorios_desc">Los recordatorios de tus fechas, a su hora</string>
+    <string name="recordatorio_hecho">Hecho</string>
+    <string name="recordatorio_posponer">Posponer 1 h</string>
 </resources>

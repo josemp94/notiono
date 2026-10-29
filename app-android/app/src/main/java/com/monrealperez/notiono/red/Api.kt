@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -112,6 +113,17 @@ class Api(val base: String, val http: OkHttpClient, private val sesion: Sesion) 
     suspend fun postJson(ruta: String, cuerpo: JsonElement): Unit = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(absoluta(ruta)).post(cuerpo.toString().toRequestBody(JSON)).conSesion().build()
         llama(req) { if (!it.isSuccessful) throw errorHttp(it.code, "Error del servidor (${it.code})") }
+    }
+
+    /** POST de JSON a una ruta propia que contesta JSON (`/api/recordatorio`); el error, con el mensaje del servidor. */
+    suspend fun postJsonLee(ruta: String, cuerpo: JsonElement): JsonElement = withContext(Dispatchers.IO) {
+        val req = Request.Builder().url(absoluta(ruta)).post(cuerpo.toString().toRequestBody(JSON)).conSesion().build()
+        llama(req) { r ->
+            val texto = r.body.string()
+            val j = runCatching { json.parseToJsonElement(texto) }.getOrNull()
+            if (!r.isSuccessful) throw errorHttp(r.code, ((j as? JsonObject)?.get("error") as? JsonPrimitive)?.content ?: "Error del servidor (${r.code})")
+            j ?: JsonNull
+        }
     }
 
     /** Sube un archivo a `/api/upload` (portadas, adjuntos, imágenes del editor). */
