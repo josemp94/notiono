@@ -132,6 +132,9 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
                 ctx.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Notiono", "${BuildConfig.BASE_URL}/p/$pageId?r=$recordId"))
                 Avisos.di("Enlace copiado"); menu = false
             }
+            com.monrealperez.notiono.ui.comun.FilaMenu("Exportar a Word", "file-text") {
+                s.alcance.launch { com.monrealperez.notiono.util.Archivos.exportaWord(ctx, pageId, recordId) }; menu = false
+            }
             if (est.editable) {
                 com.monrealperez.notiono.ui.comun.FilaMenu("Duplicar", "copy-plus") { est.duplicaFila(fila.id); menu = false }
                 com.monrealperez.notiono.ui.comun.FilaMenu("Borrar", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {

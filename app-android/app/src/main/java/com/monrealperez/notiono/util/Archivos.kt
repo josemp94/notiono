@@ -20,10 +20,12 @@ object Archivos {
         return sinTildes.replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_').take(80).ifBlank { "Sin_titulo" }
     }
 
-    fun comparte(ctx: Context, nombre: String, texto: String, mime: String) {
+    fun comparte(ctx: Context, nombre: String, texto: String, mime: String) = comparte(ctx, nombre, texto.toByteArray(), mime)
+
+    fun comparte(ctx: Context, nombre: String, bytes: ByteArray, mime: String) {
         val dir = File(ctx.cacheDir, "export").apply { mkdirs() }
         val f = File(dir, nombre)
-        f.writeText(texto)
+        f.writeBytes(bytes)
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.ficheros", f)
         val envio = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         Enlaces.lanza(ctx, Intent.createChooser(envio, "Exportar $nombre").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -37,6 +39,20 @@ object Archivos {
             Avisos.di(e.message ?: "No se pudo exportar")
         }
     }
+
+    /** Word (.docx): lo genera el servidor (el mismo que la web); de una fila, con sus propiedades arriba. */
+    suspend fun exportaWord(ctx: Context, pageId: String, recordId: String? = null) {
+        try {
+            val input = if (recordId != null) objeto("id" to pageId, "recordId" to recordId) else objeto("id" to pageId)
+            val r = Servicios.de(ctx).repo.consulta("app.exportarWord", input, cachear = false).comoObjeto
+            val bytes = android.util.Base64.decode(r.str("base64").orEmpty(), android.util.Base64.DEFAULT)
+            comparte(ctx, nombreSeguro(r.str("nombre").orEmpty().removeSuffix(".docx")) + ".docx", bytes, MIME_WORD)
+        } catch (e: ErrorApi) {
+            Avisos.di(if (e.sinConexion) "Sin conexión: el Word lo genera el servidor" else e.message ?: "No se pudo exportar")
+        }
+    }
+
+    const val MIME_WORD = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     suspend fun exportaCsv(ctx: Context, pageId: String) {
         try {

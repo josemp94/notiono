@@ -170,6 +170,9 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             FilaMenu("Exportar a Markdown", "file-down") {
                 alcance.launch { Archivos.exportaMarkdown(ctx, id) }; onCerrar()
             }
+            FilaMenu("Exportar a Word", "file-text") {
+                alcance.launch { Archivos.exportaWord(ctx, id) }; onCerrar()
+            }
         }
         FilaMenu("Abrir en el navegador", "external-link") {
             com.monrealperez.notiono.util.Enlaces.abre(ctx, "${BuildConfig.BASE_URL}/p/$id"); onCerrar()
