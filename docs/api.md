@@ -321,7 +321,10 @@ daría el mismo resultado. En Ajustes se ve el código del último intento (`0` 
 service worker (push de la web) y la notificación de la app. Cuerpo
 `{ "accion": "hecho" | "posponer", "key": "…", "pageId": "…", "recordId"?: "…", "titulo"?: "…" }`.
 «hecho» marca la fila hecha (su primera Casilla o la opción «Hecho» de su Estado) y deja leído el
-aviso; «posponer» crea otro aviso dentro de una hora y devuelve `{ "pospuesto": { "key", "cuando" } }`.
+aviso; «posponer» devuelve `{ "pospuesto": { "key", "cuando" } }` con el aviso de dentro de una
+hora: si el recordatorio avisaba a la hora de su fecha (una mención con `recordatorio: "0"` de quien
+pulsa, o una celda con `reminder: "0"`) **mueve esa fecha** a dentro de una hora (el fin del rango
+con ella); si era «N antes» de un evento, el evento no se toca y se crea otro aviso aparte (`pos:…`).
 No mira el espacio activo: comprueba que esa persona ve la página (y, para «hecho», que la edita).
 
 El lienzo del bloque «Dibujo» para la app es la página `/dibujo?escena=<url>&tema=dark` (sesión
