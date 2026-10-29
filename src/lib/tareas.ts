@@ -30,3 +30,50 @@ export function valorHecho(campos: Campo[], hecha = true): { fieldId: string; va
   const o = opciones(c).find((x) => (hecha ? x.group === "done" : (x.group ?? "todo") === "todo"));
   return o ? { fieldId: c.id, value: o.id } : null;
 }
+
+// ── Mis tareas por secciones ─────────────────────────────────────────────────
+
+export type SeccionTareas = "vencidas" | "hoy" | "manana" | "proximas" | "sinFecha" | "completadas";
+export const SECCIONES: [SeccionTareas, string][] = [
+  ["vencidas", "Vencidas"],
+  ["hoy", "Hoy"],
+  ["manana", "Mañana"],
+  ["proximas", "Próximas"],
+  ["sinFecha", "Sin fecha"],
+  ["completadas", "Completadas"],
+];
+
+function diaSiguiente(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+/** En qué sección va una tarea (`date`: "YYYY-MM-DD…" o vacío) el día `hoy`. */
+export function seccionDe(t: { date: string; hecha?: boolean }, hoy: string): SeccionTareas {
+  if (t.hecha) return "completadas";
+  const dia = /^\d{4}-\d{2}-\d{2}/.test(t.date) ? t.date.slice(0, 10) : "";
+  if (!dia) return "sinFecha";
+  if (dia < hoy) return "vencidas";
+  if (dia === hoy) return "hoy";
+  return dia === diaSiguiente(hoy) ? "manana" : "proximas";
+}
+
+/**
+ * Las secciones de Mis tareas con algo dentro, en orden, cada una por fecha y título.
+ * `soloHoy` (el filtro «Hoy»): lo vencido y lo de hoy.
+ */
+export function agrupaTareas<T extends { date: string; title: string; hecha?: boolean }>(
+  tareas: T[],
+  hoy: string,
+  soloHoy = false,
+): { id: SeccionTareas; titulo: string; tareas: T[] }[] {
+  return SECCIONES.filter(([id]) => !soloHoy || id === "vencidas" || id === "hoy")
+    .map(([id, titulo]) => ({
+      id,
+      titulo,
+      tareas: tareas
+        .filter((t) => seccionDe(t, hoy) === id)
+        .sort((a, b) => (id === "completadas" ? 0 : a.date.localeCompare(b.date)) || a.title.localeCompare(b.title)),
+    }))
+    .filter((s) => s.tareas.length);
+}

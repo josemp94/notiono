@@ -21,11 +21,17 @@ import {
   GripVertical,
   Link2,
   Plus,
+  Pin,
   RotateCcw,
+  Search,
   Settings2,
   Star,
+  StickyNote,
   X,
+  Zap,
 } from "lucide-react";
+import { AccionesRapidas, BlocNotas, ElegirBdTareas, ElegirNota, ListaRecordatorios, NotaFijada } from "@/components/inicio/BloquesNuevos";
+import { openSearchPalette } from "@/components/SearchPalette";
 import { trpc } from "@/trpc/react";
 import { getRecents, RECENTS_EVENT, type Recent } from "@/lib/recents";
 import { fechaTarea } from "@/lib/cellText";
@@ -36,6 +42,7 @@ import {
   lleva,
   mueve,
   proximasFechas,
+  saludoInicio,
   tareasDeHoy,
   urlValida,
   type BloqueInicio,
@@ -55,6 +62,10 @@ const BLOQUE: Record<BloqueInicio, { titulo: string; icono: ReactNode; vacio: st
   proximas: { titulo: "Próximas fechas", icono: <CalendarDays size={15} />, vacio: "Nada en los próximos 7 días." },
   favoritos: { titulo: "Favoritos", icono: <Star size={15} />, vacio: "Marca páginas con la estrella para verlas aquí." },
   enlaces: { titulo: "Enlaces fijados", icono: <Link2 size={15} />, vacio: "Fija páginas o webs que uses a menudo." },
+  acciones: { titulo: "Acciones rápidas", icono: <Zap size={15} />, vacio: "" },
+  bloc: { titulo: "Bloc de notas", icono: <StickyNote size={15} />, vacio: "" },
+  nota: { titulo: "Nota fijada", icono: <Pin size={15} />, vacio: "Elige qué página ver aquí." },
+  recordatorios: { titulo: "Recordatorios", icono: <Bell size={15} />, vacio: "No tienes recordatorios pendientes." },
 };
 
 type Tarea = { recordId: string; pageId: string; dbTitle: string; title: string; status: string; date: string };
@@ -106,7 +117,7 @@ function InicioMiembro() {
 
   const { data: tasks } = trpc.db.myTasks.useQuery();
   const { data: favoritos } = trpc.favorites.list.useQuery(undefined, { enabled: visible("favoritos") });
-  const { data: recordatorios } = trpc.inicio.recordatorios.useQuery(undefined, { enabled: visible("proximas") });
+  const { data: recordatorios } = trpc.inicio.recordatorios.useQuery(undefined, { enabled: visible("proximas") || visible("recordatorios") });
 
   // localStorage solo existe en el cliente: leerlo en un efecto evita el
   // desajuste de hidratación.
@@ -151,9 +162,8 @@ function InicioMiembro() {
 
   if (decidiendo) return null;
 
-  const h = new Date().getHours();
-  const saludo = h < 7 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
   const nombre = me?.name?.split(" ")[0] ?? "";
+  const [saludo, fechaHoy] = saludoInicio(nombre).split(" · ");
   const hoy = diaLocal();
   const tareas: Tarea[] = tasks ?? [];
 
@@ -198,6 +208,25 @@ function InicioMiembro() {
           </Lista>
         ) : null;
       }
+      case "acciones":
+        return (
+          <>
+            {editando && config.tareas && <div className="mb-2"><ElegirBdTareas config={config} guardar={guardar} /></div>}
+            <AccionesRapidas config={config} guardar={guardar} />
+          </>
+        );
+      case "bloc":
+        // Lee lo guardado al montarse; luego manda lo que se escribe aquí.
+        return datos ? <BlocNotas inicial={config.bloc} /> : null;
+      case "nota":
+        return (
+          <>
+            {editando && <ElegirNota config={config} guardar={guardar} />}
+            {config.nota && paginas[config.nota] ? <NotaFijada pageId={config.nota} titulo={paginas[config.nota].title} /> : null}
+          </>
+        );
+      case "recordatorios":
+        return recordatorios?.length ? <ListaRecordatorios lista={recordatorios} /> : null;
       case "enlaces":
         if (editando) return <EditorEnlaces config={config} paginas={paginas} guardar={guardar} />;
         return config.enlaces.some((e) => e.tipo === "web" || paginas[e.pageId]) ? <Enlaces enlaces={config.enlaces} paginas={paginas} /> : null;
@@ -236,10 +265,16 @@ function InicioMiembro() {
         )}
       </div>
 
-      <h1 className="font-display mb-8 mt-2 text-center text-2xl font-extrabold md:mb-10 md:text-3xl">
-        {saludo}
-        {nombre ? `, ${nombre}` : ""}
-      </h1>
+      <h1 className="font-display mt-2 text-center text-2xl font-extrabold md:text-3xl">{saludo}</h1>
+      <p className="mt-1 text-center text-sm text-[var(--muted)] first-letter:uppercase">{fechaHoy}</p>
+      {/* El buscador debajo del saludo, como el «Buscar» del Home de Notion: abre Ctrl+K. */}
+      <button
+        onClick={openSearchPalette}
+        className="mx-auto mb-8 mt-4 flex w-full max-w-md items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--hover)] md:mb-10"
+      >
+        <Search size={16} strokeWidth={1.75} /> Buscar en Notiono…
+        <span className="ml-auto hidden text-xs md:inline">Ctrl+K</span>
+      </button>
 
       {fallo && <p className="mb-4 text-center text-sm text-red-500">No se pudo guardar: {fallo}</p>}
 

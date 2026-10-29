@@ -10,6 +10,8 @@ import { dateValue, dayOf } from "@/lib/cellText";
 import { applyViewConfig, cellValue, conComputados, filterFieldIds, type DbField, type DbRecord, type FilterNode } from "@/lib/viewData";
 import { calculaComputados, necesitaComputados } from "../services/computados";
 import { cellToText, peopleOf } from "../services/cells";
+import { estaHecha, valorHecho } from "@/lib/tareas";
+import { normalizaInicio } from "@/lib/inicio";
 import { sendPush } from "../push";
 import { jsonLimpio } from "../jsonLimpio";
 import { alcanza, exigeNivel, filtraQuienesVen, mapaDeNiveles, type Nivel } from "../services/perms";
@@ -226,22 +228,34 @@ export const dbRouter = router({
 
   /**
    * "Mis tareas": filas de cualquier base de datos del espacio en las que un campo
-   * de tipo Persona me incluye. Devuelve también el estado y la fecha si la BD los tiene.
+   * de tipo Persona me incluye, y las de mi BD de tareas (la del Inicio) si no tiene
+   * campo Persona. Devuelve también el estado y la fecha si la BD los tiene, y cómo
+   * marcarla hecha (`marca`). Lo hecho no sale, salvo con `conHechas` (`hecha: true`).
    */
-  myTasks: workspaceProcedure.query(async ({ ctx }) => {
+  myTasks: workspaceProcedure.input(z.object({ conHechas: z.boolean().optional() }).optional()).query(async ({ ctx, input }) => {
     const personFields = await ctx.db.field.findMany({
       where: { type: "person", collection: { page: { workspaceId: ctx.workspace.id, archivedAt: null } } },
       select: { id: true, collectionId: true },
     });
-    if (!personFields.length) return [];
+    const miBd = normalizaInicio(
+      (await ctx.db.member.findUnique({ where: { workspaceId_userId: { workspaceId: ctx.workspace.id, userId: ctx.user.id } }, select: { inicio: true } }))?.inicio,
+    ).tareas;
+    const miColeccion = miBd
+      ? await ctx.db.collection.findFirst({ where: { pageId: miBd, page: { workspaceId: ctx.workspace.id, archivedAt: null } }, select: { id: true } })
+      : null;
+    const sinPersona = miColeccion && !personFields.some((f) => f.collectionId === miColeccion.id) ? [{ collectionId: miColeccion.id }] : [];
+    if (!personFields.length && !sinPersona.length) return [];
 
     const records = await ctx.db.record.findMany({
       where: {
         archivedAt: null,
-        OR: personFields.map((f) => ({
-          collectionId: f.collectionId,
-          cells: { path: [f.id], array_contains: ctx.user.id },
-        })),
+        OR: [
+          ...personFields.map((f) => ({
+            collectionId: f.collectionId,
+            cells: { path: [f.id], array_contains: ctx.user.id },
+          })),
+          ...sinPersona,
+        ],
       },
       include: {
         collection: {
@@ -266,12 +280,16 @@ export const dbRouter = router({
       const dateField = first("date");
       const label = (f: (typeof fields)[number] | undefined) =>
         f ? cellToText(f, cells[f.id], r) : "";
-      // Lo terminado (Estado en el grupo «Hecho») no sale, como en «Mis tareas» de Notion.
-      if (statusField?.type === "status") {
-        const opciones = ((statusField.config as { options?: { id: string; group?: string }[] } | null)?.options ?? []);
-        if (opciones.find((o) => o.id === cells[statusField.id])?.group === "done") return [];
-      }
+      // Lo terminado (casilla marcada o Estado en el grupo «Hecho») no sale, como en «Mis
+      // tareas» de Notion; con `conHechas` sí (la sección «Completadas», plegada).
+      const hecha = estaHecha(fields, cells) === true;
+      if (hecha && !input?.conHechas) return [];
+      const si = valorHecho(fields, true);
+      const no = valorHecho(fields, false);
       return [{
+        hecha,
+        // Cómo se marca tocando el círculo: la casilla o el Estado (null si la BD no tiene).
+        marca: si ? { fieldId: si.fieldId, si: si.value, no: no?.value ?? null } : null,
         recordId: r.id,
         pageId: r.collection.page.id,
         dbTitle: r.collection.page.title || r.collection.name,

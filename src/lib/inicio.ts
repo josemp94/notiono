@@ -9,13 +9,19 @@
 
 import { sumaDias } from "./recordatorios";
 
-export const BLOQUES = ["recientes", "tareas", "hoy", "proximas", "favoritos", "enlaces"] as const;
+export const BLOQUES = [
+  "recientes", "tareas", "hoy", "proximas", "favoritos", "enlaces",
+  // 2.5.0 (lo que hacía la app de notas de Pablo): botones, bloc de notas, nota fijada y avisos.
+  "acciones", "bloc", "nota", "recordatorios",
+] as const;
 export type BloqueInicio = (typeof BLOQUES)[number];
 
 /** Quien nunca ha tocado nada ve el Inicio de siempre: recientes y mis tareas. */
 const VISIBLES_POR_DEFECTO: BloqueInicio[] = ["recientes", "tareas"];
 
 export const MAX_ENLACES = 30;
+/** Tope del bloc de notas rápido (es un borrador, no una página). */
+export const MAX_BLOC = 20_000;
 const MAX_TITULO = 120;
 const MAX_URL = 2000;
 
@@ -29,6 +35,12 @@ export type ConfigInicio = {
   bloques: { id: BloqueInicio; visible: boolean }[];
   enlaces: EnlaceInicio[];
   abrir: AbrirAlIniciar;
+  /** La página del bloque «Nota fijada». */
+  nota: string | null;
+  /** La base de datos donde van las tareas rápidas (Acciones rápidas, Mis tareas). */
+  tareas: string | null;
+  /** El texto del «Bloc de notas rápido» (se guarda solo, por persona y espacio). */
+  bloc: string;
 };
 
 export function inicioPorDefecto(): ConfigInicio {
@@ -36,6 +48,9 @@ export function inicioPorDefecto(): ConfigInicio {
     bloques: BLOQUES.map((id) => ({ id, visible: VISIBLES_POR_DEFECTO.includes(id) })),
     enlaces: [],
     abrir: { tipo: "inicio" },
+    nota: null,
+    tareas: null,
+    bloc: "",
   };
 }
 
@@ -61,6 +76,11 @@ const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
 export function normalizaInicio(raw: unknown): ConfigInicio {
   const base = inicioPorDefecto();
   if (!esObjeto(raw)) return base;
+  const extra = {
+    nota: texto(raw.nota, 64) ?? null,
+    tareas: texto(raw.tareas, 64) ?? null,
+    bloc: typeof raw.bloc === "string" ? raw.bloc.slice(0, MAX_BLOC) : "",
+  };
 
   const vistos = new Set<BloqueInicio>();
   const bloques: ConfigInicio["bloques"] = [];
@@ -70,10 +90,10 @@ export function normalizaInicio(raw: unknown): ConfigInicio {
     bloques.push({ id: b.id as BloqueInicio, visible: b.visible !== false });
   }
   // Sin ningún bloque que valga es como no haber guardado nada.
-  if (!bloques.length) return { ...base, enlaces: normalizaEnlaces(raw.enlaces), abrir: normalizaAbrir(raw.abrir) };
+  if (!bloques.length) return { ...base, enlaces: normalizaEnlaces(raw.enlaces), abrir: normalizaAbrir(raw.abrir), ...extra };
   for (const id of BLOQUES) if (!vistos.has(id)) bloques.push({ id, visible: false });
 
-  return { bloques, enlaces: normalizaEnlaces(raw.enlaces), abrir: normalizaAbrir(raw.abrir) };
+  return { bloques, enlaces: normalizaEnlaces(raw.enlaces), abrir: normalizaAbrir(raw.abrir), ...extra };
 }
 
 function normalizaEnlaces(raw: unknown): EnlaceInicio[] {
@@ -193,4 +213,13 @@ export function proximasFechas(
 export function destinoAlIniciar(abrir: AbrirAlIniciar, existe: (pageId: string) => boolean, ultima?: string | null): string | null {
   const id = abrir.tipo === "pagina" ? abrir.pageId : abrir.tipo === "ultima" ? ultima : null;
   return id && existe(id) ? id : null;
+}
+
+/** «Buenos días, Pablo · jueves 29 de octubre»: el saludo de arriba del Inicio (hora del dispositivo). */
+export function saludoInicio(nombre: string, ahora = new Date()): string {
+  const h = ahora.getHours();
+  const saludo = h < 7 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
+  // Sin la coma que pone el formato de España («jueves, 29 de octubre»), como en Notion.
+  const fecha = ahora.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+  return `${saludo}${nombre ? `, ${nombre}` : ""} · ${fecha}`;
 }

@@ -953,14 +953,15 @@ import { esChallenge, esVerificador, s256, verificadorCasa } from "../src/server
 
 // --- Inicio personalizable: normalizar lo guardado, tareas de hoy y próximas fechas ---
 import { sumaDias } from "../src/lib/recordatorios";
-import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, tareasDeHoy, urlValida, MAX_ENLACES } from "../src/lib/inicio";
+import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, saludoInicio, tareasDeHoy, urlValida, MAX_BLOC, MAX_ENLACES } from "../src/lib/inicio";
 {
   const visibles = (c: ReturnType<typeof normalizaInicio>) => c.bloques.filter((b) => b.visible).map((b) => b.id).join(",");
   // Sin nada guardado (o basura): el Inicio de siempre, recientes y mis tareas.
   for (const raw of [null, undefined, "x", 3, [], {}, { bloques: "no" }, { bloques: [{ id: "inventado" }] }]) {
     const c = normalizaInicio(raw);
     assert.equal(visibles(c), "recientes,tareas");
-    assert.equal(c.bloques.length, 6);
+    assert.equal(c.bloques.length, 10);
+    assert.deepEqual([c.nota, c.tareas, c.bloc], [null, null, ""]);
     assert.deepEqual(c.abrir, { tipo: "inicio" });
     assert.deepEqual(c.enlaces, []);
   }
@@ -968,7 +969,7 @@ import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, tareas
   const c = normalizaInicio({
     bloques: [{ id: "enlaces", visible: true }, { id: "viejo", visible: true }, { id: "hoy" }, { id: "enlaces", visible: false }, { id: "recientes", visible: false }],
   });
-  assert.equal(c.bloques.map((b) => b.id).join(","), "enlaces,hoy,recientes,tareas,proximas,favoritos");
+  assert.equal(c.bloques.map((b) => b.id).join(","), "enlaces,hoy,recientes,tareas,proximas,favoritos,acciones,bloc,nota,recordatorios");
   assert.equal(visibles(c), "enlaces,hoy");
   // Enlaces: solo http(s), sin ids repetidos, con tope, títulos recortados.
   assert.equal(urlValida("javascript:alert(1)"), null);
@@ -1001,6 +1002,19 @@ import { destinoAlIniciar, lleva, mueve, normalizaInicio, proximasFechas, tareas
   assert.equal(destinoAlIniciar({ tipo: "ultima" }, existe, null), null);
   // Normalizar es idempotente.
   assert.deepEqual(normalizaInicio(normalizaInicio(c)), c);
+  // Lo de la 2.5.0: un Inicio guardado por la 2.4 (sin los bloques nuevos) los recibe ocultos
+  // al final y sin perder su orden; la nota fijada, la BD de tareas y el bloc se guardan, con tope.
+  const viejo = normalizaInicio({ bloques: [{ id: "tareas", visible: true }, { id: "recientes", visible: true }] });
+  assert.equal(visibles(viejo), "tareas,recientes");
+  assert.deepEqual(viejo.bloques.slice(-4), [{ id: "acciones", visible: false }, { id: "bloc", visible: false }, { id: "nota", visible: false }, { id: "recordatorios", visible: false }]);
+  const nuevo = normalizaInicio({ bloques: [{ id: "bloc", visible: true }, { id: "nota" }], nota: " p7 ", tareas: "bd1", bloc: "x".repeat(MAX_BLOC + 5) });
+  assert.equal(visibles(nuevo), "bloc,nota");
+  assert.deepEqual([nuevo.nota, nuevo.tareas, nuevo.bloc.length], ["p7", "bd1", MAX_BLOC]);
+  assert.deepEqual([normalizaInicio({ nota: 3, tareas: "", bloc: 5 }).nota, normalizaInicio({ tareas: "" }).tareas, normalizaInicio({ bloc: 5 }).bloc], [null, null, ""]);
+  assert.deepEqual(normalizaInicio(normalizaInicio(nuevo)), nuevo);
+  // El saludo con la fecha de hoy.
+  assert.equal(saludoInicio("Pablo", new Date(2026, 9, 29, 9, 30)), "Buenos días, Pablo · jueves 29 de octubre");
+  assert.equal(saludoInicio("", new Date(2026, 9, 29, 22, 0)), "Buenas noches · jueves 29 de octubre");
   // Reordenar: flechas y arrastrar.
   assert.deepEqual(mueve(["a", "b", "c"], 0, 1), ["b", "a", "c"]);
   assert.deepEqual(mueve(["a", "b", "c"], 0, -1), ["a", "b", "c"]);
@@ -1137,7 +1151,7 @@ import { atajoRecordatorio, bloqueRecordatorio, enMadrid, momentoRecordatorio, r
 }
 
 // Tarea hecha: la casilla manda; si no hay, el Estado (grupo «Hecho»).
-import { estaHecha, valorHecho } from "../src/lib/tareas";
+import { agrupaTareas, estaHecha, seccionDe, valorHecho } from "../src/lib/tareas";
 {
   const est = { id: "e", type: "status", config: { options: [{ id: "a", group: "todo" }, { id: "b", group: "doing" }, { id: "z", group: "done" }] } };
   assert.equal(estaHecha([est], { e: "z" }), true);
@@ -1149,6 +1163,15 @@ import { estaHecha, valorHecho } from "../src/lib/tareas";
   assert.deepEqual(valorHecho([est, casilla]), { fieldId: "c", value: true });
   assert.equal(estaHecha([{ id: "t", type: "text" }], {}), null, "sin casilla ni estado no se sabe");
   assert.equal(valorHecho([{ id: "s", type: "status", config: { options: [{ id: "x" }] } }]), null);
+  // Mis tareas por secciones (el jueves 29-oct): vencidas, hoy, mañana, próximas, sin fecha y hechas.
+  const t = (title: string, date: string, hecha = false) => ({ title, date, hecha });
+  const lista = [t("b", "2026-10-31"), t("viejo", "2026-10-01"), t("hoy", "2026-10-29T18:00"), t("sin", ""), t("mañana", "2026-10-30"), t("a", "2026-10-31"), t("ok", "2026-10-02", true)];
+  const s = agrupaTareas(lista, "2026-10-29");
+  assert.deepEqual(s.map((x) => `${x.id}:${x.tareas.map((y) => y.title).join("+")}`), ["vencidas:viejo", "hoy:hoy", "manana:mañana", "proximas:a+b", "sinFecha:sin", "completadas:ok"]);
+  assert.deepEqual(agrupaTareas(lista, "2026-10-29", true).map((x) => x.id), ["vencidas", "hoy"]);
+  // Fin de mes y de año.
+  assert.equal(seccionDe(t("x", "2026-11-01"), "2026-10-31"), "manana");
+  assert.equal(seccionDe(t("x", "2027-01-01"), "2026-12-31"), "manana");
 }
 
 compruebaColaboracion()
