@@ -125,6 +125,8 @@ sealed interface Mencionable {
     data class Pagina(val id: String, val titulo: String, val icono: String?) : Mencionable
     data class Persona(val id: String, val nombre: String) : Mencionable
     data class Fecha(val ymd: String, val etiqueta: String) : Mencionable
+    /** «@recordar…»: mención de fecha con aviso a su hora; `abrir` abre su menú al ponerla. */
+    data class Recordar(val fecha: String, val etiqueta: String, val abrir: Boolean = false) : Mencionable
 }
 
 /** Menú «@»: fechas, personas del espacio y páginas (como el de la web). */
@@ -147,10 +149,14 @@ fun MenuMenciones(consulta: String, pageId: String, onElegir: (Mencionable) -> U
             .distinctBy { it.userId }.map { Mencionable.Persona(it.userId, it.nombre) }
     }
     val fechas = remember(consulta) { fechasPara(consulta.trim().lowercase()) }
+    val recordar = remember(consulta) { recordarPara(consulta) }
     Desplegable {
         LazyColumn(Modifier.heightIn(max = 300.dp)) {
-            if (fechas.isNotEmpty()) item { TituloSeccion("Fechas") }
+            if (fechas.isNotEmpty() || recordar.isNotEmpty()) item { TituloSeccion("Fecha o recordatorio") }
             items(fechas, key = { "f" + it.ymd }) { f -> FilaMenu(f.etiqueta, "calendar-days", detalle = f.ymd) { onElegir(f) } }
+            items(recordar, key = { "r" + it.fecha + it.abrir }) { r ->
+                FilaMenu(r.etiqueta, "alarm-clock", detalle = if (r.abrir) "Elige el día y la hora" else r.fecha.replace('T', ' ')) { onElegir(r) }
+            }
             if (personas.isNotEmpty()) item { TituloSeccion("Personas") }
             items(personas, key = { "u" + it.id }) { p -> FilaMenu("@${p.nombre}", "circle-user") { onElegir(p) } }
             if (paginas.isNotEmpty()) item { TituloSeccion("Páginas") }
@@ -163,9 +169,20 @@ fun MenuMenciones(consulta: String, pageId: String, onElegir: (Mencionable) -> U
         }
     }
     // Nada que proponer con lo escrito: se cierra solo.
-    if (fechas.isEmpty() && personas.isEmpty() && paginas.isEmpty() && consulta.length > 2) {
+    if (fechas.isEmpty() && recordar.isEmpty() && personas.isEmpty() && paginas.isEmpty() && consulta.length > 2) {
         LaunchedEffect(consulta) { delay(1500); onCerrar() }
     }
+}
+
+/**
+ * Lo de recordar del menú @ (como el de Notion y la web): con «@» solo, «Recordar…»; al
+ * escribir «recordar…», los atajos o la fecha que se entienda (`AtajosRecordar.sugerencias`).
+ */
+fun recordarPara(consulta: String, ahora: java.time.Instant = java.time.Instant.now()): List<Mencionable.Recordar> {
+    val q = consulta.trim()
+    val sug = com.monrealperez.notiono.ui.pagina.AtajosRecordar.sugerencias(q, ahora) ?: if (q.isEmpty()) emptyList() else return emptyList()
+    val elegir = if (q.length <= "recordar".length) com.monrealperez.notiono.ui.pagina.AtajosRecordar.atajo("manana", ahora)?.let { Mencionable.Recordar(it, "Recordar…", abrir = true) } else null
+    return sug.map { (t, f) -> Mencionable.Recordar(f, t) } + listOfNotNull(elegir)
 }
 
 /** Hoy/Mañana si casan con lo escrito, y «25/12» o «25/12/2027» tal cual (como la web). */

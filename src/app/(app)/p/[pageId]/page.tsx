@@ -22,7 +22,6 @@ import { exportaHtml } from "@/components/editor/exportarHtml";
 import { nombreSeguro, type PaginaExport } from "@/lib/exportZip";
 import { editorParaExport } from "@/components/editor/bloquesExport";
 import { downloadBase64, downloadText, MIME_WORD } from "@/lib/download";
-import { BotonRecordar, Recordar } from "@/components/Recordar";
 import { InfoPagina } from "@/components/InfoPagina";
 
 /** "hace 5 min", "hace 3 h", "ayer", "hace 12 días" — para la barra superior. */
@@ -245,7 +244,6 @@ function PageMenu({
   const [open, setOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [exportando, setExportando] = useState(false);
-  const [recordando, setRecordando] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const setFullWidth = trpc.pages.setFullWidth.useMutation();
   const setLocked = trpc.pages.setLocked.useMutation();
@@ -311,10 +309,7 @@ function PageMenu({
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => {
-          setOpen((o) => !o);
-          setRecordando(false);
-        }}
+        onClick={() => setOpen((o) => !o)}
         className="toque inline-flex items-center justify-center rounded-md px-2 py-1 text-sm text-[var(--muted)] hover:bg-[var(--hover)]"
         title="Opciones de página"
       >
@@ -356,12 +351,6 @@ function PageMenu({
             <LinkIcon size={16} />
             Copiar enlace
           </button>
-          {canEdit && page.type !== "database" &&
-            (recordando ? (
-              <Recordar id={page.id} itemClass={itemMenu} onListo={() => (setRecordando(false), setOpen(false))} />
-            ) : (
-              <BotonRecordar itemClass={itemMenu} onClick={() => setRecordando(true)} />
-            ))}
           {canEdit && (
           <>
           <button

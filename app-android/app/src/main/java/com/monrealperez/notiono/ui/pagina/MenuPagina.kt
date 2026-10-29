@@ -102,7 +102,6 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         "publicar" -> { HojaPublicar(id) { hoja = null; onCerrar() }; return }
         "compartir" -> { HojaCompartir(id, info.publicToken != null, onPublicar = { hoja = "publicar" }) { hoja = null; onCerrar() }; return }
         "mover" -> { HojaMover(id) { hoja = null; onCerrar() }; return }
-        "recordar" -> { HojaRecordar(id, null) { hoja = null; onCerrar() }; return }
         "tipografia" -> {
             Hoja({ hoja = null; onCerrar() }, "Tipografía") {
                 for ((f, t) in listOf("sans" to "Predeterminada", "serif" to "Serif", "mono" to "Monoespaciada")) {
@@ -127,7 +126,6 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
             accion("bandeja", "pages.toggleFollow", objeto("pageId" to id), if (info.siguiendo) "Ya no la sigues" else "La sigues"); onCerrar()
         }
         FilaMenu("Comentarios", "message-square") { onComentarios() }
-        if (info.puedeEditar && !info.esBd) FilaMenu("Recordarme…", "alarm-clock", detalle = "En 1 hora, esta tarde, mañana…") { hoja = "recordar" }
         FilaMenu("Copiar enlace", "link") {
             val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
             cm.setPrimaryClip(ClipData.newPlainText("Notiono", "${BuildConfig.BASE_URL}/p/$id"))

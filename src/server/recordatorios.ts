@@ -15,7 +15,11 @@
  */
 import { db as dbReal } from "@/lib/db";
 import { dateValue } from "@/lib/cellText";
-import { cuandoEvento, enMadrid, momentoRecordatorio } from "@/lib/recordatorios";
+import { cuandoEvento, dentroDeUnaHora, enMadrid, momentoRecordatorio, posponCelda, posponMencion } from "@/lib/recordatorios";
+import { aplicarOpsJson, type BloqueBN } from "./app/bloquesYjs";
+import { aplicarOpsPagina, leerBloquesPagina } from "./app/documento";
+import { guardaContenidoPagina } from "./services/pages";
+import { jsonLimpio } from "./jsonLimpio";
 import { valorHecho } from "@/lib/tareas";
 import { nivelDePagina, alcanza } from "./services/perms";
 import { filtraQuienesVen } from "./services/perms";
@@ -222,7 +226,9 @@ export type AvisoRecordatorio = { key: string; pageId: string; recordId?: string
  * Los botones de la notificación (push de la web y alarma de la app), con la sesión de
  * quien la recibe (sea cual sea su espacio activo):
  * - «Hecho»: en una fila con casilla o estado, la marca hecha; en lo demás, descarta.
- * - «Posponer 1 h»: un aviso más dentro de una hora (`Pospuesto`).
+ * - «Posponer 1 h»: si el aviso era a la hora de su fecha, mueve esa fecha (la mención o
+ *   la celda) a dentro de una hora; si era «N antes» de un evento, el evento se queda y
+ *   el aviso se repite dentro de una hora (`Pospuesto`). Ver `posponMencion`.
  * En los dos, el aviso de la bandeja queda leído. Lanza un Error con el porqué si no puede.
  */
 export async function accionRecordatorio(
@@ -244,6 +250,14 @@ export async function accionRecordatorio(
   await db.notification.updateMany({ where: { userId, key: a.key }, data: { read: true } });
 
   if (accion === "posponer") {
+    const nueva = dentroDeUnaHora(ahora);
+    if (alcanza(nivel, "edit") && rol !== "viewer") {
+      const movido = await mueveRecordatorio(db, userId, page, a, nueva).catch((e) => {
+        console.error("[recordatorios] posponer", e);
+        return null;
+      });
+      if (movido) return { pospuesto: { key: movido, cuando: momentoRecordatorio(nueva, "0")!.toISOString() } };
+    }
     const p = await db.pospuesto.create({
       data: {
         userId, workspaceId: page.workspaceId, pageId: page.id, recordId: a.recordId ?? null,
@@ -267,6 +281,57 @@ export async function accionRecordatorio(
   // El mismo merge en Postgres que db.updateCell (solo esa clave).
   await db.$executeRaw`UPDATE "Record" SET cells = cells || ${JSON.stringify({ [v.fieldId]: v.value })}::jsonb, "updatedById" = ${userId}, "updatedAt" = now() WHERE id = ${fila!.id}`;
   return { hecha: true };
+}
+
+/**
+ * «Posponer 1 h» moviendo la propia fecha (aviso a la hora del evento): una mención de
+ * fecha de una página o del cuerpo de una fila, o una celda de fecha. Devuelve la clave
+ * del aviso nuevo, o null si no había nada que mover (el llamante pone un `Pospuesto`).
+ */
+async function mueveRecordatorio(
+  db: Db,
+  userId: string,
+  page: { id: string; workspaceId: string },
+  a: AvisoRecordatorio,
+  nueva: string,
+): Promise<string | null> {
+  const iso = momentoRecordatorio(nueva, "0")!.toISOString();
+  // Mención: rem:<página o fila>:<instante>:<quien la puso>. Celda: rem:<fila>:<campo>:<instante>.
+  const mencion = /^rem:([^:]+):(\d{4}-\d{2}-\d{2}T[\d:.]+Z):(.+)$/.exec(a.key);
+  const celda = /^rem:([^:]+):([^:]+):(\d{4}-\d{2}-\d{2}T[\d:.]+Z)$/.exec(a.key);
+  if (mencion && mencion[3] === userId) {
+    const [, id, antes] = mencion;
+    if (id === page.id && !a.recordId) {
+      const p = await db.page.findUniqueOrThrow({ where: { id: page.id }, select: { id: true, type: true, content: true, ydoc: true } });
+      const bloque = posponMencion(await leerBloquesPagina(p), antes, userId, nueva);
+      if (!bloque) return null;
+      const bloques = await aplicarOpsPagina(db, page.id, [{ op: "upsert", block: bloque as BloqueBN }]);
+      const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, name: true, email: true } });
+      await guardaContenidoPagina(db, { workspaceId: page.workspaceId, user }, p, bloques);
+      return `rem:${page.id}:${iso}:${userId}`;
+    }
+    if (id === a.recordId) {
+      const hecho = await db.$transaction(async (tx) => {
+        const [fila] = await tx.$queryRaw<{ content: unknown }[]>`SELECT content FROM "Record" WHERE id = ${id} AND "archivedAt" IS NULL FOR UPDATE`;
+        const actuales = Array.isArray(fila?.content) ? (fila.content as BloqueBN[]) : [];
+        const bloque = posponMencion(actuales, antes, userId, nueva);
+        if (!bloque) return false;
+        await tx.record.update({ where: { id }, data: { content: jsonLimpio(aplicarOpsJson(actuales, [{ op: "upsert", block: bloque as BloqueBN }])), updatedById: userId } });
+        return true;
+      });
+      return hecho ? `rem:${id}:${iso}:${userId}` : null;
+    }
+    return null;
+  }
+  if (celda && celda[1] === a.recordId) {
+    const [, recordId, fieldId, antes] = celda;
+    const fila = await db.record.findFirst({ where: { id: recordId, archivedAt: null, collection: { pageId: page.id } }, select: { cells: true } });
+    const v = posponCelda(((fila?.cells ?? {}) as Record<string, unknown>)[fieldId], antes, nueva);
+    if (!v) return null;
+    await db.$executeRaw`UPDATE "Record" SET cells = cells || ${JSON.stringify({ [fieldId]: v })}::jsonb, "updatedById" = ${userId}, "updatedAt" = now() WHERE id = ${recordId}`;
+    return `rem:${recordId}:${fieldId}:${iso}`;
+  }
+  return null;
 }
 
 /** Arranca la vuelta de cada minuto (una sola por proceso). */

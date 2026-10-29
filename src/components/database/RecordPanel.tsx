@@ -13,7 +13,6 @@ import { itemDibujo, itemEcuacion, itemEnlaceWeb, itemIndice, itemLlamada, items
 import { isTyping } from "@/lib/shortcuts";
 import { toast } from "@/components/Toast";
 import { downloadBase64, MIME_WORD } from "@/lib/download";
-import { BotonRecordar, Recordar } from "@/components/Recordar";
 import { InfoPagina } from "@/components/InfoPagina";
 import { trpc } from "@/trpc/react";
 import { useTheme } from "@/lib/theme";
@@ -404,7 +403,6 @@ export function RecordPanel({
 /** El «⋯» de la ficha: guardar como plantilla, copiar el enlace y borrar la fila. */
 function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPlantilla?: () => void; onEnlace: () => void; onWord: () => void; onBorrar?: () => void; recordar?: { id: string; recordId: string } }) {
   const [open, setOpen] = useState(false);
-  const [recordando, setRecordando] = useState(false);
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
   const hacer = (f: () => void) => () => {
     setOpen(false);
@@ -413,10 +411,7 @@ function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPl
   return (
     <div className="relative">
       <button
-        onClick={() => {
-          setOpen((o) => !o);
-          setRecordando(false);
-        }}
+        onClick={() => setOpen((o) => !o)}
         className="toque flex items-center justify-center rounded-md p-1 text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         title="Más acciones"
         aria-label="Más acciones"
@@ -431,12 +426,6 @@ function MenuFicha({ onPlantilla, onEnlace, onWord, onBorrar, recordar }: { onPl
           <button onClick={hacer(onWord)} className={item}>
             <FileDown size={15} /> Exportar a Word
           </button>
-          {recordar &&
-            (recordando ? (
-              <Recordar id={recordar.id} recordId={recordar.recordId} itemClass={item} onListo={() => (setRecordando(false), setOpen(false))} />
-            ) : (
-              <BotonRecordar itemClass={item} onClick={() => setRecordando(true)} />
-            ))}
           {onPlantilla && (
             <button onClick={hacer(onPlantilla)} className={item} title="Las filas nuevas podrán empezar con estos valores">
               <BookmarkPlus size={15} /> Guardar como plantilla

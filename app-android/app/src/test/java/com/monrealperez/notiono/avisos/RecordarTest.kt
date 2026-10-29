@@ -22,6 +22,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import com.monrealperez.notiono.editor.recordarPara
+import com.monrealperez.notiono.red.str
+import com.monrealperez.notiono.ui.pagina.HojaFecha
+import com.monrealperez.notiono.ui.tema.TemaNotiono
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -31,11 +41,13 @@ import java.time.Instant
 import java.util.concurrent.LinkedBlockingQueue
 
 /**
- * «Recordarme…» en la app: los atajos con la hora de Madrid (como la web) y los botones de
- * la notificación del recordatorio, «Hecho» y «Posponer 1 h», contra un servidor falso.
+ * Recordar en la app (como Notion: «@recordar…» y el menú de la mención de fecha): los
+ * atajos con la hora de Madrid y lo que entiende el menú @ (como la web), la hoja de la
+ * mención y los botones de la notificación, «Hecho» y «Posponer 1 h», contra un servidor falso.
  */
 @RunWith(RobolectricTestRunner::class)
 class RecordarTest {
+    @get:Rule val compose = createComposeRule()
     private val ctx get() = ApplicationProvider.getApplicationContext<Context>()
     private lateinit var servidor: MockWebServer
     private val pedidas = LinkedBlockingQueue<String>()
@@ -86,6 +98,48 @@ class RecordarTest {
         // Primavera: 01:30 CET + 1 h = 03:30 CEST.
         assertEquals("2026-03-29T03:30", AtajosRecordar.atajo("1h", Instant.parse("2026-03-29T00:30:00Z")))
         assertEquals("mañana a las 9:00", AtajosRecordar.cuando("2026-10-23T09:00", jueves))
+    }
+
+    /** Las mismas que `sugerenciasRecordar` en scripts/checkRecordatorios.ts (jueves 29-oct-2026, 10:00 en Madrid). */
+    @Test
+    fun elMenuArrobaEntiendeRecordarComoLaWeb() {
+        val jueves = Instant.parse("2026-10-29T09:00:00Z")
+        fun fechas(q: String) = AtajosRecordar.sugerencias(q, jueves)?.map { it.second }
+        assertNull(AtajosRecordar.sugerencias("ma", jueves))
+        assertEquals(listOf("2026-10-29T11:00", "2026-10-29T19:00", "2026-10-30T09:00"), fechas("rec"))
+        assertEquals(listOf("Recordar en 1 hora", "Recordar hoy a las 19:00", "Recordar mañana a las 9:00"), AtajosRecordar.sugerencias("recordar", jueves)!!.map { it.first })
+        assertEquals(listOf("2026-10-30T09:00"), fechas("recordar mañana"))
+        assertEquals(listOf("2026-10-29T19:00"), fechas("Recordar a las 19:00"))
+        assertEquals(listOf("2026-10-30T08:00"), fechas("recordar a las 8"))
+        assertEquals(listOf("2026-11-04T13:00"), fechas("recordar el miércoles a la 13:00"))
+        assertEquals(listOf("2026-11-05T09:00"), fechas("recordar jueves"))
+        assertEquals(listOf("2026-12-31T18:30"), fechas("recordar 31/12 18:30"))
+        assertEquals(3, fechas("recordar 31/02")!!.size)
+        assertEquals(3, fechas("recordar algo raro")!!.size)
+        // Con «@» solo, «Recordar…» (abre su menú al ponerla); al escribir otra cosa, nada.
+        assertEquals(listOf("Recordar…"), recordarPara("", jueves).map { it.etiqueta })
+        assertTrue(recordarPara("", jueves).single().abrir)
+        assertEquals(emptyList<Any>(), recordarPara("ana", jueves))
+        assertEquals(4, recordarPara("recordar", jueves).size)
+        assertEquals(1, recordarPara("recordar mañana", jueves).size)
+    }
+
+    /** Tocar el chip de fecha abre su menú: un atajo pone esa fecha con aviso a su hora, de quien lo pone. */
+    @Test
+    fun elMenuDeLaFechaPoneElRecordatorio() {
+        var nuevos: JsonObject? = null
+        val props = JsonObject(mapOf("fecha" to JsonPrimitive("2026-11-02"), "recordatorio" to JsonPrimitive(""), "por" to JsonPrimitive("")))
+        compose.setContent { TemaNotiono(false) { HojaFecha(props, onCambia = { nuevos = it }, onCerrar = {}) } }
+        compose.onNodeWithText("Recordar mañana a las 9:00").performClick()
+        compose.waitForIdle()
+        assertEquals(AtajosRecordar.atajo("manana"), nuevos!!.str("fecha"))
+        assertEquals("0", nuevos!!.str("recordatorio"))
+        assertEquals("u1", nuevos!!.str("por"))
+        // «Ninguno» quita el aviso (y con él a quién avisar).
+        compose.onNodeWithText("Ninguno").performClick()
+        compose.waitForIdle()
+        assertEquals("", nuevos!!.str("recordatorio"))
+        assertEquals("", nuevos!!.str("por"))
     }
 
     private fun rec() = Recordatorio("rem:r1:f:x", Instant.now().toString(), "Comprar pan", "Comprar pan · hoy a las 17:00", "bd1", "r1")

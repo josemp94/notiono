@@ -5,7 +5,7 @@
  * hora, a quien toca, con su push, y no se repite.
  */
 import assert from "node:assert/strict";
-import { cuandoEvento, momentoRecordatorio, opcionesRecordatorio } from "../src/lib/recordatorios";
+import { cuandoEvento, momentoRecordatorio, opcionesRecordatorio, sugerenciasRecordar } from "../src/lib/recordatorios";
 import { shiftDateValue, stretchDateValue } from "../src/lib/cellText";
 
 type Aviso = { userId: string; workspaceId: string; type: string; key: string; title: string; pageId: string; recordId: string | null };
@@ -31,6 +31,20 @@ export async function compruebaRecordatorios() {
   assert.equal(cuandoEvento("2026-10-24T17:00", new Date("2026-10-24T10:00:00Z")), "hoy a las 17:00");
   assert.equal(cuandoEvento("2026-10-25", new Date("2026-10-24T21:59:00Z")), "mañana");
   assert.equal(cuandoEvento("2026-10-25", new Date("2026-10-24T22:01:00Z")), "hoy", "medianoche de Madrid, no de UTC");
+  // «@recordar…» en el menú @, como en Notion (jueves 29-oct-2026 a las 10:00 de Madrid).
+  const jueves = new Date("2026-10-29T09:00:00Z");
+  const fechas = (q: string) => sugerenciasRecordar(q, jueves)?.map((x) => x.fecha);
+  assert.equal(sugerenciasRecordar("ma", jueves), null, "lo que no va de recordar no sugiere nada");
+  assert.deepEqual(fechas("rec"), ["2026-10-29T11:00", "2026-10-29T19:00", "2026-10-30T09:00"], "los atajos");
+  assert.deepEqual(sugerenciasRecordar("recordar", jueves)?.map((x) => x.titulo), ["Recordar en 1 hora", "Recordar hoy a las 19:00", "Recordar mañana a las 09:00"]);
+  assert.deepEqual(fechas("recordar mañana"), ["2026-10-30T09:00"]);
+  assert.deepEqual(fechas("Recordar a las 19:00"), ["2026-10-29T19:00"]);
+  assert.deepEqual(fechas("recordar a las 8"), ["2026-10-30T08:00"], "una hora ya pasada es mañana");
+  assert.deepEqual(fechas("recordar el miércoles a la 13:00"), ["2026-11-04T13:00"]);
+  assert.deepEqual(fechas("recordar jueves"), ["2026-11-05T09:00"], "el mismo día de la semana es el de la que viene");
+  assert.deepEqual(fechas("recordar 31/12 18:30"), ["2026-12-31T18:30"]);
+  assert.equal(fechas("recordar 31/02")?.length, 3, "una fecha que no existe vuelve a los atajos");
+  assert.equal(fechas("recordar algo raro")?.length, 3);
   // Mover o estirar la fecha (calendario, cronograma) conserva el recordatorio.
   assert.deepEqual(shiftDateValue({ start: "2026-10-24T10:00", reminder: "1h", reminderBy: "u1" }, 2), { start: "2026-10-26T10:00", reminder: "1h", reminderBy: "u1" });
   assert.deepEqual(stretchDateValue({ start: "2026-10-24", reminder: "1d" }, 1), { start: "2026-10-24", end: "2026-10-25", reminder: "1d" });
@@ -115,13 +129,18 @@ export async function compruebaRecordatorios() {
     const pospuestos: { id: string; userId: string; cuando: Date; [k: string]: unknown }[] = [];
     const leidos: string[] = [];
     let escrito: unknown = null;
+    let cuerpo: unknown[] = [bloqueRecordatorio("b", "2026-10-24T18:00", "u2")];
     const camposTareas = [{ id: "t", type: "text", config: null }, { id: "e", type: "status", config: { options: [{ id: "a", group: "todo" }, { id: "z", group: "done" }] } }];
     g.prisma = {
-      $queryRaw: async (sql: TemplateStringsArray) => (sql.join("").includes("content::text") && sql.join("").includes('"Record"') ? [{ id: "r9" }] : []),
+      $queryRaw: async (sql: TemplateStringsArray) =>
+        sql.join("").includes("FOR UPDATE") ? [{ content: cuerpo }]
+        : sql.join("").includes("content::text") && sql.join("").includes('"Record"') ? [{ id: "r9" }] : [],
       $executeRaw: async (_sql: TemplateStringsArray, json: unknown) => ((escrito = json), 1),
+      $transaction: async (f: (tx: unknown) => unknown) => f(g.prisma),
       record: {
-        findMany: async () => [{ id: "r9", cells: { t: "Comprar regalo" }, content: [bloqueRecordatorio("b", "2026-10-24T18:00", "u2")], collection: { pageId: "bd", page: { workspaceId: "w1" }, fields: camposTareas } }],
-        findFirst: async () => ({ id: "r9", collection: { fields: camposTareas } }),
+        findMany: async () => [{ id: "r9", cells: { t: "Comprar regalo" }, content: cuerpo, collection: { pageId: "bd", page: { workspaceId: "w1" }, fields: camposTareas } }],
+        findFirst: async () => ({ id: "r9", cells: { f: { start: "2026-10-24T20:00", end: "2026-10-24T21:00", reminder: "0" }, g: { start: "2026-10-25", reminder: "1d" } }, collection: { fields: camposTareas } }),
+        update: async ({ data }: { data: { content: unknown[] } }) => ((cuerpo = data.content), {}),
       },
       page: {
         findMany: async () => [],
@@ -157,14 +176,29 @@ export async function compruebaRecordatorios() {
     assert.equal(await dispara2(new Date("2026-10-24T16:00:10Z")), 1);
     const rec = pushes2[0].recordatorio!;
     assert.deepEqual([avisos2[0].userId, rec.pageId, rec.recordId, rec.titulo], ["u2", "bd", "r9", "Comprar regalo"]);
-    // Posponer 1 h: el aviso queda leído y vuelve a saltar una hora después (y solo entonces).
+    // Posponer 1 h de un aviso a la hora de su fecha: la mención misma pasa a dentro de una
+    // hora (al minuto de arriba), el aviso queda leído y vuelve a saltar entonces.
     const r = await accionRecordatorio(db2, "u2", "posponer", rec, new Date("2026-10-24T16:00:20Z"));
-    assert.equal(r.pospuesto?.cuando, "2026-10-24T17:00:20.000Z");
+    assert.equal(r.pospuesto?.cuando, "2026-10-24T17:01:00.000Z");
+    assert.equal(r.pospuesto?.key, "rem:r9:2026-10-24T17:01:00.000Z:u2");
+    assert.equal(pospuestos.length, 0, "no hace falta un aviso aparte: se ha movido la fecha");
+    assert.deepEqual((cuerpo[0] as { content: { props?: { fecha?: string } }[] }).content[1].props?.fecha, "2026-10-24T19:01");
     assert.deepEqual(leidos, [rec.key]);
-    assert.equal(await dispara2(new Date("2026-10-24T17:00:00Z")), 0);
-    assert.equal(await dispara2(new Date("2026-10-24T17:00:30Z")), 1);
+    assert.equal(await dispara2(new Date("2026-10-24T17:00:30Z")), 0);
+    assert.equal(await dispara2(new Date("2026-10-24T17:01:10Z")), 1);
     assert.equal(avisos2[1].key, r.pospuesto?.key);
-    assert.equal(pushes2[1].body, "Comprar regalo · hoy a las 19:00");
+    assert.equal(pushes2[1].body, "Comprar regalo · hoy a las 19:01");
+    // Una celda con aviso a la hora: se mueve la fecha (y el fin del rango con ella).
+    const celda = await accionRecordatorio(db2, "u2", "posponer", { key: "rem:r9:f:2026-10-24T18:00:00.000Z", pageId: "bd", recordId: "r9" }, new Date("2026-10-24T18:00:05Z"));
+    assert.equal(celda.pospuesto?.key, "rem:r9:f:2026-10-24T19:01:00.000Z");
+    assert.equal(escrito, JSON.stringify({ f: { start: "2026-10-24T21:01", end: "2026-10-24T22:01", reminder: "0" } }));
+    // «1 día antes»: el evento no se toca; el aviso se repite aparte dentro de una hora.
+    escrito = null;
+    const antes = await accionRecordatorio(db2, "u2", "posponer", { key: "rem:r9:g:2026-10-24T07:00:00.000Z", pageId: "bd", recordId: "r9", titulo: "Comprar regalo" }, new Date("2026-10-24T07:00:05Z"));
+    assert.equal(escrito, null);
+    assert.equal(antes.pospuesto?.key, "pos:p0");
+    assert.equal(antes.pospuesto?.cuando, "2026-10-24T08:00:05.000Z");
+    pospuestos.length = 0;
     // Hecho: la fila con Estado pasa a la opción del grupo «Hecho».
     assert.deepEqual(await accionRecordatorio(db2, "u2", "hecho", pushes2[1].recordatorio!), { hecha: true });
     assert.equal(escrito, JSON.stringify({ e: "z" }));

@@ -147,3 +147,103 @@ export function recordatorioRapido(bloques: unknown, por: string): { id: string;
   }
   return null;
 }
+
+/**
+ * «Posponer 1 h» de la notificación. Si el aviso era a la hora de su fecha (el «Recordar
+ * mañana a las 9:00» del menú @, o una fecha con «A la hora del evento»), la fecha ES el
+ * recordatorio y se mueve: el chip o la celda dicen la hora nueva y el aviso salta con
+ * ella. Si era «N antes» de un evento, el evento no se toca (null) y el servidor repite
+ * el aviso aparte (`Pospuesto`).
+ */
+type BloqueP = { id?: string; type?: string; props?: Record<string, unknown>; content?: unknown; children?: unknown };
+type MencionP = { type?: string; props?: { fecha?: unknown; recordatorio?: unknown; por?: unknown } };
+
+const saltaEn = (fecha: unknown, antes: unknown) =>
+  typeof fecha === "string" && typeof antes === "string" ? momentoRecordatorio(fecha, antes)?.toISOString() : undefined;
+
+/** El bloque (sin hijos) con la mención de `por` que avisaba en `iso` movida a `nueva`, o null. */
+export function posponMencion(bloques: unknown, iso: string, por: string, nueva: string): BloqueP | null {
+  if (!Array.isArray(bloques)) return null;
+  for (const b of bloques as BloqueP[]) {
+    if (Array.isArray(b?.content)) {
+      const c = b.content as MencionP[];
+      const i = c.findIndex((m) => m?.type === "dateMention" && m.props?.por === por && m.props.recordatorio === "0" && saltaEn(m.props.fecha, "0") === iso);
+      if (i >= 0) {
+        const content = c.map((m, j) => (j === i ? { ...m, props: { ...m.props, fecha: nueva } } : m));
+        const { children: _hijos, ...resto } = b;
+        return { ...resto, content };
+      }
+    }
+    const h = posponMencion(b?.children, iso, por, nueva);
+    if (h) return h;
+  }
+  return null;
+}
+
+/** El valor de una celda de fecha con aviso a la hora en `iso`, movido a `nueva` (el fin del rango con él), o null. */
+export function posponCelda(v: unknown, iso: string, nueva: string): Record<string, unknown> | null {
+  const o = v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  if (!o || o.reminder !== "0" || typeof o.start !== "string" || saltaEn(o.start, "0") !== iso) return null;
+  const fin = typeof o.end === "string" && o.end ? momentoRecordatorio(o.end, "0") : null;
+  const delta = momentoRecordatorio(nueva, "0")!.getTime() - momentoRecordatorio(o.start, "0")!.getTime();
+  return { ...o, start: nueva, ...(fin ? { end: enMadrid(new Date(fin.getTime() + delta)) } : {}) };
+}
+
+/** Dentro de una hora, al minuto de arriba (lo que pone «Posponer 1 h»). */
+export const dentroDeUnaHora = (ahora = new Date()) => enMadrid(new Date(Math.ceil((ahora.getTime() + 3600_000) / 60_000) * 60_000));
+
+const DIAS_SEMANA = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+const sinAcentos = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * Lo que ofrece el menú @ al escribir «@recordar…» (como el `@recordar mañana`,
+ * `@recordar a las 19:00` o `@recordar el miércoles a la 13:00` de Notion): null si lo
+ * escrito no va de recordar; si no se entiende la fecha, los atajos (en 1 hora, esta
+ * tarde, mañana a las 9:00). Fechas de Madrid "YYYY-MM-DDTHH:mm"; sin hora, a las 9:00;
+ * solo hora, hoy si aún no ha pasado y si no mañana.
+ */
+export function sugerenciasRecordar(consulta: string, ahora = new Date()): { titulo: string; fecha: string }[] | null {
+  const q = sinAcentos(consulta.trim().toLowerCase()).replace(/\s+/g, " ");
+  const m = /^(recordar|recuerdame|remind)(?: (.*))?$/.exec(q);
+  const prefijo = q.length >= 3 && ("recordar".startsWith(q) || "remind".startsWith(q));
+  if (!m && !prefijo) return null;
+  const atajos = ATAJOS.flatMap(([a]) => {
+    const fecha = atajoRecordatorio(a, ahora);
+    return fecha ? [{ titulo: a === "1h" ? "Recordar en 1 hora" : `Recordar ${cuandoEvento(fecha, ahora)}`, fecha }] : [];
+  });
+  const resto = m?.[2]?.trim();
+  if (!resto) return atajos;
+
+  const hoy = enMadrid(ahora).slice(0, 10);
+  let dia: string | null = null;
+  let r = resto.replace(/^el (proximo )?/, "");
+  const d = /^(hoy|pasado manana|manana|domingo|lunes|martes|miercoles|jueves|viernes|sabado|(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?)\b ?/.exec(r);
+  if (d) {
+    if (d[1] === "hoy") dia = hoy;
+    else if (d[1] === "manana") dia = sumaDias(hoy, 1);
+    else if (d[1] === "pasado manana") dia = sumaDias(hoy, 2);
+    else if (d[2]) {
+      const y = d[4] ? (d[4].length === 2 ? 2000 + Number(d[4]) : Number(d[4])) : Number(hoy.slice(0, 4));
+      const f = new Date(Date.UTC(y, Number(d[3]) - 1, Number(d[2])));
+      if (f.getUTCDate() !== Number(d[2]) || f.getUTCMonth() !== Number(d[3]) - 1) return atajos;
+      dia = f.toISOString().slice(0, 10);
+    } else {
+      const hoyDow = new Date(`${hoy}T12:00:00Z`).getUTCDay();
+      const n = (DIAS_SEMANA.indexOf(d[1]) - hoyDow + 7) % 7 || 7;
+      dia = sumaDias(hoy, n);
+    }
+    r = r.slice(d[0].length);
+  }
+  let hora: [number, number] | null = null;
+  const h = /^(?:a las? )?(\d{1,2})(?::(\d{2}))?(?: ?h)?$/.exec(r.trim());
+  if (r.trim()) {
+    if (!h || Number(h[1]) > 23 || Number(h[2] ?? 0) > 59) return atajos;
+    hora = [Number(h[1]), Number(h[2] ?? 0)];
+  }
+  if (!dia && !hora) return atajos;
+  const hh = hora ?? [HORA_AVISO, 0];
+  const pad = (x: number) => String(x).padStart(2, "0");
+  let fecha = `${dia ?? hoy}T${pad(hh[0])}:${pad(hh[1])}`;
+  if (!dia && horaMadrid(hoy, hh[0], hh[1]) <= ahora) fecha = `${sumaDias(hoy, 1)}T${pad(hh[0])}:${pad(hh[1])}`;
+  return [{ titulo: `Recordar ${cuandoEvento(fecha, ahora)}`, fecha }];
+}

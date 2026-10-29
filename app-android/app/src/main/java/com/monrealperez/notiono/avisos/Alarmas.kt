@@ -114,9 +114,10 @@ object Alarmas {
             val cuando = (pos?.get("cuando") as? kotlinx.serialization.json.JsonPrimitive)?.content
                 ?: Instant.ofEpochMilli(System.currentTimeMillis() + 3_600_000).toString()
             anade(ctx, r.copy(key = key, cuando = cuando))
-        } else if (respuesta != null) {
-            // Marcada: las listas y los widgets la quitan.
-            s.repo.avisa("vista:${r.pageId}", "tareas")
+        }
+        if (respuesta != null) {
+            // Marcada, o pospuesta moviendo su fecha: las listas, la página y los widgets lo dicen ya.
+            s.repo.avisa("vista:${r.pageId}", "pagina:${r.pageId}", "tareas")
             Widgets.repintaTodo(ctx)
         }
     }

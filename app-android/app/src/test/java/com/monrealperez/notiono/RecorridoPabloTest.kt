@@ -55,7 +55,7 @@ import java.util.zip.ZipFile
 /**
  * Lo de la 2.5.0 (lo que hacía la app de notas de Pablo) recorrido como una persona, contra
  * un Notiono de verdad en local: dibujar y guardar, reabrir el dibujo y seguir, exportar a
- * Word, «Recordarme…», el bloc de notas del Inicio y añadir rápido en Mis tareas. Lo lanza
+ * Word, «@recordar mañana», el bloc de notas del Inicio y añadir rápido en Mis tareas. Lo lanza
  * `scripts/recorrido-android.ts`, que después mira en el servidor que todo quedó bien.
  *
  * El lienzo es la página `/dibujo` de la web en un WebView (en Robolectric no corre su
@@ -263,12 +263,13 @@ class RecorridoPabloTest {
             assertTrue("y el dibujo, como imagen", z.entries().asSequence().any { it.name.startsWith("word/media/") })
         }
 
-        // ---------- «Recordarme…» mañana a las 9:00 ----------
-        pulsaDesc("Más opciones")
-        pulsa("Recordarme…")
-        pulsa("Mañana a las 9:00")
+        // ---------- «@recordar mañana» (como Notion): mención de fecha con aviso a las 9:00 ----------
+        teclea(campos().last(), "@recordar mañana")
+        pulsa("Recordar mañana a las 9:00")
         espera("el recordatorio, en el servidor", ms = 30_000) {
-            red { s.api.query("app.recordatorio", objeto("id" to pagina)) }.toString().contains("T09:00")
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(600))
+            red { s.repo.fresca("app.bloques", objeto("id" to pagina), cachear = false) }.toString()
+                .let { it.contains("dateMention") && it.contains("\"recordatorio\":\"0\"") && it.contains("T09:00") }
         }
         foto("recordatorio")
 

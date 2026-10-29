@@ -204,8 +204,15 @@ class AccionesEditor(
             is Mencionable.Pagina -> JsonObject(mapOf("type" to JsonPrimitive("mention"), "props" to JsonObject(mapOf("pageId" to JsonPrimitive(m.id), "title" to JsonPrimitive(m.titulo.ifBlank { "Sin título" }), "icon" to JsonPrimitive(m.icono ?: "")))))
             is Mencionable.Persona -> JsonObject(mapOf("type" to JsonPrimitive("personMention"), "props" to JsonObject(mapOf("userId" to JsonPrimitive(m.id), "name" to JsonPrimitive(m.nombre)))))
             is Mencionable.Fecha -> JsonObject(mapOf("type" to JsonPrimitive("dateMention"), "props" to JsonObject(mapOf("fecha" to JsonPrimitive(m.ymd)))))
+            is Mencionable.Recordar -> JsonObject(mapOf("type" to JsonPrimitive("dateMention"), "props" to JsonObject(mapOf(
+                "fecha" to JsonPrimitive(m.fecha), "recordatorio" to JsonPrimitive("0"), "por" to JsonPrimitive(s.sesion.usuarioId.orEmpty()),
+            ))))
         }
         insertaChip(b, nodo, donde)
+        if (m is Mencionable.Recordar) {
+            if (m.abrir) b.texto?.getSpans(donde, donde + 1, ChipSpan::class.java)?.firstOrNull()?.let { chipFecha = b to it; dialogo = "fecha" }
+            avisaAlarmas()
+        }
         estado.menu = null
         estado.texto(b)
         estado.foco = PeticionFoco(b.id, donde + 2)
@@ -216,8 +223,36 @@ class AccionesEditor(
         }
     }
 
-    fun abreChip(nodo: JsonObject) {
-        if (nodo.str("type") == "mention") (nodo["props"] as? JsonObject)?.str("pageId")?.takeIf { it.isNotBlank() }?.let { navegador?.pagina(it) }
+    /** Tocar un chip: la mención de página la abre; la de fecha, si se puede editar, abre su menú (fecha y recordatorio). */
+    fun abreChip(chip: ChipSpan, b: Bloque? = null, editable: Boolean = false) {
+        val nodo = chip.nodo
+        when (nodo.str("type")) {
+            "mention" -> (nodo["props"] as? JsonObject)?.str("pageId")?.takeIf { it.isNotBlank() }?.let { navegador?.pagina(it) }
+            "dateMention" -> if (editable && b != null) { chipFecha = b to chip; dialogo = "fecha" }
+        }
+    }
+
+    private var chipFecha by mutableStateOf<Pair<Bloque, ChipSpan>?>(null)
+
+    /** Cambia los props de un chip de fecha en su sitio (mismo hueco del texto, chip nuevo). */
+    private fun cambiaChip(b: Bloque, viejo: ChipSpan, props: JsonObject) = estado.enUnPaso {
+        val t = b.texto ?: return@enUnPaso
+        val ini = t.getSpanStart(viejo)
+        val fin = t.getSpanEnd(viejo)
+        if (ini < 0) return@enUnPaso
+        t.removeSpan(viejo)
+        val nuevo = Inline.chip(JsonObject(viejo.nodo + ("props" to props)), estado.pal)
+        t.setSpan(nuevo, ini, fin, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        chipFecha = b to nuevo
+        estado.texto(b)
+        estado.estructura(b)
+        avisaAlarmas()
+    }
+
+    /** Las alarmas del móvil salen del servidor: se piden otra vez cuando el cambio ya ha subido. */
+    private fun avisaAlarmas() = s.alcance.launch {
+        kotlinx.coroutines.delay(5_000)
+        com.monrealperez.notiono.avisos.Alarmas.actualiza(ctx, "mencion")
     }
 
     fun abreUrl(url: String) = Enlaces.abre(ctx, s.api.absoluta(url))
@@ -341,6 +376,13 @@ class AccionesEditor(
             "dibujo" -> if (b != null) LienzoDibujo(b.prop("escena").orEmpty(), onCerrar = { dialogo = null }) { g ->
                 dialogo = null
                 estado.props(b, "escena" to JsonPrimitive(g.escena), "imagen" to JsonPrimitive(g.imagen), "texto" to JsonPrimitive(g.texto))
+            }
+            "fecha" -> chipFecha?.let { (bloque, chip) ->
+                com.monrealperez.notiono.ui.pagina.HojaFecha(
+                    (chip.nodo["props"] as? JsonObject) ?: JsonObject(emptyMap()),
+                    onCambia = { cambiaChip(bloque, chip, it) },
+                    onCerrar = { dialogo = null; chipFecha = null },
+                )
             }
             "tex" -> if (b != null) EditorTex(b.prop("tex") ?: "") { tex ->
                 dialogo = null

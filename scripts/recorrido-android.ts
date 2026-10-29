@@ -12,7 +12,7 @@
  *   BASE_URL=http://127.0.0.1:3100 npx tsx scripts/recorrido-android.ts
  *
  * Y lo de la 2.5.0 (RecorridoPabloTest): dibujar y guardar, reabrir el dibujo y seguir,
- * exportar a Word, «Recordarme…», el bloc de notas del Inicio y añadir rápido en Mis tareas.
+ * exportar a Word, «@recordar mañana», el bloc de notas del Inicio y añadir rápido en Mis tareas.
  *
  * Con poca memoria, por tandas: `RECORRIDO=base` (RecorridoTest y RecorridoCompartirTest) o
  * `RECORRIDO=pablo` (RecorridoPabloTest); sin la variable, todo de una vez.
@@ -232,11 +232,12 @@ async function main() {
     const zip = unzipSync(Buffer.from(word.base64, "base64"));
     assert.ok(strFromU8(zip["word/document.xml"]).includes("Apuntes de Pablo"));
     assert.ok(Object.keys(zip).some((k) => k.startsWith("word/media/")), "con el dibujo como imagen");
-    // «Recordarme…» mañana a las 9:00: arriba de la página, y en los recordatorios de la persona.
+    // «@recordar mañana» (como Notion): una mención de fecha con aviso a su hora, de quien la puso,
+    // y en los recordatorios de la persona.
     const manana = new Date(Date.now() + 864e5);
     const ymdManana = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(manana);
-    assert.deepEqual((await q("app.recordatorio", { id: pb.pagina }))?.fecha, `${ymdManana}T09:00`);
-    assert.equal(apuntes.bloques[0].content?.[0]?.text?.trim(), "Recordatorio:", "el recordatorio va arriba de la página");
+    const conAviso = JSON.stringify(apuntes.bloques).match(/"type":"dateMention","props":\{[^}]*\}/g) ?? [];
+    assert.ok(conAviso.some((m) => m.includes(`"fecha":"${ymdManana}T09:00"`) && m.includes('"recordatorio":"0"')), "la mención con recordatorio");
     assert.ok((await q("app.recordatorios")).some((r: { pageId: string }) => r.pageId === pb.pagina), "la app lo programará con su alarma");
     // El bloc del Inicio: convertido en página (con su casilla) y vacío otra vez.
     const blocPagina = (await q("app.bloques", { id: pb.bloc })) as { bloques: Bloque[] };

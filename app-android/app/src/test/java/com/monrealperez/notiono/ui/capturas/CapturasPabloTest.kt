@@ -29,7 +29,7 @@ import com.monrealperez.notiono.ui.inicio.BlocNotas
 import com.monrealperez.notiono.ui.inicio.ConfigInicio
 import com.monrealperez.notiono.ui.inicio.ListaRecordatorios
 import com.monrealperez.notiono.ui.inicio.NotaFijada
-import com.monrealperez.notiono.ui.pagina.HojaRecordar
+import com.monrealperez.notiono.ui.pagina.HojaFecha
 import com.monrealperez.notiono.ui.pagina.lineasInfo
 import com.monrealperez.notiono.ui.tareas.PantallaTareas
 import com.monrealperez.notiono.ui.tema.C
@@ -133,6 +133,7 @@ class CapturasPabloTest {
     @Test fun inicioOscuro() = inicio(true)
     @Test fun tareasClaro() = foto("app-mis-tareas", false, "Pagar la luz") { PantallaTareas() }
     @Test fun tareasOscuro() = foto("app-mis-tareas", true, "Pagar la luz") { PantallaTareas() }
-    @Test fun recordarClaro() = foto("app-recordarme", false, "Quitar recordatorio") { HojaRecordar("p1", null) {} }
-    @Test fun recordarOscuro() = foto("app-recordarme", true, "Quitar recordatorio") { HojaRecordar("p1", null) {} }
+    private val fechaConAviso = kotlinx.serialization.json.JsonObject(mapOf("fecha" to kotlinx.serialization.json.JsonPrimitive("2026-10-30T09:00"), "recordatorio" to kotlinx.serialization.json.JsonPrimitive("0"), "por" to kotlinx.serialization.json.JsonPrimitive("u1")))
+    @Test fun recordarClaro() = foto("app-menu-fecha", false, "Recordar") { HojaFecha(fechaConAviso, {}, {}) }
+    @Test fun recordarOscuro() = foto("app-menu-fecha", true, "Recordar") { HojaFecha(fechaConAviso, {}, {}) }
 }

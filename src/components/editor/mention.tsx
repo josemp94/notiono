@@ -1,12 +1,13 @@
 "use client";
 
-import { Bell, CalendarDays, FileText } from "lucide-react";
+import { AlarmClock, CalendarDays, FileText } from "lucide-react";
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core";
 import { codeBlockOptions } from "@blocknote/code-block";
 import { createReactInlineContentSpec, SuggestionMenuController } from "@blocknote/react";
 import { trpc } from "@/trpc/react";
-import { useContext, useState } from "react";
-import { opcionesRecordatorio, textoRecordatorio } from "@/lib/recordatorios";
+import { useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { atajoRecordatorio, ATAJOS, HORA_AVISO, opcionesRecordatorio, sugerenciasRecordar, textoRecordatorio } from "@/lib/recordatorios";
 import { IconoPagina } from "@/components/PageIcon";
 import { abrirEnPanel } from "@/lib/vistazo";
 import { BookmarkBlock } from "./bookmarkBlock";
@@ -116,42 +117,117 @@ async function miId(): Promise<string> {
   return (r as { result?: { data?: { json?: { id?: string } | null } } } | null)?.result?.data?.json?.id ?? "";
 }
 
-/** El chip de fecha; al pulsarlo (si se puede editar) se elige el recordatorio, como en Notion. */
+/**
+ * El chip recién puesto con «Recordar…» del menú @ abre solo su menú, para elegir el
+ * día y la hora sin buscarlo (solo en esta pestaña: el de otra persona no se abre).
+ */
+let abrirAlPoner: PropsFecha | null = null;
+
+/** El chip de fecha; al pulsarlo (si se puede editar) se cambia la fecha y su recordatorio, como en Notion. */
 function ChipFecha({ props, editable, cambia }: { props: PropsFecha; editable: boolean; cambia: (p: PropsFecha) => void }) {
-  const [abierto, setAbierto] = useState(false);
+  const [ancla, setAncla] = useState<HTMLSpanElement | null>(null);
+  const [abierto, setAbierto] = useState(() => {
+    const a = abrirAlPoner && abrirAlPoner.fecha === props.fecha && abrirAlPoner.por === props.por;
+    if (a) abrirAlPoner = null;
+    return !!a;
+  });
   const base = useContext(PublicBaseContext);
   const conHora = props.fecha.includes("T");
   const aviso = textoRecordatorio(props.recordatorio, conHora);
+  const puede = editable && !base;
   return (
-    <span className="relative whitespace-nowrap rounded bg-[var(--border)]/50 px-1 font-medium text-[var(--muted)]" title={aviso ? `${props.fecha} · Recordatorio: ${aviso}` : props.fecha}>
-      <span
-        role={editable && !base ? "button" : undefined}
-        onClick={() => editable && !base && setAbierto((a) => !a)}
-        className={editable && !base ? "cursor-pointer" : undefined}
-      >
-        <CalendarDays size={13} className="inline align-[-2px]" /> {etiquetaFecha(props.fecha)}
-        {props.recordatorio && <Bell size={12} className="ml-0.5 inline align-[-1px]" aria-label="Con recordatorio" />}
+    <span
+      ref={setAncla}
+      className={`whitespace-nowrap rounded px-1 font-medium ${props.recordatorio ? "bg-sky-500/15 text-sky-600" : "bg-[var(--border)]/50 text-[var(--muted)]"}`}
+      title={aviso ? `${props.fecha} · Recordatorio: ${aviso}` : props.fecha}
+    >
+      <span role={puede ? "button" : undefined} onClick={() => puede && setAbierto((a) => !a)} className={puede ? "cursor-pointer" : undefined}>
+        {props.recordatorio ? <AlarmClock size={13} className="inline align-[-2px]" aria-label="Recordatorio" /> : <CalendarDays size={13} className="inline align-[-2px]" />}{" "}
+        {etiquetaFecha(props.fecha)}
       </span>
-      {abierto && (
-        <select
-          autoFocus
-          value={props.recordatorio}
-          onBlur={() => setAbierto(false)}
-          onChange={async (e) => {
-            const recordatorio = e.target.value;
-            setAbierto(false);
-            cambia({ ...props, recordatorio, por: recordatorio ? (await miId()) || props.por : "" });
-          }}
-          aria-label="Recordatorio"
-          className="absolute left-0 top-full z-20 mt-1 rounded border border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--fg)]"
-        >
-          <option value="">Sin recordatorio</option>
-          {opcionesRecordatorio(conHora).map(([id, texto]) => (
-            <option key={id} value={id}>{texto}</option>
-          ))}
-        </select>
-      )}
+      {abierto && ancla && <MenuFecha ancla={ancla} props={props} cambia={cambia} cerrar={() => setAbierto(false)} />}
     </span>
+  );
+}
+
+/**
+ * El menú de una mención de fecha (como el de Notion): el día, «Incluir hora», «Recordar»
+ * y, arriba, los atajos de recordar (en 1 hora, esta tarde, mañana a las 9:00), que ponen
+ * esa fecha con aviso a su hora. Va en un portal: dentro del editor, ProseMirror se
+ * quedaría los clics y las teclas de los campos.
+ */
+function MenuFecha({ ancla, props, cambia, cerrar }: { ancla: HTMLElement; props: PropsFecha; cambia: (p: PropsFecha) => void; cerrar: () => void }) {
+  const caja = useRef<HTMLDivElement>(null);
+  const conHora = props.fecha.includes("T");
+  const r = ancla.getBoundingClientRect();
+  useEffect(() => {
+    const fuera = (e: MouseEvent) => !caja.current?.contains(e.target as Node) && !ancla.contains(e.target as Node) && cerrar();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && cerrar();
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [ancla, cerrar]);
+  const pon = async (p: Partial<PropsFecha>) => {
+    const nuevo = { ...props, ...p };
+    // Quien pone el recordatorio es a quien avisa.
+    if (nuevo.recordatorio && (p.recordatorio !== undefined || !nuevo.por)) nuevo.por = (await miId()) || nuevo.por;
+    if (!nuevo.recordatorio) nuevo.por = "";
+    cambia(nuevo);
+  };
+  const item = "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-[var(--hover)]";
+  return createPortal(
+    <div
+      ref={caja}
+      data-menu=""
+      style={{ position: "fixed", left: Math.max(8, Math.min(r.left, window.innerWidth - 272)), top: Math.min(r.bottom + 4, window.innerHeight - 330) }}
+      className="z-[60] w-64 rounded-lg border border-[var(--border)] bg-[var(--background)] p-1 text-[var(--foreground)] shadow-xl"
+    >
+      {ATAJOS.map(([a, texto]) => {
+        const fecha = atajoRecordatorio(a);
+        return fecha ? (
+          <button key={a} onClick={() => (pon({ fecha, recordatorio: "0" }), cerrar())} className={item}>
+            <AlarmClock size={15} className="text-[var(--muted)]" /> Recordar {texto.charAt(0).toLowerCase() + texto.slice(1)}
+          </button>
+        ) : null;
+      })}
+      <div className="my-1 border-t border-[var(--border)]" />
+      <div className="space-y-2 px-2 py-1.5 text-sm">
+        <input
+          type={conHora ? "datetime-local" : "date"}
+          value={props.fecha}
+          onChange={(e) => e.target.value && pon({ fecha: e.target.value.slice(0, conHora ? 16 : 10) })}
+          aria-label="Fecha"
+          className="w-full rounded-md border border-[var(--border)] bg-transparent px-2 py-1"
+        />
+        <label className="flex items-center justify-between gap-2">
+          Incluir hora
+          <input
+            type="checkbox"
+            checked={conHora}
+            onChange={(e) => pon({ fecha: e.target.checked ? `${props.fecha.slice(0, 10)}T${String(HORA_AVISO).padStart(2, "0")}:00` : props.fecha.slice(0, 10) })}
+            className="accent-[var(--brand)]"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-2">
+          Recordar
+          <select
+            value={textoRecordatorio(props.recordatorio, conHora) ? props.recordatorio : ""}
+            onChange={(e) => pon({ recordatorio: e.target.value })}
+            aria-label="Recordar"
+            className="max-w-36 rounded-md border border-[var(--border)] bg-[var(--background)] px-1 py-0.5 text-sm"
+          >
+            <option value="">Ninguno</option>
+            {opcionesRecordatorio(conHora).map(([id, texto]) => (
+              <option key={id} value={id}>{texto}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -225,16 +301,41 @@ export function MentionMenu({ editor, pageId }: { editor: NotionoEditor; pageId:
             fechas.push({ title: d.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }), fecha: ymd(d) });
           }
         }
+        // «@recordar…» como en Notion: mención de fecha con aviso a su hora, de quien la pone.
+        const recordar = sugerenciasRecordar(query) ?? (!q ? [] : null);
+        const poner = async (fecha: string, abrir = false) => {
+          const por = (await utils.auth.me.fetch())?.id ?? "";
+          const props = { fecha, recordatorio: "0", por };
+          if (abrir) abrirAlPoner = props;
+          editor.insertInlineContent([{ type: "dateMention", props }, " "]);
+        };
         return [
           ...fechas.map((f) => ({
             title: f.title,
             subtext: f.fecha,
-            group: "Fechas",
+            group: "Fecha o recordatorio",
             icon: <CalendarDays size={16} />,
             onItemClick: () => {
               editor.insertInlineContent([{ type: "dateMention", props: { fecha: f.fecha, recordatorio: "", por: "" } }, " "]);
             },
           })),
+          ...(recordar ?? []).map((r) => ({
+            title: r.titulo,
+            subtext: r.fecha.replace("T", " "),
+            group: "Fecha o recordatorio",
+            icon: <AlarmClock size={16} />,
+            onItemClick: () => void poner(r.fecha),
+          })),
+          // «Recordar…»: mañana a las 9:00 y su menú abierto para elegir otro día u hora.
+          ...(recordar && (!q || q.length <= "recordar".length)
+            ? [{
+                title: "Recordar…",
+                subtext: "Elige el día y la hora",
+                group: "Fecha o recordatorio",
+                icon: <AlarmClock size={16} />,
+                onItemClick: () => void poner(atajoRecordatorio("manana")!, true),
+              }]
+            : []),
           ...people.map((m) => ({
             title: `@${m.name || m.email}`,
             subtext: m.email,

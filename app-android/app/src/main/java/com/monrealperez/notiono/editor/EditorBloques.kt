@@ -474,7 +474,7 @@ private fun ContenidoTexto(
                             val t = cb.text
                             if (t != null && off in 0..t.length) {
                                 val chip = t.getSpans((off - 1).coerceAtLeast(0), (off + 1).coerceAtMost(t.length), ChipSpan::class.java).firstOrNull()
-                                if (chip != null) { acciones.abreChip(chip.nodo); return@setOnTouchListener true }
+                                if (chip != null) { acciones.abreChip(chip, b, cb.isFocusable); return@setOnTouchListener true }
                                 if (!cb.isFocusable) {
                                     val en = t.getSpans(off, off, EnlaceSpan::class.java).firstOrNull()
                                     if (en != null) { acciones.abreUrl(en.href); return@setOnTouchListener true }
