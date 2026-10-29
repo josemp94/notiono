@@ -31,6 +31,7 @@ import com.monrealperez.notiono.ui.LocalNavegador
 import com.monrealperez.notiono.ui.comun.Arbol
 import com.monrealperez.notiono.ui.comun.BarraSuperior
 import com.monrealperez.notiono.ui.comun.BotonIcono
+import com.monrealperez.notiono.ui.comun.ConColorPagina
 import com.monrealperez.notiono.ui.comun.Esqueleto
 import com.monrealperez.notiono.ui.comun.Icono
 import com.monrealperez.notiono.ui.comun.IconoPagina
@@ -69,7 +70,8 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    // El color de página tiñe el fondo, barra incluida (⋯ → Apariencia y diseño).
+    ConColorPagina(info?.color) { Column(Modifier.fillMaxSize()) {
         BarraSuperior(
             izquierda = { BotonIcono("panel-left", n.abrirPanel) },
             centro = {
@@ -108,7 +110,7 @@ fun PantallaPagina(id: String, alFinal: Boolean = false, vista: String? = null) 
             )
             else -> Esqueleto(6)
         }
-    }
+    } }
     if (menu && info != null) MenuPagina(info, onCerrar = { menu = false }, onComentarios = { menu = false; comentarios = true })
     if (comentarios) HojaComentarios(id, null) { comentarios = false }
 }

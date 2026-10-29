@@ -126,6 +126,7 @@ fun VistaTabla(est: EstadoBD, abrir: (String) -> Unit, nueva: (JsonObject?) -> U
         ) {
             if (esTitulo) Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width((nivel * 14).dp))
+                com.monrealperez.notiono.ui.comun.BarraColor(f.colorPagina, Modifier.padding(end = 6.dp))
                 Text(est.tituloDe(f), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = C.texto, maxLines = 2, overflow = TextOverflow.Ellipsis)
             } else ValorCelda(est, f, c)
         }

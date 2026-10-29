@@ -17,6 +17,17 @@
         android:orientation="horizontal"
         android:paddingBottom="6dp">
 
+        <!-- El color de página (widget Nota): la barrita junto al título; la tiñe Vistas.kt. -->
+        <ImageView
+            android:id="@+id/widget_color"
+            android:layout_width="3dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="6dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_barra_color"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/widget_titulo"
             android:layout_width="0dp"

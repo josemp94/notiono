@@ -69,7 +69,8 @@ import kotlinx.serialization.json.JsonPrimitive
 @Composable
 fun EditorPagina(info: PaginaInfo, alFinal: Boolean) {
     val editable = info.puedeEditar && !info.locked
-    EditorBloques(
+    // «Texto pequeño» (⋯ → Apariencia y diseño): el cuerpo a 14 en vez de 16, como la web.
+    androidx.compose.runtime.CompositionLocalProvider(LocalTextoPequeno provides info.smallText) { EditorBloques(
         fuente = Fuente(info.id, esFila = false),
         editable = editable,
         pageId = info.id,
@@ -77,8 +78,11 @@ fun EditorPagina(info: PaginaInfo, alFinal: Boolean) {
         alFinal = alFinal,
         aviso = if (info.locked && info.puedeEditar) "Página bloqueada: desbloquéala desde «⋯» para editar" else if (!info.puedeEditar) "Solo lectura" else null,
         cabecera = { foco -> Cabecera(info, editable, enfocarTitulo = editable && info.title.isEmpty(), onEnter = foco) },
-    )
+    ) }
 }
+
+/** «Texto pequeño» de la página: todo el texto de los bloques a 14/16. */
+val LocalTextoPequeno = androidx.compose.runtime.compositionLocalOf { false }
 
 /** Lo que el editor necesita del campo enfocado para la barra de formato. */
 class Activo {
@@ -452,7 +456,8 @@ private fun ContenidoTexto(
     tinta: Color,
 ) {
     val oscuro = C.oscuro
-    val (tam, negrita) = medidas(b)
+    val (tamNormal, negrita) = medidas(b)
+    val tam = if (LocalTextoPequeno.current) tamNormal * 14f / 16f else tamNormal
     val tipo = when {
         b.tipo == "codeBlock" -> Typeface.MONOSPACE
         familia == "serif" -> Typeface.SERIF

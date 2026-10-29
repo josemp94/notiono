@@ -31,6 +31,8 @@ data class NodoArbol(
     val parentId: String? = null,
     val order: String = "",
     val hasChildren: Boolean = false,
+    /** Color de página (ui/comun/ColorPagina.kt): su barrita en Inicio y resultados. */
+    val color: String? = null,
 )
 
 @Serializable
@@ -45,6 +47,9 @@ data class PaginaInfo(
     val fullWidth: Boolean = false,
     val locked: Boolean = false,
     val font: String = "sans",
+    /** «Texto pequeño» y color de página (⋯ → Apariencia y diseño). */
+    val smallText: Boolean = false,
+    val color: String? = null,
     val publicToken: String? = null,
     val publicExpiresAt: String? = null,
     val hasPublicPassword: Boolean = false,
@@ -98,6 +103,8 @@ data class Fila(
     val textos: Map<String, String> = emptyMap(),
     val relaciones: Map<String, List<RelacionEtiqueta>> = emptyMap(),
     val color: String? = null,
+    /** El color de la fila como página (⋯ → Apariencia y diseño), no el de reglas/etiqueta (`color`). */
+    val colorPagina: String? = null,
     val seq: Int? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,

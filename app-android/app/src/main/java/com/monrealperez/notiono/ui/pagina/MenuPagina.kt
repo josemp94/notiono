@@ -59,6 +59,9 @@ import com.monrealperez.notiono.ui.comun.HojaMover
 import com.monrealperez.notiono.ui.comun.Icono
 import com.monrealperez.notiono.ui.comun.IconoPagina
 import com.monrealperez.notiono.ui.comun.Separador
+import com.monrealperez.notiono.ui.comun.ColorPagina
+import com.monrealperez.notiono.ui.comun.SelectorColorPagina
+import androidx.compose.foundation.border
 import com.monrealperez.notiono.ui.comun.Vacio
 import com.monrealperez.notiono.ui.comun.rememberConsulta
 import com.monrealperez.notiono.ui.panel.Importar
@@ -103,14 +106,8 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         "compartir" -> { HojaCompartir(id, info.publicToken != null, onPublicar = { hoja = "publicar" }) { hoja = null; onCerrar() }; return }
         "mover" -> { HojaMover(id) { hoja = null; onCerrar() }; return }
         "exportar" -> { HojaExportar(id, null, info.esBd) { hoja = null; onCerrar() }; return }
-        "tipografia" -> {
-            Hoja({ hoja = null; onCerrar() }, "Tipografía") {
-                for ((f, t) in listOf("sans" to "Predeterminada", "serif" to "Serif", "mono" to "Monoespaciada")) {
-                    FilaMenu(t, "type", derecha = { if (info.font == f) Icono("check", color = Marca) }) {
-                        accion("arbol", "pages.setFont", objeto("id" to id, "font" to f)); hoja = null; onCerrar()
-                    }
-                }
-            }
+        "apariencia" -> {
+            HojaApariencia(info, { r, i, e -> accion(e, r, i) }) { hoja = null; onCerrar() }
             return
         }
     }
@@ -148,7 +145,8 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
                 detalle = "Evita cambios sin querer") {
                 accion("arbol", "pages.setLocked", objeto("id" to id, "value" to !info.locked)); onCerrar()
             }
-            FilaMenu("Tipografía", "type", detalle = when (info.font) { "serif" -> "Serif"; "mono" -> "Monoespaciada"; else -> "Predeterminada" }) { hoja = "tipografia" }
+            // Como el submenú de Notion: estilo, texto pequeño y, de Notiono, el color de página.
+            FilaMenu("Apariencia y diseño", "type", derecha = { Icono("chevron-right", tam = 16.dp, color = C.apagado) }) { hoja = "apariencia" }
             if (puede.organizar) {
                 FilaMenu("Mover a…", "folder-input") { hoja = "mover" }
                 FilaMenu("Duplicar", "copy-plus") {
@@ -186,6 +184,51 @@ fun MenuPagina(info: PaginaInfo, onCerrar: () -> Unit, onComentarios: () -> Unit
         }
         onCerrar()
     }, onNo = { borrar = false })
+}
+
+/**
+ * ⋯ → Apariencia y diseño, como en Notion (notion.com/es/help/customize-and-style-your-content):
+ * Estilo y Texto pequeño (no en las bases de datos, como la web) y el color de página. Se queda
+ * abierta y lo marca al momento; el cambio va al servidor (o a la cola sin red).
+ */
+@Composable
+fun HojaApariencia(info: PaginaInfo, accion: (ruta: String, input: JsonObject, etiqueta: String) -> Unit, onCerrar: () -> Unit) {
+    val id = info.id
+    var fuente by remember(id) { mutableStateOf(info.font) }
+    var pequeno by remember(id) { mutableStateOf(info.smallText) }
+    var color by remember(id) { mutableStateOf(info.color) }
+    HojaLista(onCerrar, "Apariencia y diseño") {
+        if (!info.esBd) {
+            com.monrealperez.notiono.ui.comun.TituloSeccion("Estilo")
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for ((f, t) in listOf("sans" to "Predeterminado", "serif" to "Serif", "mono" to "Mono")) {
+                    val elegido = fuente == f
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, if (elegido) Marca else C.borde, RoundedCornerShape(8.dp))
+                            .clickable { fuente = f; accion("pages.setFont", objeto("id" to id, "font" to f), "arbol") }
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("Ag", fontSize = 20.sp, color = if (elegido) Marca else C.texto, fontFamily = familia(f))
+                        Text(t, fontSize = 11.sp, color = if (elegido) Marca else C.apagado, maxLines = 1)
+                    }
+                }
+            }
+            FilaMenu("Texto pequeño", "type", derecha = {
+                Switch(pequeno, null, colors = SwitchDefaults.colors(checkedTrackColor = Marca))
+            }) {
+                pequeno = !pequeno
+                accion("pages.setSmallText", objeto("id" to id, "value" to pequeno), "pagina:$id")
+            }
+            Separador(Modifier.padding(vertical = 4.dp))
+        }
+        SelectorColorPagina(color) { c ->
+            color = ColorPagina.normaliza(c)
+            // También en el árbol: su barrita en el Inicio y en los resultados.
+            accion("pages.setColor", objeto("id" to id, "color" to c), "arbol")
+        }
+    }
 }
 
 /** Comentarios de una página o de una fila (como el panel de la web): ver, responder, resolver. */

@@ -67,7 +67,9 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     var nuevaPropiedad by remember { mutableStateOf(false) }
     val titulo = est.titulo
-    EditorBloques(
+    var apariencia by remember { mutableStateOf(false) }
+    // El color de la fila como página tiñe la ficha, como la fila abierta en la web.
+    com.monrealperez.notiono.ui.comun.ConColorPagina(fila.colorPagina) { EditorBloques(
         fuente = Fuente(recordId, esFila = true),
         editable = est.editable,
         pageId = pageId,
@@ -122,7 +124,10 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
                 Separador(Modifier.padding(top = 8.dp))
             }
         },
-    )
+    ) }
+    if (apariencia) com.monrealperez.notiono.ui.comun.HojaLista({ apariencia = false }, "Apariencia y diseño") {
+        com.monrealperez.notiono.ui.comun.SelectorColorPagina(fila.colorPagina) { est.colorFila(fila.id, it) }
+    }
     editando?.let { c -> EditorCelda(est, fila, c) { editando = null } }
     if (nuevaPropiedad) HojaNuevoCampo(est, null) { nuevaPropiedad = false }
     var exportar by remember { mutableStateOf(false) }
@@ -136,6 +141,9 @@ fun PantallaFicha(pageId: String, recordId: String, onBorrada: () -> Unit) {
             }
             com.monrealperez.notiono.ui.comun.FilaMenu("Exportar", "file-down") { exportar = true; menu = false }
             if (est.editable) {
+                com.monrealperez.notiono.ui.comun.FilaMenu("Apariencia y diseño", "type", derecha = { Icono("chevron-right", tam = 16.dp, color = C.apagado) }) {
+                    apariencia = true; menu = false
+                }
                 com.monrealperez.notiono.ui.comun.FilaMenu("Duplicar", "copy-plus") { est.duplicaFila(fila.id); menu = false }
                 com.monrealperez.notiono.ui.comun.FilaMenu("Borrar", "trash-2", color = androidx.compose.ui.graphics.Color(0xFFD44C47)) {
                     est.borraFila(fila.id); menu = false; onBorrada()

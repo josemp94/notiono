@@ -25,7 +25,9 @@ import com.monrealperez.notiono.red.obj
 import com.monrealperez.notiono.red.objs
 import com.monrealperez.notiono.red.objeto
 import com.monrealperez.notiono.red.str
+import com.monrealperez.notiono.ui.comun.ColorPagina
 import com.monrealperez.notiono.ui.comun.emojiDe
+import androidx.compose.ui.graphics.toArgb
 import com.monrealperez.notiono.util.Fechas
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -42,6 +44,14 @@ import kotlin.math.roundToInt
 /** Color de texto de un recurso: desde Android 12 lo resuelve el escritorio (claro u oscuro según él). */
 internal fun RemoteViews.colorTexto(ctx: Context, id: Int, @ColorRes color: Int) {
     if (Build.VERSION.SDK_INT >= 31) setColorStateList(id, "setTextColor", color) else setTextColor(id, ctx.getColor(color))
+}
+
+/** La barrita del color de página junto al título (`widget_base`), con el acento claro u oscuro del escritorio. */
+internal fun RemoteViews.barraColor(ctx: Context, color: String?) {
+    val oscuro = (ctx.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    val c = ColorPagina.barra(color, oscuro) ?: return
+    setViewVisibility(R.id.widget_color, View.VISIBLE)
+    setInt(R.id.widget_color, "setColorFilter", c.toArgb())
 }
 
 internal fun dp(ctx: Context, v: Int): Int = (v * ctx.resources.displayMetrics.density).roundToInt()
@@ -178,6 +188,8 @@ class NotaReceiver : ProveedorWidget() {
         val bloques = ((respuestas[1] as JsonObject)["bloques"] as JsonArray).mapNotNull { it as? JsonObject }
         return buildJsonObject {
             put("titulo", pagina.str("title").orEmpty())
+            // El color de página: su barrita junto al título (también en «Mis notas recientes»).
+            pagina.str("color")?.let { put("color", it) }
             put("bloques", buildJsonArray { planos(bloques).take(80).forEach { add(it) } })
         }
     }
@@ -201,7 +213,7 @@ class NotaReceiver : ProveedorWidget() {
         val d = e.datos as? JsonObject
         val bloques = (d?.get("bloques") as? JsonArray)?.mapNotNull { it as? JsonObject } ?: emptyList()
         val titulo = d?.texto("titulo")?.ifBlank { null } ?: c.titulo ?: "Nota"
-        val rv = nota(ctx, id, pagina, titulo, bloques, e.aviso())
+        val rv = nota(ctx, id, pagina, titulo, bloques, e.aviso(), d?.texto("color"))
         if (c.recientes) {
             // ‹ y ›: a la anterior y a la siguiente de las últimas abiertas (pintan al momento, sin red).
             for ((vista, accion) in listOf(R.id.widget_anterior to Widgets.ACCION_ANTERIOR, R.id.widget_siguiente to Widgets.ACCION_SIGUIENTE)) {
@@ -258,7 +270,7 @@ class NotaReceiver : ProveedorWidget() {
             }
         }
 
-        fun nota(ctx: Context, id: Int, pagina: String, titulo: String, bloques: List<JsonObject>, aviso: String?): RemoteViews {
+        fun nota(ctx: Context, id: Int, pagina: String, titulo: String, bloques: List<JsonObject>, aviso: String?, color: String? = null): RemoteViews {
             val abrir = "notiono://pagina/$pagina"
             val filas = bloques.mapIndexedNotNull { i, b ->
                 val texto = b.texto("x").orEmpty()
@@ -284,6 +296,7 @@ class NotaReceiver : ProveedorWidget() {
                 }
             }
             return vistaLista(ctx, id, NotaReceiver::class.java, titulo, Widgets.piAbre(ctx, abrir), null, aviso, filas, "Esta página está vacía.")
+                .apply { barraColor(ctx, color) }
         }
     }
 }

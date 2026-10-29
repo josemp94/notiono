@@ -1306,6 +1306,13 @@ import { colorPagina, COLORES_PAGINA } from "../src/lib/colorPagina";
     assert.match(css, new RegExp(`\\[data-color-pagina="${id}"\\]`));
     assert.match(css, new RegExp(`\\[data-barra="${id}"\\]`));
   }
+  // La app (ui/comun/ColorPagina.kt) tiene los mismos colores, en el mismo orden y con los mismos nombres.
+  const kt = readFileSync(new URL("../app-android/app/src/main/java/com/monrealperez/notiono/ui/comun/ColorPagina.kt", import.meta.url), "utf8");
+  assert.deepEqual(
+    [...kt.matchAll(/Tono\("(\w+)", "([^"]+)"/g)].map((m) => ({ id: m[1], nombre: m[2] })),
+    COLORES_PAGINA.map(({ id, nombre }) => ({ id, nombre })),
+    "los colores de página de la app (ColorPagina.kt) son los de la web",
+  );
 }
 
 compruebaColaboracion()

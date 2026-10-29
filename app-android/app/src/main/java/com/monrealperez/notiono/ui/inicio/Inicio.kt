@@ -124,7 +124,7 @@ private fun InicioInvitado(yo: Yo) {
                 "Eres invitado en «${yo.workspace?.name.orEmpty()}»: solo ves las páginas que te han compartido, y lo que cuelga de ellas.",
                 fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
             )
-            if (raices.isNotEmpty()) Tarjetas(raices.map { Triple(it.id, it.title, it.icon) })
+            if (raices.isNotEmpty()) Tarjetas(raices.map { Triple(it.id, it.title, it.icon) }, raices.associate { it.id to it.color })
             else Text("Ya no tienes páginas compartidas en este espacio.", fontSize = 14.sp, color = C.apagado, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(24.dp))
         }
     }
@@ -146,6 +146,8 @@ private fun InicioMiembro() {
     val favoritos = if (ve("favoritos")) rememberConsulta("favorites.list", etiquetas = setOf("favoritos", "arbol")).datos?.comoLista?.map { it.comoObjeto }.orEmpty() else emptyList()
     val recordatorios = if (ve("proximas") || ve("recordatorios")) rememberConsulta("inicio.recordatorios", etiquetas = setOf("espacio")).datos?.comoLista?.map { it.comoObjeto }.orEmpty() else emptyList()
     val recientes = remember(yo?.workspace?.id) { s.recientes.lista(yo?.workspace?.id) }
+    // El color de página de cada una (su barrita en las tarjetas), del árbol que ya hay guardado.
+    val colores = remember(yo?.workspace?.id, favoritos) { Arbol.de(s.repo.cacheada("pages.tree")).nodos.associate { it.id to it.color } }
 
     // «Abrir al iniciar»: con lo guardado si lo hay (no se espera a la red para decidir).
     var decidiendo by remember { mutableStateOf(ArranqueInicio.pendiente) }
@@ -191,8 +193,8 @@ private fun InicioMiembro() {
     @Composable
     fun Contenido(id: String) {
         when (id) {
-            "recientes" -> Tarjetas(recientes.take(8).map { Triple(it.pageId, it.title, it.icon) })
-            "favoritos" -> Tarjetas(favoritos.map { Triple(it.str("id").orEmpty(), it.str("title").orEmpty(), it.str("icon")) })
+            "recientes" -> Tarjetas(recientes.take(8).map { Triple(it.pageId, it.title, it.icon) }, colores)
+            "favoritos" -> Tarjetas(favoritos.map { Triple(it.str("id").orEmpty(), it.str("title").orEmpty(), it.str("icon")) }, colores)
             "tareas" -> {
                 Lista { for (t in tareas.take(6)) FilaTarea(t) }
                 if (tareas.size > 6) VerTodas()
@@ -440,7 +442,7 @@ private fun FilaEnlace(e: Enlace, p: Pair<String, String?>?, onClick: () -> Unit
 }
 
 @Composable
-private fun Tarjetas(paginas: List<Triple<String, String, String?>>) {
+private fun Tarjetas(paginas: List<Triple<String, String, String?>>, colores: Map<String, String?>) {
     val n = LocalNavegador.current
     // Como las de «Visitado recientemente» de Notion: franja arriba, el icono montado encima y el título.
     Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -448,8 +450,11 @@ private fun Tarjetas(paginas: List<Triple<String, String, String?>>) {
             Column(Modifier.width(140.dp).height(140.dp).tarjetaInicio().clickable { n.pagina(id) }) {
                 Box(Modifier.fillMaxWidth().height(44.dp).background(C.hover))
                 Box(Modifier.padding(start = 12.dp).offset(y = (-14).dp)) { IconoPagina(icon, 26.dp) }
-                Text(title.ifBlank { "Sin título" }, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 3, lineHeight = 18.sp,
-                    overflow = TextOverflow.Ellipsis, color = C.texto, modifier = Modifier.padding(horizontal = 12.dp).offset(y = (-8).dp))
+                Row(Modifier.padding(horizontal = 12.dp).offset(y = (-8).dp)) {
+                    com.monrealperez.notiono.ui.comun.BarraColor(colores[id], Modifier.padding(top = 1.dp, end = 6.dp))
+                    Text(title.ifBlank { "Sin título" }, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 3, lineHeight = 18.sp,
+                        overflow = TextOverflow.Ellipsis, color = C.texto)
+                }
             }
         }
     }

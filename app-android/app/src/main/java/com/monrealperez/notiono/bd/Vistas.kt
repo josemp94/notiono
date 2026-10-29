@@ -60,6 +60,7 @@ import com.monrealperez.notiono.datos.Fila
 import com.monrealperez.notiono.red.arr
 import com.monrealperez.notiono.red.bool
 import com.monrealperez.notiono.red.str
+import com.monrealperez.notiono.ui.comun.BarraColor
 import com.monrealperez.notiono.ui.comun.FilaMenu
 import com.monrealperez.notiono.ui.comun.HojaLista
 import com.monrealperez.notiono.ui.comun.Icono
@@ -122,7 +123,11 @@ fun Tarjeta(est: EstadoBD, f: Fila, modifier: Modifier = Modifier, conPortada: B
             modifier = Modifier.fillMaxWidth().height(alto.dp).background(C.hover),
         )
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(est.tituloDe(f), fontWeight = FontWeight.Medium, fontSize = 14.sp, color = C.texto, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Row {
+                // El color de la fila como página: su barrita junto al título, como la web.
+                BarraColor(f.colorPagina, Modifier.padding(top = 1.dp, end = 6.dp), alto = 17.dp)
+                Text(est.tituloDe(f), fontWeight = FontWeight.Medium, fontSize = 14.sp, color = C.texto, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
             for (c in visibles) {
                 val tiene = (f.textos[c.id]?.isNotBlank() == true) || (est.celdas(f)[c.id].let { it != null && it !is JsonNull && !(it is JsonArray && it.isEmpty()) }) ||
                     (c.type == "relation" && f.relaciones[c.id]?.isNotEmpty() == true)
@@ -272,6 +277,7 @@ fun VistaLista(est: EstadoBD, abrir: (String) -> Unit) {
     val fila: @Composable (Fila) -> Unit = { f ->
         Column(Modifier.fillMaxWidth().background(fondoFila(f.color) ?: C.fondo).clickable { abrir(f.id) }.padding(horizontal = 16.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                BarraColor(f.colorPagina, Modifier.padding(end = 6.dp), alto = 18.dp)
                 Icono("file-text", tam = 16.dp, color = C.apagado)
                 Text(
                     est.tituloDe(f), fontSize = 15.sp, fontWeight = FontWeight.Medium, color = C.texto,

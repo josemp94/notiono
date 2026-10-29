@@ -242,6 +242,12 @@ class EstadoBD(val pageId: String, private val s: Servicios, private val alcance
         }
     }
 
+    /** Color de la fila como página (⋯ → Apariencia y diseño de la ficha): se ve ya y va al servidor. */
+    fun colorFila(id: String, color: String) {
+        filaActual = filaActual?.let { if (it.id == id) it.copy(colorPagina = com.monrealperez.notiono.ui.comun.ColorPagina.normaliza(color)) else it }
+        alcance.launch { muta("db.setRecordColor", objeto("id" to id, "color" to color)); recarga() }
+    }
+
     fun duplicaFila(id: String) = alcance.launch { muta("db.duplicateRecord", objeto("id" to id), encolable = false, aviso = "Fila duplicada"); carga() }
     fun mueveFila(id: String, antesDe: String? = null, despuesDe: String? = null) = alcance.launch {
         val input = if (antesDe != null) objeto("id" to id, "beforeId" to antesDe) else objeto("id" to id, "afterId" to despuesDe)

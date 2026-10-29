@@ -81,6 +81,8 @@ fun PantallaBuscar() {
             resultados = arbol.filter { (it.str("title") ?: "").contains(q, ignoreCase = true) }
         }
     }
+    // El color de página de cada una (su barrita), del árbol guardado; el de las filas viene en el resultado.
+    val colores = remember(resultados) { com.monrealperez.notiono.ui.comun.Arbol.de(s.repo.cacheada("pages.tree")).nodos.associate { it.id to it.color } }
     Column(Modifier.fillMaxSize()) {
         BarraSuperior(izquierda = { BotonIcono("arrow-left", { n.atras() }) }, centro = {
             CampoBusqueda(q, { q = it }, Modifier.weight(1f))
@@ -99,14 +101,16 @@ fun PantallaBuscar() {
             if (recientes.isEmpty()) Vacio("Escribe para buscar en títulos y en el contenido de las páginas.", icono = "search")
             else LazyColumn {
                 item { TituloSeccion("Recientes") }
-                items(recientes, key = { it.pageId }) { r -> Resultado(r.title, r.icon, null) { n.pagina(r.pageId) } }
+                items(recientes, key = { it.pageId }) { r -> Resultado(r.title, r.icon, null, colores[r.pageId]) { n.pagina(r.pageId) } }
             }
         } else if (lista.isEmpty()) {
             Vacio("Nada coincide con «$q».", icono = "search")
         } else {
             LazyColumn {
                 items(lista, key = { it.str("id") ?: "" }) { r ->
-                    Resultado(r.str("title").orEmpty(), r.str("icon"), if (r.bool("inTitle") || r["inTitle"] == null) null else "Coincide en el contenido") {
+                    val enContenido = !(r.bool("inTitle") || r["inTitle"] == null)
+                    Resultado(r.str("title").orEmpty(), r.str("icon"), if (enContenido) "Coincide en el contenido" else null, colores[r.str("id")],
+                        porDefecto = if (r.str("type") == "database") "database" else "file-text") {
                         n.pagina(r.str("id")!!)
                     }
                 }
@@ -125,9 +129,10 @@ private fun Filtro(texto: String, activo: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Resultado(titulo: String, icono: String?, detalle: String?, onClick: () -> Unit) {
+private fun Resultado(titulo: String, icono: String?, detalle: String?, color: String?, porDefecto: String = "file-text", onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconoPagina(icono, 20.dp)
+        com.monrealperez.notiono.ui.comun.BarraColor(color, Modifier.padding(end = 6.dp), alto = 20.dp)
+        IconoPagina(icono, 20.dp, porDefecto = porDefecto)
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(titulo.ifBlank { "Sin título" }, fontSize = 15.sp, color = C.texto, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (detalle != null) Text(detalle, fontSize = 12.sp, color = C.apagado)
