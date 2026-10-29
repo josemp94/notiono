@@ -62,6 +62,7 @@ sesión sigue desde la primera casilla sin marcar. Se commitea con cada fase.
 - [x] 2.5.0 (`versionCode 12`, 29-oct-2026): **lo que hacía la app de notas de Pablo** (encargo `PABLO-NOTAS-TASK`), a la par con la web. Bloque **«Dibujo»** (`editor/Dibujo.kt`: la página `/dibujo` de la web —Excalidraw— en un WebView a pantalla completa con la cookie de la sesión; el puente `NotionoApp.guardado/cerrar` devuelve las URL de la escena y del PNG y la app cambia las props del bloque con su operación de siempre; vista previa invertida en oscuro como la web). **Exportar a Word** desde el menú de la página y de la ficha (`app.exportarWord`, se comparte el .docx). **«Recordarme…»** (`ui/pagina/Recordar.kt`, mismos atajos que la web en hora de Madrid) y botones **«Hecho» / «Posponer 1 h»** en la notificación del recordatorio (`Alarmas.accion` → `POST /api/recordatorio`; posponer deja una alarma local guardada con las demás, que sobrevive a reiniciar y actualizar aunque no haya red). **Inicio** con Acciones rápidas, Bloc de notas, Nota fijada y Recordatorios, saludo con la fecha y buscador (`ui/inicio/BloquesNuevos.kt`, `ConfigInicio` con la misma lógica que `normalizaInicio`). **Mis tareas** por secciones con filtro Hoy, «+» (hoja «Nueva tarea») y el círculo que la marca hecha. **Widget Nota «Mis notas recientes»** con ‹ › (`NotaReceiver.accion`, `ConfigWidget.recientes`). **Información de la página** al pie del menú (`app.info`). 131 pruebas JVM por tandas (4 de integración saltadas sin servidor) y el recorrido en dos tandas contra Notiono local (`RECORRIDO=base` y `RECORRIDO=pablo`), `lintRelease` sin errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `07b780d4…bb9a14`, 4,1 MB; copia en `~/notiono-apk/notiono-2.5.0.apk`. Necesita el servidor de esta misma tanda (migración `20261029120000_pospuestos`). Falta desplegar.
 
 - [x] 2.5.1 (`versionCode 13`, 29-oct-2026): **lo nuevo, como Notion donde Notion lo tiene** (encargo `NOTION-ESTILO-TASK`, web y app a la par). Casilla de la Lista con las demás propiedades y sin tachar el título (`bd/Vistas.kt`, `CasillaTest` lo comprueba). Sin «Recordarme…» en el menú: «@recordar…» y «Recordar…» en el menú @ (`recordarPara`, `AtajosRecordar.sugerencias`, mismas pruebas que la web en `RecordarTest`) y la hoja de la mención de fecha al tocar el chip (`HojaFecha`: atajos, día y hora, «Incluir hora», «Recordar»); el chip con aviso va en azul. «Posponer 1 h» mueve la fecha en el servidor si avisaba a su hora (la app refresca la página y las vistas). **Exportar** con «Formato de exportación» (`ui/pagina/Exportar.kt`: PDF —el HTML de `app.exportarHtml` impreso con el servicio de impresión—, HTML, Markdown y CSV, Word; `ExportarTest`). Pie del menú como Notion con «Más información» (`pieInfo`, `InfoPaginaTest`). Inicio sin fecha ni buscador, «Visitado recientemente» con tarjetas, «Próximos eventos», la misma tarjeta para todos (`tarjetaInicio`) y ⋯ por sección. Mis tareas sin tachar. Dibujo en «Multimedia» con leyenda y «Editar dibujo»/«Leyenda» en sus acciones. Widget Nota: ‹ › a la derecha del título y «Mis notas recientes» como una fila más en su configuración (`NotaRecientesTest`). 142 pruebas JVM por tandas (5 saltadas: capturas e integración sin servidor) y el recorrido `RECORRIDO=pablo` contra Notiono local en verde, `lintRelease` sin errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `c491c2c5…c0205e`, 4,1 MB; copia en `~/notiono-apk/notiono-2.5.1.apk`. Necesita el servidor de esta tanda (`app.exportarHtml`). Falta desplegar.
+- [x] 2.5.2 (`versionCode 14`, 29-oct-2026): **lo que faltaba de la app de notas de Pablo** (encargo `NOTAS-EXTRA-TASK`, web y app a la par; fuentes en `docs/notion-parity.md`). **Etiquetas** como Notion: plantilla «Notas» (Etiquetas de Selección múltiple, vista «Por etiqueta»), agrupar por Selección múltiple pone la fila en cada etiqueta (lo calcula el servidor en `app.vista`), y el **Buscar** trae también las filas de BD (`pages.search` con `filas: true`) y las abre. **«Apariencia y diseño»** en el menú de la página (Estilo, Texto pequeño, Color de página) y en el ⋯ de la ficha (color); la página se tiñe (`ConColorPagina`) y la barrita sale en Lista, Tabla, tarjetas, Inicio, Buscar y el widget Nota (`ui/comun/ColorPagina.kt`). **«Añadir a ▾»** en las páginas recién creadas desde Nueva, las acciones del Inicio, el bloc y los widgets (`Navegador.nuevaPagina(…, ubicar)`, `&nueva=true`), como el desplegable de Notion en el móvil. Widgets **«Favoritos»** (nuevo, `FavoritosReceiver`) y **«Recientes»** (el de antes, solo las visitadas; misma clase). Los widgets **Lista y Calendario no tachan** las filas hechas. **Copia en el NAS** (ver abajo). 181 pruebas JVM por tandas (20 saltadas: capturas e integración sin servidor), capturas sin servidor en `ui/capturas/NotasExtraCapturasTest` (`-Proborazzi.test.record=true`), `lintRelease` sin errores, `apksigner` con la huella de siempre (`8c9bb7dc…cb8e9a`), sha256 `0fc3c201…ad7d8d9c`, 4,2 MB; copia en `~/notiono-apk/notiono-2.5.2.apk`. Necesita el servidor de esta tanda (migraciones `20261029180000_apariencia_pagina` y `20261029190000_copia_nas`). Falta desplegar.
 
 ### F9 · Verificación
 - [x] `npm run build` y `npm run check`.
@@ -435,3 +436,39 @@ compileSdk 37), ninguno de error.
   comprueba (cuenta las filas del adaptador) antes de fotografiar.
 - **Enlaces `?v=`**: como en la web, `/p/<id>?v=<vista>` abre esa vista.
 - **Accesibilidad**: los botones de solo icono (`BotonIcono`) dicen qué hacen a TalkBack.
+
+### Copia en el NAS (2.5.2)
+
+Lo que hacía la app de notas de Pablo, desde la app (Notion no tiene copia automática). Código en
+`copia/` (`Rutas.kt` lógica pura, `Dsm.kt` cliente de DSM, `CopiaNas.kt` copia, cifrado, estado y
+`CopiaWorker`) y la pantalla en `ui/ajustes/CopiaNas.kt` (Ajustes → Copia de seguridad → Copia en el NAS).
+
+- **DSM por su API web**, nunca por montaje (Synology Drive no indexaría lo escrito por SMB):
+  `SYNO.API.Auth` v3 (`session=FileStation`, `format=sid`, `enable_device_token`; POST, así la
+  contraseña no va en la URL), `SYNO.FileStation.Upload` v2 multipart (`path`, `create_parents`,
+  `overwrite` y el fichero al final, como exige DSM), `SYNO.FileStation.Delete` v2 y `logout`. Con
+  verificación en dos pasos (error 403) pide el código una vez y guarda el `did`; luego entra con
+  `device_id`. Errores de DSM en cristiano (`ErrorCopia`).
+- **La contraseña no sale del móvil**: AES-GCM con una clave del Android Keystore (alias `copia-nas`),
+  en `noBackupFilesDir` (`copia-nas.secreto`), igual que el `did`. Nunca a Notiono ni al registro
+  (allí solo «copia nas: N subidas, M borradas, error nas 400»). «Desconectar» borra configuración,
+  secreto y estado, cancela los trabajos e informa `activa=false`.
+- **Árbol**: `app.arbolCopia` da páginas (con madre visible) y filas de cada BD con su título y su
+  última edición. Una carpeta por espacio (siempre, para que añadir otro no mueva lo ya copiado);
+  dentro, página sin hijas = `Título.docx`; con hijas = carpeta `Título/` con `Título.docx` y las
+  hijas; BD = carpeta con un `.docx` por fila. Nombres sin `/ \ : * ? " < > |`, ≤100 caracteres,
+  repetidos `_2`. El Word es el de siempre (`app.exportarWord`). Las BD embebidas van dentro del Word
+  de su página.
+- **Espacios**: por defecto los propios que no comparte nadie («Privado»); los compartidos se
+  marcan aparte; los de invitado no se ofrecen. Quitar uno no borra lo ya subido.
+- **Solo lo cambiado**: estado por elemento (ruta + fecha subida) en `copia-nas-estado.json`,
+  guardado tras cada subida (un fallo a mitad sigue la vez siguiente). Primero sube y al final borra,
+  y **solo** los `.docx` que están en su estado y ya no corresponden (borrada, movida, renombrada);
+  nunca carpetas ni nada ajeno. Cambiar de servidor o usuario reinicia el estado.
+- **Cuándo**: WorkManager periódico cada 6 h con red, y 2 min después de editar en la app
+  (`repo.cambios` → `trasEditar`, `REPLACE` agrupa), y «Copiar ahora». Tras cada copia informa a
+  `app.informaCopia` (fecha, páginas, carpeta, error; sin credenciales) y la web lo enseña en
+  Ajustes → Copia en el NAS (`app.estadoCopia`, solo lo de cada persona).
+- Pruebas: `copia/RutasTest` y `copia/CopiaNasTest` contra un DSM simulado con MockWebServer (nunca
+  el NAS de verdad): primera copia, sin cambios, editar, renombrar/mover/borrar sin tocar lo ajeno,
+  fallo a mitad, 2FA con el `did`, contraseña mala, nada de credenciales en lo que sale, multipart.
