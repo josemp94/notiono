@@ -17,17 +17,6 @@
         android:orientation="horizontal"
         android:paddingBottom="6dp">
 
-        <!-- «Mis notas recientes» (widget Nota): ‹ y › pasan a la anterior y a la siguiente. -->
-        <ImageView
-            android:id="@+id/widget_anterior"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginEnd="2dp"
-            android:contentDescription="@string/widget_anterior"
-            android:padding="4dp"
-            android:src="@drawable/widget_anterior"
-            android:visibility="gone" />
-
         <TextView
             android:id="@+id/widget_titulo"
             android:layout_width="0dp"
@@ -38,6 +27,18 @@
             android:textColor="@color/widget_texto"
             android:textSize="15sp"
             android:textStyle="bold" />
+
+        <!-- «Mis notas recientes» (widget Nota): ‹ y › pasan a la anterior y a la siguiente;
+             a la derecha del título, como las del mes del Calendario. -->
+        <ImageView
+            android:id="@+id/widget_anterior"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="2dp"
+            android:contentDescription="@string/widget_anterior"
+            android:padding="4dp"
+            android:src="@drawable/widget_anterior"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/widget_siguiente"

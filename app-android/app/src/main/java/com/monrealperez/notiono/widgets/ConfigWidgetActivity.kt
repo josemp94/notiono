@@ -118,25 +118,29 @@ private fun EligePagina(titulo: String, conNueva: Boolean, listo: (String?, Stri
         }.getOrDefault(emptyList()).filter { it.str("type") != "database" }
     }
     Text(titulo, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = C.texto, modifier = Modifier.padding(bottom = 8.dp))
-    if (conNueva) Row(Modifier.fillMaxWidth().clickable { listo(null, null, null) }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icono("file-plus", color = Marca)
-        Text("Siempre una página nueva", fontSize = 16.sp, color = C.texto, modifier = Modifier.padding(start = 12.dp))
-    }
+    // Todas las opciones con la misma fila (icono, nombre y, si hace falta, una línea debajo),
+    // como en la configuración de los widgets de Notion: se elige qué página enseña.
+    if (conNueva) FilaOpcion({ Icono("file-plus", tam = 20.dp, color = Marca) }, "Siempre una página nueva") { listo(null, null, null) }
     // El widget Nota también puede ir pasando por lo último que se abrió, con ‹ ›.
-    if (recientes != null) Row(Modifier.fillMaxWidth().clickable(onClick = recientes).padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icono("clock", color = Marca)
-        Column(Modifier.padding(start = 12.dp)) {
-            Text("Mis notas recientes", fontSize = 16.sp, color = C.texto)
-            Text("Las últimas páginas que abriste; pasa de una a otra con ‹ ›", fontSize = 13.sp, color = C.apagado)
-        }
+    if (recientes != null) {
+        FilaOpcion({ Icono("clock", tam = 20.dp, color = Marca) }, "Mis notas recientes", "Las últimas que abriste; pasa de una a otra con ‹ ›", recientes)
+        Text("O siempre la misma página", fontSize = 13.sp, color = C.apagado, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
     }
     Campo(q, { q = it }, placeholder = "Buscar página…")
     LazyColumn(Modifier.fillMaxSize()) {
         items(paginas, key = { it.str("id") ?: "" }) { p ->
-            Row(Modifier.fillMaxWidth().clickable { listo(p.str("id"), null, p.str("title")?.ifBlank { null }) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconoPagina(p.str("icon"), 20.dp)
-                Text(p.str("title")?.ifBlank { null } ?: "Sin título", fontSize = 15.sp, color = C.texto, modifier = Modifier.padding(start = 12.dp))
-            }
+            FilaOpcion({ IconoPagina(p.str("icon"), 20.dp) }, p.str("title")?.ifBlank { null } ?: "Sin título") { listo(p.str("id"), null, p.str("title")?.ifBlank { null }) }
+        }
+    }
+}
+
+@Composable
+private fun FilaOpcion(icono: @Composable () -> Unit, titulo: String, detalle: String? = null, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        icono()
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(titulo, fontSize = 15.sp, color = C.texto)
+            detalle?.let { Text(it, fontSize = 13.sp, color = C.apagado) }
         }
     }
 }

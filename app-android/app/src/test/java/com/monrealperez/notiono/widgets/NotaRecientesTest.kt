@@ -102,6 +102,10 @@ class NotaRecientesTest {
         val v = Arnes.vista(ctx, synchronized(pintados) { pintados[id] }!!)
         assertEquals(View.VISIBLE, v.findViewById<View>(R.id.widget_anterior).visibility)
         assertEquals(View.VISIBLE, v.findViewById<View>(R.id.widget_siguiente).visibility)
+        // ‹ › a la derecha del título, como las del mes del widget Calendario (2.5.1).
+        val cabecera = v.findViewById<View>(R.id.widget_titulo).parent as android.view.ViewGroup
+        val orden = listOf(R.id.widget_titulo, R.id.widget_anterior, R.id.widget_siguiente).map { cabecera.indexOfChild(v.findViewById(it)) }
+        assertEquals(orden.sorted(), orden)
         assertTrue(Arnes.textos(v).toString(), Arnes.textos(v).containsAll(listOf("Página p1", "tarea de p1")))
         // ‹: la anterior en la lista (p1 es la primera: da la vuelta hasta p3, que no está guardada).
         assertTrue(pulsa(id, Widgets.ACCION_ANTERIOR).contains("Página p3"))
