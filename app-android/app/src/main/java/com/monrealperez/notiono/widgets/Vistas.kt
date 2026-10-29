@@ -355,8 +355,9 @@ class ListaReceiver : ProveedorWidget() {
                 val hecha = f.texto("h") == "true"
                 val fila = f.texto("i").orEmpty()
                 Fila(
-                    fila.hashCode().toLong(), estilo(f.texto("t").orEmpty(), tachado = hecha),
-                    color = if (hecha) R.color.widget_apagado else R.color.widget_texto,
+                    // Como en Notion (y la Lista de la app desde la 2.5.1): la casilla de una propiedad
+                    // no tacha ni apaga el título; solo cambia el círculo.
+                    fila.hashCode().toLong(), f.texto("t").orEmpty(),
                     detalle = f.texto("d")?.ifBlank { null },
                     // La casilla es un círculo grande: se completa tocándolo (como en las apps de tareas).
                     marca = if (casilla == null) null else if (hecha) R.drawable.widget_hecho else R.drawable.widget_circulo_vacio,

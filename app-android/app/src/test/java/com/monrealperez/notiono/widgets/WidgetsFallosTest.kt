@@ -288,10 +288,14 @@ class WidgetsFallosTest {
         val dato = marcaUri("fila", id, "pagina" to "bd1", "id" to "r1", "campo" to "h", "valor" to "true")
         ListaReceiver().onReceive(ctx, Intent(ctx, ListaReceiver::class.java).setAction(Widgets.ACCION_FILA)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra(Widgets.EXTRA_VALOR, dato))
-        // Al momento, tachada (sin esperar al servidor).
+        // Al momento (sin esperar al servidor) el círculo pasa a hecho; el título, como en Notion, ni se
+        // tacha ni se apaga: es la casilla de una propiedad, no un bloque «Lista de tareas».
         val v = Arnes.vista(ctx, synchronized(pintados) { pintados[id] }!!)
         val fila = buscaTexto(v, "Llamar al taller")!!
-        assertTrue((fila.text as? Spanned)?.getSpans(0, fila.text.length, StrikethroughSpan::class.java)?.isNotEmpty() == true)
+        assertTrue((fila.text as? Spanned)?.getSpans(0, fila.text.length, StrikethroughSpan::class.java).isNullOrEmpty())
+        assertEquals(ctx.getColor(R.color.widget_texto), fila.currentTextColor)
+        val icono = (fila.parent as android.view.View).findViewById<android.widget.ImageView>(R.id.fila_marca_icono)
+        assertEquals(R.drawable.widget_hecho, shadowOf(icono.drawable).createdFromResId)
         val fin = System.currentTimeMillis() + 10_000
         while (synchronized(mutaciones) { mutaciones.isEmpty() } && System.currentTimeMillis() < fin) {
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))

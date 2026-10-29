@@ -239,8 +239,9 @@ class CalendarioReceiver : ProveedorWidget() {
             when (l) {
                 is Agenda.Linea.Cabecera -> Fila("c$i${l.texto}".hashCode().toLong(), estilo(l.texto, negrita = true), color = if (l.texto == "Vencidas") R.color.widget_rojo else R.color.widget_apagado, tamSp = 12f, altoDp = 3)
                 is Agenda.Linea.Tarea -> Fila(
-                    "t$i${l.t.recordId}".hashCode().toLong(), estilo(l.t.titulo, tachado = l.t.hecha),
-                    color = if (l.t.hecha) R.color.widget_apagado else if (l.vencida) R.color.widget_rojo else R.color.widget_texto,
+                    // Una fila de BD hecha no se tacha ni se apaga (como en Notion); solo deja de salir vencida.
+                    "t$i${l.t.recordId}".hashCode().toLong(), l.t.titulo,
+                    color = if (l.vencida) R.color.widget_rojo else R.color.widget_texto,
                     detalle = l.detalle, colorDetalle = if (l.vencida && !l.t.hecha) R.color.widget_rojo else R.color.widget_apagado,
                     alTocar = "notiono://fila/${l.t.pageId}/${l.t.recordId}", altoDp = 3,
                 )

@@ -102,6 +102,31 @@ class CalendarioTest {
     }
 
     @Test
+    fun unaFilaHechaNoSeTachaNiSeApaga() {
+        // «Llamar al fontanero» está hecha: es la casilla de una propiedad y, como en Notion, el
+        // título sigue igual (solo se tachan los bloques «Lista de tareas», en el widget Nota).
+        val v = Arnes.vista(ctx, CalendarioReceiver.grande(ctx, 7, YearMonth.of(2026, 10), hoy, hoy, ts, null, JsonObject(emptyMap())))
+        val fila = busca(v, "Llamar al fontanero")!!
+        assertTrue((fila.text as? android.text.Spanned)?.getSpans(0, fila.text.length, android.text.style.StrikethroughSpan::class.java).isNullOrEmpty())
+        assertEquals(ctx.getColor(com.monrealperez.notiono.R.color.widget_texto), fila.currentTextColor)
+    }
+
+    @Test
+    fun laNotaSiTachaSusCasillas() {
+        // El bloque «Lista de tareas» sí se tacha (como en el editor y en Notion): «Tomates» está marcada.
+        val v = Arnes.vista(ctx, NotaReceiver.nota(ctx, 1, "p", Muestras.TITULO_NOTA, NotaReceiver.planos(Muestras.nota), null))
+        val fila = busca(v, "Tomates")!!
+        assertTrue((fila.text as? android.text.Spanned)?.getSpans(0, fila.text.length, android.text.style.StrikethroughSpan::class.java)?.isNotEmpty() == true)
+    }
+
+    private fun busca(v: android.view.View, t: String): android.widget.TextView? = when (v) {
+        is android.widget.TextView -> v.takeIf { it.text.toString() == t }
+        is android.widget.AdapterView<*> -> (0 until (v.adapter?.count ?: 0)).firstNotNullOfOrNull { busca(v.adapter.getView(it, null, android.widget.FrameLayout(v.context)), t) }
+        is android.view.ViewGroup -> (0 until v.childCount).firstNotNullOfOrNull { busca(v.getChildAt(it), t) }
+        else -> null
+    }
+
+    @Test
     fun pequeñoPintaLosProximosDias() {
         val t = textos(CalendarioReceiver.pequeño(ctx, 7, "Tareas", hoy, ts, null, JsonObject(emptyMap())))
         assertTrue("$t", t.containsAll(listOf("Tareas", "Vencidas", "Hoy", "Recoger a Lucía", "Mié 21 oct", "Revisar la caldera", "09:00")))
