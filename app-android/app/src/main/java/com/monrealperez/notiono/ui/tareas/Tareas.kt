@@ -158,7 +158,6 @@ fun PantallaTareas() {
 @Composable
 fun FilaTarea(t: JsonObject, vencida: Boolean = false, circulo: (@Composable () -> Unit)? = null) {
     val n = LocalNavegador.current
-    val hecha = (t["hecha"] as? JsonPrimitive)?.content == "true"
     Row(
         Modifier.fillMaxWidth().clickable { n.fila(t.str("pageId")!!, t.str("recordId")!!) }
             .padding(start = if (circulo != null) 4.dp else 14.dp, end = 14.dp, top = if (circulo != null) 2.dp else 10.dp, bottom = if (circulo != null) 2.dp else 10.dp),
@@ -167,8 +166,8 @@ fun FilaTarea(t: JsonObject, vencida: Boolean = false, circulo: (@Composable () 
         circulo?.invoke()
         Column(Modifier.weight(1f)) {
             Text(
-                t.str("title")?.ifBlank { null } ?: "Sin título", fontSize = 15.sp, color = if (hecha) C.apagado else C.texto,
-                textDecoration = if (hecha) TextDecoration.LineThrough else null, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                // Una hecha no se tacha: es una fila de base de datos, como en Notion (el círculo y su sección lo dicen).
+                t.str("title")?.ifBlank { null } ?: "Sin título", fontSize = 15.sp, color = C.texto, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icono("database", tam = 12.dp, color = C.apagado)

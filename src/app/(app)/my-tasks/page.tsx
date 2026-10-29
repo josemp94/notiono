@@ -8,12 +8,14 @@ import { diaLocal, inicioPorDefecto } from "@/lib/inicio";
 import { agrupaTareas } from "@/lib/tareas";
 import { trpc } from "@/trpc/react";
 import { useInicio } from "@/components/AbrirAlIniciar";
-import { CirculoTarea, ElegirBdTareas, TareaRapida } from "@/components/inicio/BloquesNuevos";
+import { CirculoTarea, ElegirBdTareas, TARJETA, TareaRapida } from "@/components/inicio/BloquesNuevos";
 
 /**
  * Mis tareas: lo que tengo asignado en cualquier base de datos (y lo de mi BD de tareas),
- * por secciones (Vencidas, Hoy, Mañana, Próximas, Sin fecha y Completadas, plegada), con el
- * filtro «Hoy», añadir rápido y el círculo para marcarla hecha (casilla o estado «Hecho»).
+ * como el «Mis tareas» de Notion (lo asignado a mí, con su BD, fecha y estado). Lo que Notion
+ * no tiene va con su estilo: secciones por fecha (Vencidas, Hoy, Mañana, Próximas, Sin fecha
+ * y Completadas, plegada), el filtro «Hoy», añadir rápido y el círculo para marcarla hecha
+ * (casilla o estado «Hecho»). Una hecha no se tacha: es una fila de BD, como en Notion.
  */
 export default function MyTasksPage() {
   const { data: tasks, isLoading } = trpc.db.myTasks.useQuery({ conHechas: true });
@@ -35,7 +37,7 @@ export default function MyTasksPage() {
         </h1>
       </div>
 
-      <div className="mb-4 rounded-lg border border-[var(--border)] p-3">
+      <div className={`mb-4 p-3 ${TARJETA}`}>
         {cambiarBd ? (
           <ElegirBdTareas config={config} guardar={(c) => (guardar(c), setCambiarBd(false))} />
         ) : (
@@ -81,12 +83,12 @@ export default function MyTasksPage() {
               <span className="text-xs font-normal">{s.tareas.length}</span>
             </h2>
             {!plegada && (
-              <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+              <ul className={`divide-y divide-[var(--border)] ${TARJETA}`}>
                 {s.tareas.map((t) => (
                   <li key={t.recordId} className="flex items-center gap-3 px-3 py-2 text-sm">
                     <CirculoTarea hecha={t.hecha} marca={t.marca} recordId={t.recordId} pageId={t.pageId} />
                     <Link href={`/p/${t.pageId}?r=${t.recordId}`} className="flex min-w-0 flex-1 items-center gap-3 hover:underline">
-                      <span className={`min-w-0 flex-1 truncate ${t.hecha ? "text-[var(--muted)] line-through" : ""}`}>{t.title || "Sin título"}</span>
+                      <span className="min-w-0 flex-1 truncate">{t.title || "Sin título"}</span>
                       <span className="hidden shrink-0 items-center gap-1 text-xs text-[var(--muted)] sm:flex">
                         <Database size={12} /> {t.dbTitle || "BD"}
                       </span>
